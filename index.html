@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>读书谈 · 共读资源站</title>
+  <meta property="og:title" content="读书谈 · 共读资源站">
+  <meta property="og:description" content="一起读书，一起聊书。有深度、有温度的线上共读社群。">
+  <meta property="og:type" content="website">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <style>
+    /* ========================================
+       CSS Design Tokens — Warm Literary Style
+       ======================================== */
+    :root {
+      --color-bg:        #faf8f5;
+      --color-bg-alt:    #f3efe8;
+      --color-surface:   #ffffff;
+      --color-text:      #2c2416;
+      --color-text-2:    #6b5e4a;
+      --color-text-3:    #9b8d7a;
+      --color-accent:    #8b4513;
+      --color-accent-h:  #a0522d;
+      --color-accent-l:  #c67b3c;
+      --color-accent-bg: #f5e6d3;
+      --color-border:    rgba(139,69,19,0.12);
+      --color-success:   #5a7d4a;
+      --color-warning:   #c4943a;
+      --color-danger:    #b8453a;
+      --color-tag-upcoming:  #5a7d4a;
+      --color-tag-active:    #c4943a;
+      --color-tag-completed: #8b7355;
+      --font-sans:   'Inter', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      --font-serif:  'Noto Serif SC', 'STSong', 'SimSun', serif;
+      --space-1: 8px;   --space-2: 16px;  --space-3: 24px;
+      --space-4: 32px;  --space-5: 48px;  --space-6: 64px;
+      --space-7: 80px;  --space-8: 96px;
+      --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+      --shadow-card:    0 2px 8px rgba(44,36,22,0.06);
+      --shadow-elevated: 0 4px 16px rgba(44,36,22,0.08);
+    }
+
+    /* ========================================
+       Reset & Base
+       ======================================== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+    a { color: var(--color-accent); text-decoration: none; transition: color 0.2s; }
+    a:hover { color: var(--color-accent-h); }
+    img { max-width: 100%; display: block; }
+    button { cursor: pointer; font-family: inherit; }
+    input, textarea, select { font-family: inherit; font-size: 0.95rem; }
+    h1, h2, h3, h4 { font-family: var(--font-serif); line-height: 1.3; color: var(--color-text); }
+    h1 { font-size: 2.5rem; font-weight: 700; }
+    h2 { font-size: 1.8rem; font-weight: 600; }
+    h3 { font-size: 1.3rem; font-weight: 600; }
+
+    /* ========================================
+       Layout
+       ======================================== */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 var(--space-3); }
+    .section { padding: var(--space-6) 0; }
+
+    /* Top Nav */
+    #topnav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(250,248,245,0.92); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--color-border);
+    }
+    #topnav .container {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    .nav-brand {
+      font-family: var(--font-serif); font-size: 1.4rem; font-weight: 700;
+      color: var(--color-accent); display: flex; align-items: center; gap: 8px;
+    }
+    .nav-brand i { width: 28px; height: 28px; stroke-width: 2; }
+    .nav-links { display: flex; align-items: center; gap: var(--space-2); list-style: none; }
+    .nav-links a {
+      padding: 6px 14px; border-radius: var(--radius-sm);
+      color: var(--color-text-2); font-weight: 500; font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--color-accent); background: var(--color-accent-bg); }
+    .nav-user { display: flex; align-items: center; gap: var(--space-2); }
+    .nav-user .avatar {
+      width: 34px; height: 34px; border-radius: 50%; background: var(--color-accent-bg);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 0.85rem; color: var(--color-accent);
+      overflow: hidden;
+    }
+    .nav-user .avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .hamburger { display: none; background: none; border: none; color: var(--color-text); padding: 4px; }
+
+    /* Main */
+    #view { min-height: calc(100vh - 60px - 120px); }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--color-border); padding: var(--space-3) 0;
+      text-align: center; color: var(--color-text-3); font-size: 0.85rem;
+    }
+
+    /* ========================================
+       Component: Buttons
+       ======================================== */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 20px; border-radius: var(--radius-sm);
+      font-weight: 600; font-size: 0.95rem; border: none;
+      transition: all 0.2s ease-out;
+    }
+    .btn-primary { background: var(--color-accent); color: #fff; }
+    .btn-primary:hover { background: var(--color-accent-h); }
+    .btn-outline { background: transparent; color: var(--color-accent); border: 1.5px solid var(--color-accent); }
+    .btn-outline:hover { background: var(--color-accent-bg); }
+    .btn-ghost { background: transparent; color: var(--color-text-2); }
+    .btn-ghost:hover { background: var(--color-bg-alt); }
+    .btn-sm { padding: 6px 14px; font-size: 0.85rem; }
+    .btn-lg { padding: 14px 28px; font-size: 1.05rem; }
+    .btn-danger { background: transparent; color: var(--color-danger); border: 1.5px solid var(--color-danger); }
+    .btn-danger:hover { background: #fdf0ed; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ========================================
+       Component: Cards
+       ======================================== */
+    .card {
+      background: var(--color-surface); border-radius: var(--radius-md);
+      border: 1px solid var(--color-border); box-shadow: var(--shadow-card);
+      overflow: hidden; transition: box-shadow 0.25s, transform 0.25s;
+    }
+    .card:hover { box-shadow: var(--shadow-elevated); }
+    .card-clickable:hover { transform: translateY(-2px); }
+    .card-body { padding: var(--space-3); }
+
+    /* ========================================
+       Component: Tags / Badges
+       ======================================== */
+    .tag {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em;
+    }
+    .tag-upcoming { background: #e8f0e0; color: var(--color-tag-upcoming); }
+    .tag-active    { background: #fdf0d5; color: var(--color-tag-active); }
+    .tag-completed { background: #ede8e0; color: var(--color-tag-completed); }
+    .tag-genre     { background: var(--color-accent-bg); color: var(--color-accent); }
+
+    /* ========================================
+       Component: Forms
+       ======================================== */
+    .form-group { margin-bottom: var(--space-3); }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: var(--color-text-2); }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%; padding: 10px 14px; border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); background: var(--color-surface);
+      color: var(--color-text); transition: border-color 0.2s;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-bg);
+    }
+    .form-group textarea { min-height: 120px; resize: vertical; line-height: 1.6; }
+
+    /* ========================================
+       Component: Markdown Content
+       ======================================== */
+    .md-content { max-width: 65ch; }
+    .md-content h2 { font-size: 1.5rem; margin: var(--space-4) 0 var(--space-2); }
+    .md-content h3 { font-size: 1.2rem; margin: var(--space-3) 0 var(--space-1); }
+    .md-content p { margin-bottom: var(--space-2); }
+    .md-content ul, .md-content ol { margin-bottom: var(--space-2); padding-left: var(--space-3); }
+    .md-content li { margin-bottom: var(--space-1); }
+    .md-content table { width: 100%; border-collapse: collapse; margin: var(--space-3) 0; font-size: 0.9rem; }
+    .md-content th, .md-content td { padding: 8px 12px; border: 1px solid var(--color-border); text-align: left; }
+    .md-content th { background: var(--color-bg-alt); font-weight: 600; }
+    .md-content blockquote {
+      border-left: 3px solid var(--color-accent); padding-left: var(--space-2);
+      color: var(--color-text-2); font-style: italic; margin: var(--space-2) 0;
+    }
+    .md-content img { max-width: 100%; border-radius: var(--radius-sm); margin: var(--space-2) 0; }
+    .md-content a { color: var(--color-accent); text-decoration: underline; }
+
+    /* ========================================
+       Views: Shared
+       ======================================== */
+    .page-header {
+      padding: var(--space-5) 0 var(--space-3);
+      border-bottom: 1px solid var(--color-border); margin-bottom: var(--space-4);
+    }
+    .page-header h1 { margin-bottom: var(--space-1); }
+    .page-header .subtitle { color: var(--color-text-2); font-size: 1.05rem; }
+
+    /* Grid */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); }
+
+    /* Filters */
+    .filters { display: flex; gap: var(--space-1); flex-wrap: wrap; margin-bottom: var(--space-3); }
+    .filter-chip {
+      padding: 6px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 500;
+      border: 1.5px solid var(--color-border); background: var(--color-surface);
+      color: var(--color-text-2); cursor: pointer; transition: all 0.2s;
+    }
+    .filter-chip:hover, .filter-chip.active { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-bg); }
+
+    /* Empty State */
+    .empty-state { text-align: center; padding: var(--space-7) var(--space-3); color: var(--color-text-3); }
+    .empty-state i { width: 48px; height: 48px; stroke-width: 1.5; margin-bottom: var(--space-2); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--color-border); margin-bottom: var(--space-4); }
+    .tab {
+      padding: 10px 20px; font-weight: 600; font-size: 0.9rem; color: var(--color-text-2);
+      border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent;
+      margin-bottom: -2px; transition: all 0.2s;
+    }
+    .tab:hover { color: var(--color-accent); }
+    .tab.active { color: var(--color-accent); border-bottom-color: var(--color-accent); }
+
+    /* ========================================
+       Calendar
+       ======================================== */
+    .calendar { width: 100%; max-width: 360px; }
+    .calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
+    .calendar-header h4 { font-family: var(--font-sans); font-size: 1rem; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+    .calendar-grid .day-name { font-size: 0.75rem; color: var(--color-text-3); padding: 6px 0; font-weight: 600; }
+    .calendar-grid .day {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; font-size: 0.85rem; font-weight: 500;
+      transition: all 0.15s;
+    }
+    .calendar-grid .day.other-month { color: var(--color-border); }
+    .calendar-grid .day.checked {
+      background: var(--color-accent); color: #fff;
+    }
+    .calendar-grid .day.today:not(.checked) {
+      border: 2px solid var(--color-accent); color: var(--color-accent);
+    }
+    .calendar-grid .day.future { color: var(--color-text-3); }
+
+    /* ========================================
+       Book Card
+       ======================================== */
+    .book-card { display: flex; flex-direction: column; }
+    .book-card .cover {
+      aspect-ratio: 3/4; background: var(--color-bg-alt);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-serif); font-size: 2rem; color: var(--color-text-3);
+      position: relative; overflow: hidden;
+    }
+    .book-card .cover img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+    .book-card .cover .status-badge {
+      position: absolute; top: 10px; right: 10px;
+      padding: 4px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700;
+      font-family: var(--font-sans);
+    }
+    .book-card .card-body { flex: 1; display: flex; flex-direction: column; }
+    .book-card .card-body h3 { font-size: 1.1rem; margin-bottom: 4px; }
+    .book-card .card-body .author { color: var(--color-text-2); font-size: 0.85rem; margin-bottom: var(--space-1); }
+    .book-card .card-body .meta { margin-top: auto; display: flex; gap: var(--space-1); flex-wrap: wrap; }
+
+    /* Event Card */
+    .event-card { display: flex; flex-direction: column; }
+    .event-card .poster {
+      aspect-ratio: 16/10; background: var(--color-bg-alt);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--color-text-3); position: relative; overflow: hidden;
+    }
+    .event-card .poster img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+    .event-card .card-body h3 { font-size: 1.05rem; }
+    .event-card .info-row { display: flex; align-items: center; gap: 6px; color: var(--color-text-2); font-size: 0.85rem; margin-top: 4px; }
+    .event-card .info-row i { width: 16px; height: 16px; }
+
+    /* ========================================
+       Modal
+       ======================================== */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(44,36,22,0.3); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: var(--space-3);
+    }
+    .modal {
+      background: var(--color-surface); border-radius: var(--radius-lg);
+      box-shadow: 0 8px 32px rgba(44,36,22,0.12);
+      width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-3); border-bottom: 1px solid var(--color-border);
+    }
+    .modal-body { padding: var(--space-3); }
+    .modal-header button { background: none; border: none; color: var(--color-text-3); padding: 4px; }
+
+    /* ========================================
+       Toast
+       ======================================== */
+    #toast-container {
+      position: fixed; top: 72px; right: var(--space-3); z-index: 300;
+      display: flex; flex-direction: column; gap: var(--space-1);
+    }
+    .toast {
+      padding: 12px 20px; border-radius: var(--radius-sm);
+      font-size: 0.9rem; font-weight: 500; box-shadow: var(--shadow-elevated);
+      animation: slideIn 0.3s ease-out;
+      max-width: 360px;
+    }
+    .toast-success { background: #e8f0e0; color: var(--color-success); }
+    .toast-error { background: #fdf0ed; color: var(--color-danger); }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+    /* ========================================
+       Login / Register
+       ======================================== */
+    .auth-page { max-width: 420px; margin: var(--space-7) auto; }
+    .auth-page .card { padding: var(--space-4); }
+    .auth-page h2 { text-align: center; margin-bottom: var(--space-3); }
+    .auth-page .alt-link { text-align: center; margin-top: var(--space-3); font-size: 0.9rem; color: var(--color-text-2); }
+
+    /* ========================================
+       Home Hero
+       ======================================== */
+    .hero {
+      padding: var(--space-7) 0 var(--space-5);
+      text-align: center;
+    }
+    .hero h1 { font-size: 2.8rem; margin-bottom: var(--space-2); }
+    .hero .lead { font-size: 1.15rem; color: var(--color-text-2); max-width: 600px; margin: 0 auto; }
+    .current-book-section { padding-bottom: var(--space-6); }
+    .current-book-card {
+      display: flex; gap: var(--space-4); align-items: flex-start;
+      background: var(--color-surface); border-radius: var(--radius-lg);
+      border: 1px solid var(--color-border); box-shadow: var(--shadow-card);
+      padding: var(--space-4); max-width: 700px; margin: 0 auto;
+    }
+    .current-book-card .cover-slot {
+      width: 130px; aspect-ratio: 3/4; border-radius: var(--radius-sm);
+      background: var(--color-bg-alt); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-serif); font-size: 1.5rem; color: var(--color-text-3);
+      position: relative; overflow: hidden;
+    }
+    .current-book-card .cover-slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+    .current-book-card .info { flex: 1; }
+    .current-book-card .info h3 { font-size: 1.4rem; margin-bottom: 4px; }
+    .current-book-card .info .author { color: var(--color-text-2); margin-bottom: 8px; }
+    .current-book-card .info .period { font-size: 0.85rem; color: var(--color-text-3); margin-bottom: 12px; }
+
+    /* ========================================
+       Responsive
+       ======================================== */
+    @media (max-width: 768px) {
+      :root { font-size: 15px; }
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.5rem; }
+      .nav-links { display: none; }
+      .nav-links.open {
+        display: flex; flex-direction: column; position: absolute;
+        top: 60px; left: 0; right: 0; background: var(--color-bg);
+        border-bottom: 1px solid var(--color-border); padding: var(--space-2);
+        box-shadow: var(--shadow-elevated);
+      }
+      .hamburger { display: block; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .current-book-card { flex-direction: column; align-items: center; text-align: center; }
+      .current-book-card .cover-slot { width: 100px; }
+      .hero h1 { font-size: 2.2rem; }
+      .section { padding: var(--space-4) 0; }
+    }
+
+    @media (max-width: 375px) {
+      .container { padding: 0 var(--space-2); }
+      .hero h1 { font-size: 1.8rem; }
+      .modal { max-width: 95vw; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <nav id="topnav">
+      <div class="container">
+        <a href="#/" class="nav-brand" onclick="event.preventDefault();router.navigate('/')">
+          <i data-lucide="book-open"></i> 读书谈
+        </a>
+        <button class="hamburger" id="hamburger-btn" aria-label="菜单">
+          <i data-lucide="menu"></i>
+        </button>
+        <ul class="nav-links" id="nav-links">
+          <li><a href="#/" data-route="/">首页</a></li>
+          <li><a href="#/books" data-route="/books">书库</a></li>
+          <li><a href="#/events" data-route="/events">活动</a></li>
+        </ul>
+        <div class="nav-user" id="nav-user"></div>
+      </div>
+    </nav>
+    <main id="view"></main>
+    <footer>
+      <div class="container">读书谈 · 一起读书，一起聊书</div>
+    </footer>
+  </div>
+  <div id="toast-container"></div>
+  <div id="modal-container"></div>
+
+  <script type="module">
+    // ===========================================
+    // CONFIG — 替换为你的 Supabase 项目信息
+    // ===========================================
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+    // ===========================================
+    // SUPABASE INIT
+    // ===========================================
+    const { createClient } = supabase;
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Configure marked
+    marked.setOptions({ breaks: true, gfm: true });
+
+    // ===========================================
+    // STORE — Simple reactive state
+    // ===========================================
+    const store = {
+      _state: {
+        user: null, profile: null, isAdmin: false,
+        books: [], events: [], config: {}
+      },
+      _listeners: {},
+      get(k) { return this._state[k]; },
+      set(k, v) {
+        this._state[k] = v;
+        (this._listeners[k] || []).forEach(fn => fn(v));
+      },
+      on(k, fn) {
+        (this._listeners[k] = this._listeners[k] || []).push(fn);
+      }
+    };
+
+    // ===========================================
+    // TOAST
+    // ===========================================
+    function toast(msg, type = 'success') {
+      const el = document.createElement('div');
+      el.className = `toast toast-${type}`;
+      el.textContent = msg;
+      document.getElementById('toast-container').appendChild(el);
+      setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 3000);
+    }
+
+    // ===========================================
+    // MODAL
+    // ===========================================
+    function showModal(title, contentHtml, onClose) {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML = `<div class="modal">
+        <div class="modal-header"><h3>${title}</h3><button id="modal-close-btn"><i data-lucide="x"></i></button></div>
+        <div class="modal-body">${contentHtml}</div>
+      </div>`;
+      document.getElementById('modal-container').appendChild(overlay);
+      lucide.createIcons();
+      overlay.querySelector('#modal-close-btn').onclick = () => { overlay.remove(); if (onClose) onClose(); };
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); if (onClose) onClose(); } });
+      return overlay;
+    }
+
+    // ===========================================
+    // ROUTER
+    // ===========================================
+    const routes = {};
+    function route(path, handler, opts = {}) { routes[path] = { handler, ...opts }; }
+
+    const router = {
+      navigate(path) { location.hash = '#' + path; },
+      currentPath() { return location.hash.slice(1) || '/'; },
+      match(path) {
+        for (const [pattern, def] of Object.entries(routes)) {
+          const keys = [];
+          const regexStr = pattern.replace(/:(\w+)/g, (_, k) => { keys.push(k); return '([^/]+)'; });
+          const match = path.match(new RegExp('^' + regexStr + '$'));
+          if (match) {
+            const params = {};
+            keys.forEach((k, i) => params[k] = match[i + 1]);
+            return { ...def, params };
+          }
+        }
+        return null;
+      },
+      async render() {
+        const path = this.currentPath();
+        const matched = this.match(path);
+
+        // Auth guard
+        const authRequired = ['/profile', '/profile/edit', '/admin'].some(p => path.startsWith(p));
+        if (authRequired && !store.get('user')) {
+          return this.navigate('/login?redirect=' + encodeURIComponent(path));
+        }
+
+        // Admin guard
+        if (path.startsWith('/admin') && !store.get('isAdmin')) {
+          document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="shield-alert"></i><p>您没有管理权限</p></div></div>';
+          lucide.createIcons();
+          return;
+        }
+
+        if (matched) {
+          document.getElementById('view').innerHTML = await matched.handler(matched.params);
+        } else {
+          document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="file-question"></i><p>页面未找到</p></div></div>';
+        }
+        lucide.createIcons();
+        this.updateNav(path);
+        bindGlobalEvents();
+      },
+      updateNav(path) {
+        document.querySelectorAll('#nav-links a').forEach(a => {
+          a.classList.toggle('active', a.dataset.route && path.startsWith(a.dataset.route));
+        });
+      }
+    };
+
+    // ===========================================
+    // EVENT BINDING (delegation for dynamic content)
+    // ===========================================
+    function bindGlobalEvents() {
+      // Hamburger
+      const hamburger = document.getElementById('hamburger-btn');
+      const navLinks = document.getElementById('nav-links');
+      if (hamburger && navLinks) {
+        hamburger.onclick = () => navLinks.classList.toggle('open');
+        navLinks.querySelectorAll('a').forEach(a => { a.onclick = () => navLinks.classList.remove('open'); });
+      }
+    }
+
+    window.addEventListener('hashchange', () => router.render());
+    window.addEventListener('load', () => { bindGlobalEvents(); router.render(); });
+
+    // Click delegation for internal links
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('a[href^="#/"]');
+      if (link) {
+        e.preventDefault();
+        const path = link.getAttribute('href').slice(1);
+        router.navigate(path);
+      }
+    });
+
+    // ===========================================
+    // AUTH HELPERS
+    // ===========================================
+    async function initAuth() {
+      const { data: { user } } = await sb.auth.getUser();
+      if (user) {
+        store.set('user', user);
+        const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+        store.set('profile', profile);
+        store.set('isAdmin', profile?.role === 'admin');
+      }
+      renderNavUser();
+    }
+
+    async function signIn(email, password) {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      await initAuth();
+    }
+
+    async function signUp(email, password, displayName) {
+      const { error } = await sb.auth.signUp({
+        email, password,
+        options: { data: { display_name: displayName } }
+      });
+      if (error) throw error;
+      toast('注册成功！请检查邮箱验证链接。');
+    }
+
+    async function signOut() {
+      await sb.auth.signOut();
+      store.set('user', null);
+      store.set('profile', null);
+      store.set('isAdmin', false);
+      renderNavUser();
+      router.navigate('/');
+    }
+
+    function renderNavUser() {
+      const user = store.get('user');
+      const profile = store.get('profile');
+      const container = document.getElementById('nav-user');
+      if (user && profile) {
+        const initial = (profile.display_name || user.email)[0].toUpperCase();
+        container.innerHTML = `
+          <a href="#/profile" style="display:flex;align-items:center;gap:8px;color:var(--color-text);font-size:0.9rem;">
+            <span class="avatar">${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="">` : initial}</span>
+            <span class="nav-username">${profile.display_name}</span>
+          </a>
+          ${store.get('isAdmin') ? '<a href="#/admin" class="btn btn-outline btn-sm">管理</a>' : ''}
+          <button class="btn btn-ghost btn-sm" id="btn-logout">退出</button>
+        `;
+        document.getElementById('btn-logout').onclick = signOut;
+      } else {
+        container.innerHTML = `<a href="#/login" class="btn btn-outline btn-sm">登录</a>`;
+      }
+    }
+
+    // ===========================================
+    // DATA HELPERS
+    // ===========================================
+    async function loadBooks() {
+      const { data } = await sb.from('books').select('*').order('created_at', { ascending: false });
+      store.set('books', data || []);
+      return data || [];
+    }
+
+    async function loadEvents() {
+      const { data } = await sb.from('events').select('*').order('event_date', { ascending: true });
+      store.set('events', data || []);
+      return data || [];
+    }
+
+    async function loadConfig() {
+      const { data } = await sb.from('site_config').select('*');
+      const config = {};
+      (data || []).forEach(r => config[r.key] = r.value);
+      store.set('config', config);
+      return config;
+    }
+
+    async function getTodayCheckin() {
+      const user = store.get('user');
+      if (!user) return false;
+      const today = dayjs().format('YYYY-MM-DD');
+      const { data } = await sb.from('daily_checkins').select('*').eq('user_id', user.id).eq('checkin_date', today).maybeSingle();
+      return !!data;
+    }
+
+    async function getMonthCheckins(year, month) {
+      const user = store.get('user');
+      if (!user) return [];
+      const start = dayjs(`${year}-${String(month).padStart(2,'0')}-01`).format('YYYY-MM-DD');
+      const end = dayjs(start).endOf('month').format('YYYY-MM-DD');
+      const { data } = await sb.from('daily_checkins').select('checkin_date').eq('user_id', user.id).gte('checkin_date', start).lte('checkin_date', end);
+      return (data || []).map(r => r.checkin_date);
+    }
+
+    async function doCheckin() {
+      const user = store.get('user');
+      if (!user) { toast('请先登录', 'error'); return; }
+      const today = dayjs().format('YYYY-MM-DD');
+      const { error } = await sb.from('daily_checkins').insert({ user_id: user.id, checkin_date: today });
+      if (error) {
+        if (error.code === '23505') { toast('今天已经签到过了', 'error'); }
+        else { toast('签到失败：' + error.message, 'error'); }
+      } else {
+        toast('签到成功！今天又读了一点 📖');
+      }
+    }
+
+    // ===========================================
+    // GENRE & STATUS HELPERS
+    // ===========================================
+    const GENRES = ['全部', '文学', '历史', '哲学', '科幻', '社科', '心理', '传记', '商业', '科普', '其他'];
+    const STATUS_MAP = { upcoming: '即将开读', active: '正在共读', completed: '已读完' };
+    const STATUS_CLASS = { upcoming: 'tag-upcoming', active: 'tag-active', completed: 'tag-completed' };
+
+    function statusTag(s) {
+      return `<span class="tag ${STATUS_CLASS[s] || 'tag-upcoming'}">${STATUS_MAP[s] || s}</span>`;
+    }
+
+    function formatDate(d) {
+      if (!d) return '';
+      return dayjs(d).format('YYYY年M月D日');
+    }
+
+    function formatDateTime(d) {
+      if (!d) return '';
+      return dayjs(d).format('YYYY年M月D日 HH:mm');
+    }
+
+    // ===========================================
+    // ROUTE: LOGIN / REGISTER
+    // ===========================================
+    route('/login', (params) => {
+      const redirect = location.hash.includes('redirect=') ? decodeURIComponent(location.hash.split('redirect=')[1]) : '/';
+      return `
+        <div class="container auth-page">
+          <div class="card">
+            <h2>登录</h2>
+            <form id="login-form">
+              <div class="form-group"><label>邮箱</label><input type="email" name="email" required></div>
+              <div class="form-group"><label>密码</label><input type="password" name="password" required minlength="6"></div>
+              <button type="submit" class="btn btn-primary" style="width:100%">登录</button>
+            </form>
+            <div class="alt-link">还没有账号？<a href="#/register">立即注册</a></div>
+            <div id="login-error" style="color:var(--color-danger);text-align:center;margin-top:12px;font-size:0.9rem;"></div>
+          </div>
+        </div>
+      `;
+    });
+
+    route('/register', () => {
+      return `
+        <div class="container auth-page">
+          <div class="card">
+            <h2>注册</h2>
+            <form id="register-form">
+              <div class="form-group"><label>显示名称</label><input type="text" name="displayName" required></div>
+              <div class="form-group"><label>邮箱</label><input type="email" name="email" required></div>
+              <div class="form-group"><label>密码（至少6位）</label><input type="password" name="password" required minlength="6"></div>
+              <button type="submit" class="btn btn-primary" style="width:100%">注册</button>
+            </form>
+            <div class="alt-link">已有账号？<a href="#/login">去登录</a></div>
+            <div id="reg-error" style="color:var(--color-danger);text-align:center;margin-top:12px;font-size:0.9rem;"></div>
+          </div>
+        </div>
+      `;
+    });
+
+    // Bind login/register form events
+    document.addEventListener('submit', async (e) => {
+      if (e.target.id === 'login-form') {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+          await signIn(fd.get('email'), fd.get('password'));
+          const redirect = location.hash.includes('redirect=') ? decodeURIComponent(location.hash.split('redirect=')[1]) : '/';
+          router.navigate(redirect);
+        } catch (err) {
+          document.getElementById('login-error').textContent = err.message;
+        }
+      }
+      if (e.target.id === 'register-form') {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        try {
+          await signUp(fd.get('email'), fd.get('password'), fd.get('displayName'));
+          router.navigate('/login');
+        } catch (err) {
+          document.getElementById('reg-error').textContent = err.message;
+        }
+      }
+    });
+
+    // ===========================================
+    // ROUTE: HOME
+    // ===========================================
+    route('/', async () => {
+      const config = await loadConfig();
+      const books = await loadBooks();
+      const activeBook = books.find(b => b.status === 'active') || books[0];
+
+      const rulesHtml = marked.parse(config.group_rules || '共读群公约加载中...');
+      const introHtml = marked.parse(config.reading_plan_intro || '');
+
+      let bookCardHtml = '';
+      if (activeBook) {
+        bookCardHtml = `
+          <div class="current-book-section">
+            <div class="current-book-card">
+              <div class="cover-slot">
+                ${activeBook.cover_url ? `<img src="${activeBook.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
+              </div>
+              <div class="info">
+                ${statusTag(activeBook.status)}
+                <h3>${activeBook.title}</h3>
+                <div class="author">${activeBook.author}${activeBook.translator ? ' · ' + activeBook.translator + ' 译' : ''}</div>
+                ${activeBook.start_date && activeBook.end_date ? `<div class="period"><i data-lucide="calendar" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${formatDate(activeBook.start_date)} — ${formatDate(activeBook.end_date)}</div>` : ''}
+                <p style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:12px;">${activeBook.description ? activeBook.description.slice(0, 150) + '...' : ''}</p>
+                <a href="#/books/${activeBook.id}" class="btn btn-primary btn-sm">查看共读详情</a>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      return `
+        <section class="hero">
+          <div class="container">
+            <h1>一起读书，一起聊书</h1>
+            <p class="lead">${introHtml ? introHtml.replace(/<[^>]*>/g, '').slice(0, 100) : '有深度、有温度的线上共读社群。'}</p>
+          </div>
+        </section>
+        ${bookCardHtml}
+        <section class="section">
+          <div class="container">
+            <h2 style="margin-bottom:var(--space-3);">📋 共读群公约</h2>
+            <div class="card"><div class="card-body md-content">${rulesHtml}</div></div>
+          </div>
+        </section>
+        <section class="section" style="background:var(--color-bg-alt);">
+          <div class="container" style="text-align:center;">
+            <h2 style="margin-bottom:var(--space-2);">加入我们</h2>
+            <p style="color:var(--color-text-2);margin-bottom:var(--space-3);">注册账号即可参与每日阅读签到，记录你的阅读旅程。</p>
+            ${store.get('user') ? '' : '<a href="#/register" class="btn btn-primary btn-lg">立即注册</a>'}
+          </div>
+        </section>
+      `;
+    });
+
+    // ===========================================
+    // ROUTE: BOOKS LIST
+    // ===========================================
+    route('/books', async () => {
+      const books = await loadBooks();
+      let activeGenre = '全部';
+      let activeStatus = '全部';
+
+      // Build genre & status counts
+      const genreSet = new Set(books.map(b => b.genre));
+      const statusCounts = { upcoming: 0, active: 0, completed: 0 };
+      books.forEach(b => { if (statusCounts[b.status] !== undefined) statusCounts[b.status]++; });
+
+      function renderList(genreFilter, statusFilter) {
+        let filtered = books;
+        if (genreFilter !== '全部') filtered = filtered.filter(b => b.genre === genreFilter);
+        if (statusFilter !== '全部') filtered = filtered.filter(b => b.status === statusFilter);
+        if (filtered.length === 0) {
+          return '<div class="empty-state"><i data-lucide="book"></i><p>暂无书籍</p></div>';
+        }
+        return `<div class="grid-3">${filtered.map(b => `
+          <a href="#/books/${b.id}" class="card book-card card-clickable" style="color:inherit;">
+            <div class="cover">
+              ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
+              <span class="status-badge tag ${STATUS_CLASS[b.status]}">${STATUS_MAP[b.status]}</span>
+            </div>
+            <div class="card-body">
+              <h3>${b.title}</h3>
+              <div class="author">${b.author}</div>
+              <div class="meta"><span class="tag tag-genre">${b.genre}</span></div>
+            </div>
+          </a>`).join('')}</div>`;
+      }
+
+      // We use query strings for filters. For simplicity, store filter state on the books view.
+      return `
+        <div class="container section" id="books-page">
+          <div class="page-header"><h1>书库</h1><div class="subtitle">共 ${books.length} 本书</div></div>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-3);">
+            <div>
+              <div style="font-size:0.85rem;color:var(--color-text-3);margin-bottom:4px;">类型</div>
+              <div class="filters" id="genre-filters">
+                ${GENRES.filter(g => g === '全部' || genreSet.has(g)).map(g => `<button class="filter-chip${g === '全部' ? ' active' : ''}" data-genre="${g}">${g}</button>`).join('')}
+              </div>
+            </div>
+            <div>
+              <div style="font-size:0.85rem;color:var(--color-text-3);margin-bottom:4px;">状态</div>
+              <div class="filters" id="status-filters">
+                <button class="filter-chip active" data-status="全部">全部</button>
+                <button class="filter-chip" data-status="upcoming">即将开读</button>
+                <button class="filter-chip" data-status="active">正在共读</button>
+                <button class="filter-chip" data-status="completed">已读完</button>
+              </div>
+            </div>
+          </div>
+          <div id="books-grid">${renderList('全部', '全部')}</div>
+        </div>
+      `;
+    });
+
+    // Book list filter interactions
+    document.addEventListener('click', (e) => {
+      const chip = e.target.closest('#genre-filters .filter-chip, #status-filters .filter-chip');
+      if (!chip) return;
+      const container = chip.closest('.filters');
+      container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+
+      const genre = document.querySelector('#genre-filters .filter-chip.active')?.dataset.genre || '全部';
+      const status = document.querySelector('#status-filters .filter-chip.active')?.dataset.status || '全部';
+      const grid = document.getElementById('books-grid');
+      if (grid) {
+        const books = store.get('books');
+        let filtered = books;
+        if (genre !== '全部') filtered = filtered.filter(b => b.genre === genre);
+        if (status !== '全部') filtered = filtered.filter(b => b.status === status);
+        if (filtered.length === 0) {
+          grid.innerHTML = '<div class="empty-state"><i data-lucide="book"></i><p>暂无匹配书籍</p></div>';
+        } else {
+          grid.innerHTML = `<div class="grid-3">${filtered.map(b => `
+            <a href="#/books/${b.id}" class="card book-card card-clickable" style="color:inherit;">
+              <div class="cover">
+                ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
+                <span class="status-badge tag ${STATUS_CLASS[b.status]}">${STATUS_MAP[b.status]}</span>
+              </div>
+              <div class="card-body"><h3>${b.title}</h3><div class="author">${b.author}</div><div class="meta"><span class="tag tag-genre">${b.genre}</span></div></div>
+            </a>`).join('')}</div>`;
+        }
+        lucide.createIcons();
+      }
+    });
+
+    // ===========================================
+    // ROUTE: BOOK DETAIL
+    // ===========================================
+    route('/books/:id', async (params) => {
+      const { data: book } = await sb.from('books').select('*').eq('id', params.id).single();
+      if (!book) return '<div class="container section"><div class="empty-state"><i data-lucide="book"></i><p>书籍未找到</p></div></div>';
+
+      const editionHtml = marked.parse(book.edition_guide || '暂无版本建议。');
+      const scheduleHtml = marked.parse(book.reading_schedule || '暂无时间安排。');
+      const hostHtml = marked.parse(book.host_intro || '暂无领读人信息。');
+
+      // Online activities
+      let activities = [];
+      try { activities = typeof book.online_activities === 'string' ? JSON.parse(book.online_activities) : book.online_activities; } catch(e) {}
+      const typeIcons = { '导读预热': 'sparkles', '精读分享': 'book-open', '文艺放映': 'film', '嘉宾分享': 'mic', '收官圆桌': 'users' };
+      const activitiesHtml = activities.length === 0 ? '<p style="color:var(--color-text-3);">暂无线上活动安排。</p>' : `
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);">
+          ${activities.map(a => `
+            <div class="card" style="padding:var(--space-2) var(--space-3);">
+              <div style="display:flex;align-items:center;gap:var(--space-2);margin-bottom:4px;">
+                <span class="tag tag-genre">${a.type || '活动'}</span>
+                <strong>${a.title}</strong>
+              </div>
+              ${a.date ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">📅 ${a.date}${a.time ? ' ' + a.time : ''}</div>` : ''}
+              ${a.description ? `<div style="font-size:0.9rem;color:var(--color-text-2);">${a.description}</div>` : ''}
+              ${a.meeting_link ? `<a href="${a.meeting_link}" target="_blank" class="btn btn-outline btn-sm" style="margin-top:8px;">加入会议</a>` : ''}
+            </div>
+          `).join('')}
+        </div>`;
+
+      // Meeting replays
+      let replays = [];
+      try { replays = typeof book.meeting_replays === 'string' ? JSON.parse(book.meeting_replays) : book.meeting_replays; } catch(e) {}
+      const replaysHtml = replays.length === 0 ? '<p style="color:var(--color-text-3);">暂无回放。</p>' : `
+        <div style="display:flex;flex-direction:column;gap:var(--space-1);">
+          ${replays.map(r => `
+            <div style="display:flex;align-items:center;gap:var(--space-2);padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);">
+              <span style="font-size:0.85rem;color:var(--color-text-2);min-width:90px;">${r.date || ''}</span>
+              <span style="flex:1;">${r.title}</span>
+              ${r.url ? `<a href="${r.url}" target="_blank" class="btn btn-ghost btn-sm">回看</a>` : '<span style="font-size:0.8rem;color:var(--color-text-3);">待上传</span>'}
+            </div>
+          `).join('')}
+        </div>`;
+
+      // Resources
+      let resources = { extended_reading: [], text_materials: [], film_resources: [] };
+      try { resources = typeof book.resources === 'string' ? JSON.parse(book.resources) : (book.resources || {}); } catch(e) {}
+      const resourceSections = [
+        { key: 'extended_reading', label: '延伸读物', icon: 'bookmark' },
+        { key: 'text_materials', label: '文字材料', icon: 'file-text' },
+        { key: 'film_resources', label: '影视资源', icon: 'film' }
+      ];
+      const resourcesHtml = resourceSections.map(sec => {
+        const items = resources[sec.key] || [];
+        if (items.length === 0) return '';
+        return `<div style="margin-bottom:var(--space-3);">
+          <h4 style="margin-bottom:var(--space-1);">${sec.label}</h4>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            ${items.map(item => `
+              <div style="padding:6px 0;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);">
+                <span>${item.title}</span>
+                ${item.url ? `<a href="${item.url}" target="_blank" style="font-size:0.85rem;flex-shrink:0;">查看</a>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+      }).join('');
+
+      return `
+        <div class="container section">
+          <a href="#/books" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回书库</a>
+          <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
+            <div style="width:180px;flex-shrink:0;">
+              <div style="aspect-ratio:3/4;border-radius:var(--radius-md);background:var(--color-bg-alt);overflow:hidden;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif);font-size:2rem;color:var(--color-text-3);">
+                ${book.cover_url ? `<img src="${book.cover_url}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '<i data-lucide="book"></i>'}
+              </div>
+            </div>
+            <div style="flex:1;min-width:280px;">
+              ${statusTag(book.status)}
+              <h1 style="margin-top:var(--space-1);">${book.title}</h1>
+              <div style="color:var(--color-text-2);font-size:1.05rem;margin:var(--space-1) 0;">
+                ${book.author} 著${book.translator ? ' · ' + book.translator + ' 译' : ''}
+              </div>
+              ${book.publisher ? `<div style="color:var(--color-text-3);font-size:0.9rem;">${book.publisher}</div>` : ''}
+              ${book.start_date && book.end_date ? `<div style="color:var(--color-text-3);font-size:0.9rem;margin-top:4px;">共读期：${formatDate(book.start_date)} — ${formatDate(book.end_date)}</div>` : ''}
+              ${book.description ? `<p style="margin-top:var(--space-2);color:var(--color-text-2);">${book.description}</p>` : ''}
+            </div>
+          </div>
+
+          <div class="tabs" id="book-tabs" style="margin-top:var(--space-5);">
+            <button class="tab active" data-tab="edition">版本建议</button>
+            <button class="tab" data-tab="schedule">时间计划</button>
+            <button class="tab" data-tab="host">领读人</button>
+            <button class="tab" data-tab="activities">线上活动</button>
+            <button class="tab" data-tab="resources">资源与回放</button>
+          </div>
+
+          <div id="tab-edition" class="tab-content md-content">${editionHtml}</div>
+          <div id="tab-schedule" class="tab-content md-content" style="display:none;">${scheduleHtml}</div>
+          <div id="tab-host" class="tab-content md-content" style="display:none;">${hostHtml}</div>
+          <div id="tab-activities" class="tab-content" style="display:none;">${activitiesHtml}</div>
+          <div id="tab-resources" class="tab-content" style="display:none;">
+            ${replaysHtml}
+            <div style="margin-top:var(--space-4);">${resourcesHtml || '<p style="color:var(--color-text-3);">暂无资源材料。</p>'}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    // Tab switching
+    document.addEventListener('click', (e) => {
+      const tab = e.target.closest('#book-tabs .tab');
+      if (!tab) return;
+      document.querySelectorAll('#book-tabs .tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      const target = document.getElementById('tab-' + tab.dataset.tab);
+      if (target) target.style.display = '';
+    });
+
+    // ===========================================
+    // ROUTE: EVENTS LIST
+    // ===========================================
+    route('/events', async () => {
+      const events = await loadEvents();
+      if (events.length === 0) {
+        return `<div class="container section"><div class="page-header"><h1>线下活动</h1></div><div class="empty-state"><i data-lucide="calendar"></i><p>暂无线下活动</p></div></div>`;
+      }
+      return `
+        <div class="container section">
+          <div class="page-header"><h1>线下活动</h1><div class="subtitle">推荐线下活动，与线上共读区分开</div></div>
+          <div class="grid-3">
+            ${events.map(ev => `
+              <a href="#/events/${ev.id}" class="card event-card card-clickable" style="color:inherit;">
+                <div class="poster">
+                  ${ev.poster_url ? `<img src="${ev.poster_url}" alt="">` : '<i data-lucide="image" style="width:36px;height:36px;"></i>'}
+                </div>
+                <div class="card-body">
+                  <span class="tag ${STATUS_CLASS[ev.status] || 'tag-upcoming'}">${STATUS_MAP[ev.status] || ev.status}</span>
+                  <h3 style="margin-top:8px;">${ev.title}</h3>
+                  <div class="info-row"><i data-lucide="map-pin"></i> ${ev.location || '待定'}</div>
+                  <div class="info-row"><i data-lucide="clock"></i> ${formatDateTime(ev.event_date)}</div>
+                  ${ev.price ? `<div class="info-row"><i data-lucide="tag"></i> ${ev.price}</div>` : ''}
+                </div>
+              </a>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    });
+
+    // ===========================================
+    // ROUTE: EVENT DETAIL
+    // ===========================================
+    route('/events/:id', async (params) => {
+      const { data: event } = await sb.from('events').select('*').eq('id', params.id).single();
+      if (!event) return '<div class="container section"><div class="empty-state"><i data-lucide="calendar"></i><p>活动未找到</p></div></div>';
+
+      const descHtml = marked.parse(event.description || '暂无简介。');
+      const guestsHtml = marked.parse(event.guests || '');
+
+      return `
+        <div class="container section">
+          <a href="#/events" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回活动列表</a>
+          <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;margin-top:var(--space-3);">
+            <div style="width:100%;max-width:400px;flex-shrink:0;">
+              <div style="aspect-ratio:16/10;border-radius:var(--radius-md);background:var(--color-bg-alt);overflow:hidden;display:flex;align-items:center;justify-content:center;">
+                ${event.poster_url ? `<img src="${event.poster_url}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '<i data-lucide="image" style="width:48px;height:48px;color:var(--color-text-3);"></i>'}
+              </div>
+            </div>
+            <div style="flex:1;min-width:280px;">
+              ${statusTag(event.status)}
+              <h1 style="margin-top:var(--space-1);">${event.title}</h1>
+              <div style="margin-top:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);">
+                <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="map-pin" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>地点：</strong>${event.location || '待定'}</div>
+                <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="clock" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>时间：</strong>${formatDateTime(event.event_date)}</div>
+                ${event.guests ? `<div style="display:flex;align-items:flex-start;gap:var(--space-2);"><i data-lucide="user" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>嘉宾：</strong><span>${guestsHtml.replace(/<[^>]*>/g, '')}</span></div>` : ''}
+                ${event.price ? `<div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="tag" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>价格：</strong>${event.price}</div>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:var(--space-4);">
+            <div class="card-body md-content"><h3>活动简介</h3>${descHtml}</div>
+          </div>
+        </div>
+      `;
+    });
+
+    // ===========================================
+    // ROUTE: PROFILE
+    // ===========================================
+    route('/profile', async () => {
+      const profile = store.get('profile');
+      if (!profile) return '<div class="container section"><div class="empty-state"><i data-lucide="loader"></i><p>加载中...</p></div></div>';
+
+      const now = dayjs();
+      const [year, month] = [now.year(), now.month() + 1];
+      const checkins = await getMonthCheckins(year, month);
+      const checkedToday = await getTodayCheckin();
+
+      // Build calendar
+      const firstDay = dayjs(`${year}-${String(month).padStart(2,'0')}-01`);
+      const daysInMonth = firstDay.daysInMonth();
+      const startDayOfWeek = firstDay.day(); // 0=Sun
+      const prevMonthDays = firstDay.subtract(1, 'day').daysInMonth();
+
+      let calCells = '';
+      // Day names
+      ['日','一','二','三','四','五','六'].forEach(d => { calCells += `<div class="day-name">${d}</div>`; });
+      // Prev month
+      for (let i = startDayOfWeek - 1; i >= 0; i--) {
+        calCells += `<div class="day other-month">${prevMonthDays - i}</div>`;
+      }
+      // Current month
+      const todayStr = now.format('YYYY-MM-DD');
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = dayjs(`${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`).format('YYYY-MM-DD');
+        let cls = 'day';
+        if (checkins.includes(dateStr)) cls += ' checked';
+        else if (dateStr === todayStr) cls += ' today';
+        else if (dayjs(dateStr).isAfter(now, 'day')) cls += ' future';
+        calCells += `<div class="${cls}">${d}</div>`;
+      }
+      // Next month to fill row
+      const totalCells = startDayOfWeek + daysInMonth;
+      const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+      for (let d = 1; d <= remaining; d++) {
+        calCells += `<div class="day other-month">${d}</div>`;
+      }
+
+      return `
+        <div class="container section">
+          <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;align-items:flex-start;">
+            <div style="width:100%;max-width:320px;">
+              <div class="card">
+                <div class="card-body" style="text-align:center;">
+                  <div style="width:80px;height:80px;border-radius:50%;background:var(--color-accent-bg);margin:0 auto var(--space-2);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:var(--color-accent);overflow:hidden;">
+                    ${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;">` : (profile.display_name || '?')[0].toUpperCase()}
+                  </div>
+                  <h3>${profile.display_name}</h3>
+                  ${profile.bio ? `<p style="color:var(--color-text-2);font-size:0.9rem;margin:8px 0;">${profile.bio}</p>` : ''}
+                  ${profile.city ? `<div style="font-size:0.85rem;color:var(--color-text-3);"><i data-lucide="map-pin" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${profile.city}</div>` : ''}
+                  <a href="#/profile/edit" class="btn btn-outline btn-sm" style="margin-top:var(--space-2);">编辑资料</a>
+                </div>
+              </div>
+            </div>
+            <div style="flex:1;min-width:300px;">
+              <div class="card" style="margin-bottom:var(--space-3);">
+                <div class="card-body" style="text-align:center;">
+                  <h4 style="margin-bottom:var(--space-2);">每日阅读签到</h4>
+                  <button class="btn btn-primary ${checkedToday ? 'btn-ghost' : ''}" id="checkin-btn" ${checkedToday ? 'disabled' : ''}>
+                    ${checkedToday ? '今日已签到 ✓' : '📖 今日签到'}
+                  </button>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-body">
+                  <div class="calendar">
+                    <div class="calendar-header">
+                      <button class="btn btn-ghost btn-sm" id="cal-prev"><i data-lucide="chevron-left" style="width:18px;height:18px;"></i></button>
+                      <h4>${year}年${month}月</h4>
+                      <button class="btn btn-ghost btn-sm" id="cal-next"><i data-lucide="chevron-right" style="width:18px;height:18px;"></i></button>
+                    </div>
+                    <div class="calendar-grid" id="cal-grid">${calCells}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    // Check-in button
+    document.addEventListener('click', async (e) => {
+      if (e.target.closest('#checkin-btn') && !e.target.closest('#checkin-btn').disabled) {
+        await doCheckin();
+        router.render(); // Refresh to show checked state
+      }
+    });
+
+    // ===========================================
+    // ROUTE: PROFILE EDIT
+    // ===========================================
+    route('/profile/edit', () => {
+      const profile = store.get('profile');
+      if (!profile) return '';
+      return `
+        <div class="container section" style="max-width:560px;">
+          <h2 style="margin-bottom:var(--space-3);">编辑资料</h2>
+          <div class="card"><div class="card-body">
+            <form id="profile-form">
+              <div class="form-group"><label>显示名称</label><input type="text" name="display_name" value="${profile.display_name || ''}" required></div>
+              <div class="form-group"><label>个人简介</label><textarea name="bio">${profile.bio || ''}</textarea></div>
+              <div class="form-group"><label>微信号</label><input type="text" name="wechat_id" value="${profile.wechat_id || ''}"></div>
+              <div class="form-group"><label>所在城市</label><input type="text" name="city" value="${profile.city || ''}"></div>
+              <div class="form-group"><label>头像链接</label><input type="url" name="avatar_url" value="${profile.avatar_url || ''}" placeholder="https://..."></div>
+              <button type="submit" class="btn btn-primary">保存</button>
+              <a href="#/profile" class="btn btn-ghost">取消</a>
+            </form>
+          </div></div>
+        </div>
+      `;
+    });
+
+    document.addEventListener('submit', async (e) => {
+      if (e.target.id === 'profile-form') {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const updates = {
+          display_name: fd.get('display_name'),
+          bio: fd.get('bio'),
+          wechat_id: fd.get('wechat_id'),
+          city: fd.get('city'),
+          avatar_url: fd.get('avatar_url'),
+          updated_at: new Date().toISOString()
+        };
+        const { error } = await sb.from('profiles').update(updates).eq('id', store.get('user').id);
+        if (error) { toast('保存失败：' + error.message, 'error'); return; }
+        store.set('profile', { ...store.get('profile'), ...updates });
+        toast('资料已更新');
+        router.navigate('/profile');
+      }
+    });
+
+    // ===========================================
+    // ROUTE: ADMIN
+    // ===========================================
+    route('/admin', async () => {
+      const config = await loadConfig();
+      const books = await loadBooks();
+      const events = await loadEvents();
+
+      return `
+        <div class="container section">
+          <div class="page-header"><h1>管理后台</h1></div>
+          <div class="tabs" id="admin-tabs">
+            <button class="tab active" data-tab="rules">群规编辑</button>
+            <button class="tab" data-tab="books">书籍管理</button>
+            <button class="tab" data-tab="events">活动管理</button>
+          </div>
+          <div id="admin-tab-rules">
+            <h3 style="margin-bottom:var(--space-2);">群规</h3>
+            <form id="rules-form">
+              <div class="form-group"><label>共读群公约（Markdown）</label><textarea name="group_rules" style="min-height:200px;">${config.group_rules || ''}</textarea></div>
+              <div class="form-group"><label>共读计划介绍（Markdown）</label><textarea name="reading_plan_intro" style="min-height:120px;">${config.reading_plan_intro || ''}</textarea></div>
+              <button type="submit" class="btn btn-primary">保存群规</button>
+            </form>
+            <hr style="margin:var(--space-4) 0;border-color:var(--color-border);">
+            <h3 style="margin-bottom:var(--space-2);">添加新书</h3>
+            <button class="btn btn-outline" id="btn-add-book">+ 添加书籍</button>
+            <div style="margin-top:var(--space-3);">
+              <h4 style="margin-bottom:var(--space-1);">现有书籍</h4>
+              ${books.map(b => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);">
+                  <span>${b.title} — ${b.author} ${statusTag(b.status)}</span>
+                  <div>
+                    <button class="btn btn-ghost btn-sm btn-edit-book" data-id="${b.id}">编辑</button>
+                    <button class="btn btn-danger btn-sm btn-del-book" data-id="${b.id}">删除</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div id="admin-tab-events" style="display:none;">
+            <h3 style="margin-bottom:var(--space-2);">添加线下活动</h3>
+            <button class="btn btn-outline" id="btn-add-event">+ 添加活动</button>
+            <div style="margin-top:var(--space-3);">
+              <h4 style="margin-bottom:var(--space-1);">现有活动</h4>
+              ${events.map(ev => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);">
+                  <span>${ev.title} — ${formatDate(ev.event_date)} ${statusTag(ev.status)}</span>
+                  <div>
+                    <button class="btn btn-ghost btn-sm btn-edit-event" data-id="${ev.id}">编辑</button>
+                    <button class="btn btn-danger btn-sm btn-del-event" data-id="${ev.id}">删除</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div id="admin-tab-books" style="display:none;">
+            <h3 style="margin-bottom:var(--space-2);">添加新书</h3>
+            <button class="btn btn-outline" id="btn-add-book2">+ 添加书籍</button>
+            <div style="margin-top:var(--space-3);">
+              ${books.map(b => `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);">
+                  <span>${b.title} — ${b.author} ${statusTag(b.status)}</span>
+                  <div>
+                    <button class="btn btn-ghost btn-sm btn-edit-book" data-id="${b.id}">编辑</button>
+                    <button class="btn btn-danger btn-sm btn-del-book" data-id="${b.id}">删除</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    // Admin tab switching
+    document.addEventListener('click', (e) => {
+      const tab = e.target.closest('#admin-tabs .tab');
+      if (!tab) return;
+      document.querySelectorAll('#admin-tabs .tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      ['rules','books','events'].forEach(t => {
+        const el = document.getElementById('admin-tab-' + t);
+        if (el) el.style.display = tab.dataset.tab === t ? '' : 'none';
+      });
+    });
+
+    // Admin: save rules
+    document.addEventListener('submit', async (e) => {
+      if (e.target.id === 'rules-form') {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        for (const key of ['group_rules', 'reading_plan_intro']) {
+          await sb.from('site_config').upsert({ key, value: fd.get(key) }, { onConflict: 'key' });
+        }
+        toast('群规已保存');
+      }
+    });
+
+    // Admin: add/edit book form
+    function showBookForm(bookData = null) {
+      const isEdit = !!bookData;
+      const book = bookData || { title:'', author:'', translator:'', publisher:'', isbn:'', page_count:'', cover_url:'', genre:'其他', description:'', status:'upcoming', edition_guide:'', reading_schedule:'', host_intro:'', online_activities:'[]', meeting_replays:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[]}', start_date:'', end_date:'' };
+      const genres = ['文学','历史','哲学','科幻','社科','心理','传记','商业','科普','其他'];
+      const formHtml = `
+        <form id="book-edit-form" style="max-height:70vh;overflow-y:auto;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);">
+            <div class="form-group"><label>书名 *</label><input type="text" name="title" value="${book.title}" required></div>
+            <div class="form-group"><label>作者 *</label><input type="text" name="author" value="${book.author}" required></div>
+            <div class="form-group"><label>译者</label><input type="text" name="translator" value="${book.translator || ''}"></div>
+            <div class="form-group"><label>出版社</label><input type="text" name="publisher" value="${book.publisher || ''}"></div>
+            <div class="form-group"><label>ISBN</label><input type="text" name="isbn" value="${book.isbn || ''}"></div>
+            <div class="form-group"><label>页数</label><input type="number" name="page_count" value="${book.page_count || ''}"></div>
+            <div class="form-group"><label>类型</label><select name="genre">${genres.map(g => `<option value="${g}" ${book.genre === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>
+            <div class="form-group"><label>状态</label><select name="status">
+              <option value="upcoming" ${book.status === 'upcoming' ? 'selected' : ''}>即将开读</option>
+              <option value="active" ${book.status === 'active' ? 'selected' : ''}>正在共读</option>
+              <option value="completed" ${book.status === 'completed' ? 'selected' : ''}>已读完</option>
+            </select></div>
+            <div class="form-group"><label>开始日期</label><input type="date" name="start_date" value="${book.start_date || ''}"></div>
+            <div class="form-group"><label>结束日期</label><input type="date" name="end_date" value="${book.end_date || ''}"></div>
+          </div>
+          <div class="form-group"><label>封面图 URL</label><input type="url" name="cover_url" value="${book.cover_url || ''}"></div>
+          <div class="form-group"><label>书籍简介</label><textarea name="description" style="min-height:60px;">${book.description || ''}</textarea></div>
+          <div class="form-group"><label>版本建议（Markdown）</label><textarea name="edition_guide" style="min-height:120px;">${book.edition_guide || ''}</textarea></div>
+          <div class="form-group"><label>时间安排（Markdown）</label><textarea name="reading_schedule" style="min-height:100px;">${book.reading_schedule || ''}</textarea></div>
+          <div class="form-group"><label>领读人介绍（Markdown）</label><textarea name="host_intro" style="min-height:80px;">${book.host_intro || ''}</textarea></div>
+          <div class="form-group"><label>线上活动（JSON）</label><textarea name="online_activities" style="min-height:100px;font-family:monospace;font-size:0.8rem;">${typeof book.online_activities === 'string' ? book.online_activities : JSON.stringify(book.online_activities, null, 2)}</textarea></div>
+          <div class="form-group"><label>会议回放（JSON）</label><textarea name="meeting_replays" style="min-height:80px;font-family:monospace;font-size:0.8rem;">${typeof book.meeting_replays === 'string' ? book.meeting_replays : JSON.stringify(book.meeting_replays, null, 2)}</textarea></div>
+          <div class="form-group"><label>资源材料（JSON）</label><textarea name="resources" style="min-height:80px;font-family:monospace;font-size:0.8rem;">${typeof book.resources === 'string' ? book.resources : JSON.stringify(book.resources, null, 2)}</textarea></div>
+          <button type="submit" class="btn btn-primary">${isEdit ? '保存修改' : '添加书籍'}</button>
+          <input type="hidden" name="book_id" value="${book.id || ''}">
+        </form>`;
+      const modal = showModal(isEdit ? '编辑书籍' : '添加书籍', formHtml, () => {
+        document.removeEventListener('submit', bookFormHandler);
+      });
+      document.addEventListener('submit', bookFormHandler);
+      function bookFormHandler(e) {
+        if (e.target.id !== 'book-edit-form') return;
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+        // Parse JSON fields
+        ['online_activities', 'meeting_replays', 'resources'].forEach(f => {
+          try { data[f] = JSON.parse(data[f]); } catch(e) { toast(`${f} JSON 格式错误，请检查`, 'error'); throw e; }
+        });
+        data.page_count = data.page_count ? parseInt(data.page_count) : null;
+        saveBook(data, data.book_id);
+        modal.remove();
+        document.removeEventListener('submit', bookFormHandler);
+      }
+    }
+
+    async function saveBook(data, id) {
+      const payload = { ...data };
+      delete payload.book_id;
+      payload.updated_at = new Date().toISOString();
+      if (!id) payload.created_by = store.get('user').id;
+
+      let error;
+      if (id) {
+        ({ error } = await sb.from('books').update(payload).eq('id', id));
+      } else {
+        ({ error } = await sb.from('books').insert(payload));
+      }
+      if (error) { toast('保存失败：' + error.message, 'error'); return; }
+      toast(id ? '书籍已更新' : '书籍已添加');
+      router.render();
+    }
+
+    async function deleteBook(id) {
+      if (!confirm('确定要删除这本书吗？')) return;
+      const { error } = await sb.from('books').delete().eq('id', id);
+      if (error) { toast('删除失败：' + error.message, 'error'); return; }
+      toast('书籍已删除');
+      router.render();
+    }
+
+    // Admin: add/edit event form
+    function showEventForm(eventData = null) {
+      const isEdit = !!eventData;
+      const ev = eventData || { title:'', poster_url:'', location:'', event_date:'', guests:'', price:'', description:'', status:'upcoming' };
+      const formHtml = `
+        <form id="event-edit-form">
+          <div class="form-group"><label>活动名称 *</label><input type="text" name="title" value="${ev.title}" required></div>
+          <div class="form-group"><label>海报图 URL</label><input type="url" name="poster_url" value="${ev.poster_url || ''}"></div>
+          <div class="form-group"><label>地点</label><input type="text" name="location" value="${ev.location || ''}"></div>
+          <div class="form-group"><label>时间</label><input type="datetime-local" name="event_date" value="${ev.event_date ? dayjs(ev.event_date).format('YYYY-MM-DDTHH:mm') : ''}"></div>
+          <div class="form-group"><label>嘉宾</label><input type="text" name="guests" value="${ev.guests || ''}"></div>
+          <div class="form-group"><label>价格</label><input type="text" name="price" value="${ev.price || ''}" placeholder="免费 / ¥68"></div>
+          <div class="form-group"><label>状态</label><select name="status">
+            <option value="upcoming" ${ev.status === 'upcoming' ? 'selected' : ''}>即将开始</option>
+            <option value="ongoing" ${ev.status === 'ongoing' ? 'selected' : ''}>进行中</option>
+            <option value="ended" ${ev.status === 'ended' ? 'selected' : ''}>已结束</option>
+            <option value="cancelled" ${ev.status === 'cancelled' ? 'selected' : ''}>已取消</option>
+          </select></div>
+          <div class="form-group"><label>活动简介（Markdown）</label><textarea name="description" style="min-height:100px;">${ev.description || ''}</textarea></div>
+          <button type="submit" class="btn btn-primary">${isEdit ? '保存修改' : '添加活动'}</button>
+          <input type="hidden" name="event_id" value="${ev.id || ''}">
+        </form>`;
+      const modal = showModal(isEdit ? '编辑活动' : '添加活动', formHtml, () => {
+        document.removeEventListener('submit', eventFormHandler);
+      });
+      document.addEventListener('submit', eventFormHandler);
+      function eventFormHandler(e) {
+        if (e.target.id !== 'event-edit-form') return;
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const data = Object.fromEntries(fd.entries());
+        saveEvent(data, data.event_id);
+        modal.remove();
+        document.removeEventListener('submit', eventFormHandler);
+      }
+    }
+
+    async function saveEvent(data, id) {
+      const payload = { ...data };
+      delete payload.event_id;
+      payload.updated_at = new Date().toISOString();
+      if (!id) payload.created_by = store.get('user').id;
+
+      let error;
+      if (id) {
+        ({ error } = await sb.from('events').update(payload).eq('id', id));
+      } else {
+        ({ error } = await sb.from('events').insert(payload));
+      }
+      if (error) { toast('保存失败：' + error.message, 'error'); return; }
+      toast(id ? '活动已更新' : '活动已添加');
+      router.render();
+    }
+
+    async function deleteEvent(id) {
+      if (!confirm('确定要删除这个活动吗？')) return;
+      const { error } = await sb.from('events').delete().eq('id', id);
+      if (error) { toast('删除失败：' + error.message, 'error'); return; }
+      toast('活动已删除');
+      router.render();
+    }
+
+    // Admin button handlers
+    document.addEventListener('click', (e) => {
+      const addBookBtn = e.target.closest('#btn-add-book, #btn-add-book2');
+      if (addBookBtn) { showBookForm(); return; }
+      const addEventBtn = e.target.closest('#btn-add-event');
+      if (addEventBtn) { showEventForm(); return; }
+      const editBookBtn = e.target.closest('.btn-edit-book');
+      if (editBookBtn) {
+        const id = editBookBtn.dataset.id;
+        const book = store.get('books').find(b => String(b.id) === id);
+        if (book) showBookForm(book);
+        return;
+      }
+      const delBookBtn = e.target.closest('.btn-del-book');
+      if (delBookBtn) { deleteBook(delBookBtn.dataset.id); return; }
+      const editEventBtn = e.target.closest('.btn-edit-event');
+      if (editEventBtn) {
+        const id = editEventBtn.dataset.id;
+        const event = store.get('events').find(ev => String(ev.id) === id);
+        if (event) showEventForm(event);
+        return;
+      }
+      const delEventBtn = e.target.closest('.btn-del-event');
+      if (delEventBtn) { deleteEvent(delEventBtn.dataset.id); return; }
+    });
+
+    // ===========================================
+    // INIT
+    // ===========================================
+    async function init() {
+      await initAuth();
+    }
+
+    init().catch(err => console.error('Init error:', err));
+  </script>
+</body>
+</html>
