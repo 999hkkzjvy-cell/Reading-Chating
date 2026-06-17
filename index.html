@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <style>
     /* ========================================
@@ -682,6 +683,11 @@
     // Configure marked
     if (typeof marked !== 'undefined') {
       marked.setOptions({ breaks: true, gfm: true });
+
+    // Security: sanitize all markdown output with DOMPurify
+    function safeMarked(text) {
+      return DOMPurify.sanitize(safeMarked(text || ''));
+    }
     }
 
     // ===========================================
@@ -781,11 +787,18 @@
           return this.navigate('/login?redirect=' + encodeURIComponent(path));
         }
 
-        // Admin guard
-        if (path.startsWith('/admin') && !store.get('isAdmin')) {
-          document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="shield-alert"></i><p>您没有管理权限</p></div></div>';
-          lucide.createIcons();
-          return;
+        // Admin guard — verify server-side via DB query (not just client store)
+        if (path.startsWith('/admin')) {
+          const user = store.get('user');
+          if (!user) {
+            return this.navigate('/login?redirect=' + encodeURIComponent(path));
+          }
+          const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
+          if (profile?.role !== 'admin') {
+            document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="shield-alert"></i><p>您没有管理权限</p></div></div>';
+            lucide.createIcons();
+            return;
+          }
         }
 
         if (matched) {
@@ -798,7 +811,8 @@
         bindGlobalEvents();
         } catch (err) {
           console.error('Router error:', err);
-          document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="alert-triangle"></i><p>加载失败：' + err.message + '</p><p style="font-size:0.85rem;color:var(--color-text-3);">请检查网络连接或刷新重试</p></div></div>';
+          const errText = String(err.message || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="alert-triangle"></i><p>加载失败：' + errText + '</p><p style="font-size:0.85rem;color:var(--color-text-3);">请检查网络连接或刷新重试</p></div></div>';
           lucide.createIcons();
         }
       },
@@ -990,68 +1004,38 @@
     }
 
     // ===========================================
-    // AI AUTO-FILL
+    // AI AUTO-FILL — via Supabase Edge Function (no API key exposed)
     // ===========================================
     async function aiFillBookInfo(title, author) {
-      const config = store.get('config');
-      const apiKey = config.deepseek_api_key;
-      const apiUrl = config.deepseek_api_url || 'https://api.deepseek.com/v1/chat/completions';
-
-      if (!apiKey) { toast('请先在管理后台配置 DeepSeek API Key', 'error'); return null; }
       if (!title || !author) { toast('请先填写书名和作者', 'error'); return null; }
 
-      const prompt = `请根据以下书籍信息，用中文生成内容。返回纯JSON格式，不要markdown代码块。
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { toast('请先登录', 'error'); return null; }
 
-书名：《${title}》
-作者：${author}
-
-请生成以下三个字段：
-
-1. 书籍简介（400-800字），可包括：书籍类型与文学流派、核心主题和思想、重要术语/概念解释、与其他作品的关联、成书过程中有趣的轶事。但避免透露具体情节转折、人物命运和故事结局。
-
-2. 作者简介（400-800字），可包括：生卒年及重要生平事件、写作本书时的年龄和状态、主要成就（代表作品、获奖等）、写作风格特点、重要相关名人及关系。但避免透露具体情节转折、人物命运和故事结局。
-
-3. 创作时代背景（300-600字），可包括：成书年代及出版年代的社会政治环境、经济文化背景、当时的文学/思想潮流、这些因素对作品的影响。但避免透露具体情节转折、人物命运和故事结局。
-
-返回格式：{"description":"...","author_bio":"...","historical_context":"..."}`;
+      const edgeUrl = `${SUPABASE_URL}/functions/v1/deepseek-proxy`;
 
       let response;
       try {
-        response = await fetch(apiUrl, {
+        response = await fetch(edgeUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.7,
-            max_tokens: 4000
-          })
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ title, author })
         });
       } catch (err) {
-        toast('AI 请求失败：网络错误', 'error');
+        toast('AI 请求失败：网络错误，请检查 Edge Function 是否已部署', 'error');
         return null;
       }
 
       if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        toast('AI 请求失败：' + response.status + (errText ? ' ' + errText.slice(0, 80) : ''), 'error');
+        const errData = await response.json().catch(() => ({}));
+        toast('AI 请求失败：' + (errData.error || response.status), 'error');
         return null;
       }
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
-
-      // Parse JSON from response
-      try {
-        return JSON.parse(content);
-      } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) {
-          try { return JSON.parse(match[0]); } catch {}
-        }
-        toast('AI 返回格式异常，请重试', 'error');
-        return null;
-      }
+      return await response.json();
     }
 
     // ===========================================
@@ -1428,7 +1412,7 @@
         latestBooks.push(...books.slice(0, 2 - latestBooks.length));
       }
 
-      const rulesHtml = marked.parse(config.group_rules || '群规加载中...');
+      const rulesHtml = safeMarked(config.group_rules || '群规加载中...');
 
       // Intro: preserve user's line breaks, strip markdown per line
       const introLines = config.reading_plan_intro
@@ -1550,9 +1534,9 @@
       if (!book) return '<div class="container section"><div class="empty-state"><i data-lucide="book"></i><p>书籍未找到</p></div></div>';
 
       // Tab 1: 简介 — description + author_bio + historical_context
-      const descHtml = marked.parse(book.description || '暂无简介。');
-      const authorBioHtml = marked.parse(book.author_bio || '暂无作者简介。');
-      const contextHtml = marked.parse(book.historical_context || '暂无时代背景介绍。');
+      const descHtml = safeMarked(book.description || '暂无简介。');
+      const authorBioHtml = safeMarked(book.author_bio || '暂无作者简介。');
+      const contextHtml = safeMarked(book.historical_context || '暂无时代背景介绍。');
       const introHtml = `
         <div class="md-content" style="max-width:none;">
           <h2>书籍简介</h2>
@@ -1569,7 +1553,7 @@
         </div>`;
 
       // Tab 2: 领读人简介 — host + host_intro
-      const hostIntroHtml = marked.parse(book.host_intro || '暂无领读人信息。');
+      const hostIntroHtml = safeMarked(book.host_intro || '暂无领读人信息。');
       const hostTabHtml = `
         <div class="md-content" style="max-width:none;">
           <h2>领读人：${book.host || '待定'}</h2>
@@ -1578,7 +1562,7 @@
         </div>`;
 
       // Tab 2.5: 灵沁碎碎念 — host_notes (only if has content)
-      const hostNotesHtml = book.host_notes ? marked.parse(book.host_notes) : '';
+      const hostNotesHtml = book.host_notes ? safeMarked(book.host_notes) : '';
       const hostNotesTabHtml = book.host_notes ? `
         <div class="md-content" style="max-width:none;">
           ${hostNotesHtml}
@@ -1589,7 +1573,7 @@
       // Tab 3: 版本建议 — edition_notes + structured cards
       let editions = [];
       try { editions = typeof book.edition_guide === 'string' ? JSON.parse(book.edition_guide||'[]') : (book.edition_guide||[]); } catch(e){}
-      const editionNotesHtml = marked.parse(book.edition_notes || '');
+      const editionNotesHtml = safeMarked(book.edition_notes || '');
       const editionsCardsHtml = editions.length === 0 ? '<p style="color:var(--color-text-3);">暂无版本建议。</p>' : `
         <div style="display:flex;flex-direction:column;gap:var(--space-2);">
           ${editions.map(e => `
@@ -1617,7 +1601,7 @@
       // Tab 4: 时间计划
       let scheduleData = { summary: '', pdf_url: '' };
       try { scheduleData = typeof book.reading_schedule === 'string' ? JSON.parse(book.reading_schedule || '{}') : (book.reading_schedule || {}); } catch(e){}
-      const scheduleSummaryHtml = marked.parse(scheduleData.summary || '暂无时间安排。');
+      const scheduleSummaryHtml = safeMarked(scheduleData.summary || '暂无时间安排。');
       const scheduleHtml = `
         <div class="md-content" style="max-width:none;">
           ${scheduleSummaryHtml}
@@ -1683,7 +1667,7 @@
             <div class="edition-card">
               <h3 style="margin-bottom:var(--space-1);">${c.topic || '干货主题'}</h3>
               <div style="font-size:0.88rem;color:var(--color-text-2);margin-bottom:var(--space-2);">主发言人：${c.speaker || '未知'}</div>
-              ${c.content ? `<div class="md-content" style="max-width:none;font-size:0.95rem;">${marked.parse(c.content)}</div>` : ''}
+              ${c.content ? `<div class="md-content" style="max-width:none;font-size:0.95rem;">${safeMarked(c.content)}</div>` : ''}
             </div>
           `).join('')}
         </div>`;
@@ -1784,8 +1768,8 @@
       const { data: event } = await sb.from('events').select('*').eq('id', params.id).single();
       if (!event) return '<div class="container section"><div class="empty-state"><i data-lucide="calendar"></i><p>活动未找到</p></div></div>';
 
-      const descHtml = marked.parse(event.description || '暂无简介。');
-      const guestsHtml = marked.parse(event.guests || '');
+      const descHtml = safeMarked(event.description || '暂无简介。');
+      const guestsHtml = safeMarked(event.guests || '');
 
       return `
         <div class="container section">
@@ -2041,9 +2025,7 @@
               <div class="form-group"><label>共读计划介绍（Markdown）</label><textarea name="reading_plan_intro" style="min-height:120px;">${config.reading_plan_intro || ''}</textarea></div>
               <hr style="margin:var(--space-3) 0;border-color:var(--color-border);">
               <h4 style="margin-bottom:var(--space-2);">🤖 AI 自动填充设置</h4>
-              <p style="font-size:0.85rem;color:var(--color-text-3);margin-bottom:var(--space-2);">新建书籍时可根据书名和作者自动生成简介、作者介绍和时代背景。</p>
-              <div class="form-group"><label>DeepSeek API Key</label><input type="password" name="deepseek_api_key" value="${(config.deepseek_api_key || '').replace(/"/g, '&quot;')}" placeholder="sk-..."></div>
-              <div class="form-group"><label>API 地址</label><input type="text" name="deepseek_api_url" value="${config.deepseek_api_url || 'https://api.deepseek.com/v1/chat/completions'}" placeholder="https://api.deepseek.com/v1/chat/completions"></div>
+              <p style="font-size:0.85rem;color:var(--color-text-3);margin-bottom:var(--space-2);">新建书籍时可根据书名和作者自动生成简介、作者介绍和时代背景。API Key 已通过 Supabase Edge Function 安全代理，无需在此配置。</p>
               <button type="submit" class="btn btn-primary">保存设置</button>
             </form>
             <hr style="margin:var(--space-4) 0;border-color:var(--color-border);">
@@ -2240,7 +2222,7 @@
                 ${book.cover_url ? `<img src="${book.cover_url}" alt="">` : '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>'}
               </div>
               <div class="cover-inputs">
-                <input type="url" name="cover_url" value="${book.cover_url || ''}" placeholder="粘贴图片 URL" id="cover-url-input" oninput="const p=document.getElementById('cover-preview');const v=this.value;if(v){p.innerHTML='<img src='+v+' alt=>';}else{p.innerHTML='<i data-lucide=image style=width:28px;height:28px;color:var(--color-text-3);></i>';lucide.createIcons();}" required>
+                <input type="url" name="cover_url" value="${book.cover_url || ''}" placeholder="粘贴图片 URL" id="cover-url-input" required>
                 <div class="divider-text">或</div>
                 <input type="file" accept="image/*" id="cover-file-input" style="font-size:0.85rem;">
               </div>
@@ -2541,8 +2523,24 @@
     });
 
     // ===========================================
-    // COVER UPLOAD
+    // COVER UPLOAD — safe DOM, no innerHTML
     // ===========================================
+    function updateCoverPreview(url) {
+      const preview = document.getElementById('cover-preview');
+      if (!preview) return;
+      preview.innerHTML = '';
+      if (url) {
+        const img = document.createElement('img');
+        img.src = url; img.alt = ''; img.onerror = () => { preview.textContent = '?'; };
+        preview.appendChild(img);
+      } else {
+        preview.innerHTML = '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>';
+        lucide.createIcons();
+      }
+    }
+    document.addEventListener('input', (e) => {
+      if (e.target.id === 'cover-url-input') updateCoverPreview(e.target.value);
+    });
     document.addEventListener('change', async (e) => {
       if (e.target.id !== 'cover-file-input') return;
       const file = e.target.files[0];
@@ -2554,9 +2552,8 @@
       if (error) { toast('封面上传失败：' + error.message, 'error'); return; }
       const { data: { publicUrl } } = sb.storage.from('covers').getPublicUrl(path);
       const urlInput = document.getElementById('cover-url-input');
-      const preview = document.getElementById('cover-preview');
       if (urlInput) urlInput.value = publicUrl;
-      if (preview) { preview.innerHTML = `<img src="${publicUrl}" alt="">`; }
+      updateCoverPreview(publicUrl);
       toast('封面上传成功');
     });
 
