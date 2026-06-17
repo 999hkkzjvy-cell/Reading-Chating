@@ -739,7 +739,12 @@
       document.getElementById('modal-container').appendChild(overlay);
       lucide.createIcons();
       overlay.querySelector('#modal-close-btn').onclick = () => { overlay.remove(); if (onClose) onClose(); };
-      overlay.addEventListener('click', (e) => { if (e.target === overlay) { overlay.remove(); if (onClose) onClose(); } });
+      // Only close via X button; clicking outside / pressing Enter won't close
+      overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+          e.preventDefault(); e.stopPropagation();
+        }
+      });
       return overlay;
     }
 
