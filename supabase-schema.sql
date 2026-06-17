@@ -81,7 +81,7 @@ CREATE TABLE books (
   -- 共读详情
   edition_guide     JSONB DEFAULT '[]',
   edition_notes     TEXT,
-  reading_schedule  TEXT,
+  reading_schedule  JSONB DEFAULT '{"summary":"","pdf_url":""}',
   host              TEXT,
   host_intro        TEXT,
   host_notes        TEXT,
@@ -179,6 +179,18 @@ CREATE POLICY "covers_admin_update" ON storage.objects FOR UPDATE
   ));
 CREATE POLICY "covers_admin_delete" ON storage.objects FOR DELETE
   USING (bucket_id = 'covers' AND EXISTS (
+    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
+  ));
+
+-- 文件 bucket（PDF 等）
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('files', 'files', true)
+ON CONFLICT (id) DO NOTHING;
+
+CREATE POLICY "files_read_all" ON storage.objects FOR SELECT
+  USING (bucket_id = 'files');
+CREATE POLICY "files_admin_insert" ON storage.objects FOR INSERT
+  WITH CHECK (bucket_id = 'files' AND EXISTS (
     SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
   ));
 
