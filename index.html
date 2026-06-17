@@ -540,6 +540,11 @@
       font-family: var(--font-serif); font-size: 1.5rem; color: var(--color-text-3);
       position: relative; overflow: hidden;
     }
+    .current-book-card .cover-slot .status-badge {
+      position: absolute; top: 6px; right: 6px;
+      padding: 3px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 700;
+      font-family: var(--font-sans); backdrop-filter: blur(4px);
+    }
     .current-book-card .cover-slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
     .current-book-card .info { flex: 1; }
     .current-book-card .info h3 { font-size: 1.35rem; margin-bottom: 4px; }
@@ -1248,9 +1253,9 @@
         <div class="current-book-card">
           <div class="cover-slot">
             ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
+            <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || b.status}</span>
           </div>
           <div class="info">
-            ${statusTag(b.status)}
             <h3>${b.title}</h3>
             <div class="book-meta">${[b.author_country, b.author].filter(Boolean).join('')} 著</div>
             <div class="book-meta${b.translator ? '' : ' muted'}">${b.translator ? b.translator + ' 译' : '不限译本'}</div>
