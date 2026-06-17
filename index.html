@@ -560,16 +560,18 @@
       transition: box-shadow 0.2s ease;
     }
     .edition-card:hover { box-shadow: var(--shadow-sm); }
-    .edition-card h3 { font-size: 1.1rem; margin-bottom: 2px; }
+    .edition-card h3 { font-size: 1.1rem; margin-bottom: var(--space-1); }
     .edition-meta {
-      font-size: 0.85rem; color: var(--color-text-2); margin-bottom: var(--space-2);
+      font-size: 0.88rem; color: var(--color-text-2); margin-bottom: var(--space-2);
     }
+    .edition-meta div { margin-bottom: 2px; }
     .edition-pros-cons {
-      display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2);
+      display: flex; flex-direction: column; gap: var(--space-2);
       margin-bottom: var(--space-2); font-size: 0.9rem;
     }
-    .pros-label { color: var(--color-success); font-weight: 700; }
-    .cons-label { color: var(--color-danger); font-weight: 700; }
+    .edition-pros-cons p { margin: 2px 0 0; line-height: 1.7; white-space: pre-wrap; }
+    .pros-label { color: var(--color-success); font-weight: 700; font-size: 0.85rem; }
+    .cons-label { color: var(--color-danger); font-weight: 700; font-size: 0.85rem; }
     .edition-links { display: flex; gap: 8px; flex-wrap: wrap; }
 
     /* Activity status tags */
@@ -1546,47 +1548,57 @@
       const descHtml = marked.parse(book.description || '暂无简介。');
       const authorBioHtml = marked.parse(book.author_bio || '暂无作者简介。');
       const contextHtml = marked.parse(book.historical_context || '暂无时代背景介绍。');
-      let authorMeta = [];
-      if (book.author_country) authorMeta.push(book.author_country);
-      if (book.author_gender) authorMeta.push(book.author_gender);
       const introHtml = `
         <div class="md-content" style="max-width:none;">
-          <h2>书籍简介</h2>${descHtml}
-          <h2 style="margin-top:var(--space-4);">作者简介</h2>
-          ${authorMeta.length ? `<div style="color:var(--color-text-2);font-size:0.9rem;margin-bottom:var(--space-2);">${authorMeta.join(' · ')}</div>` : ''}
+          <h2>书籍简介</h2>
+          <hr style="border:none;border-top:1px solid var(--color-border);margin:6px 0 var(--space-2);">
+          ${descHtml}
+          <div style="height:var(--space-3);"></div>
+          <h2>作者简介</h2>
+          <hr style="border:none;border-top:1px solid var(--color-border);margin:6px 0 var(--space-2);">
           ${authorBioHtml}
-          <h2 style="margin-top:var(--space-4);">创作时代背景</h2>${contextHtml}
+          <div style="height:var(--space-3);"></div>
+          <h2>创作时代背景</h2>
+          <hr style="border:none;border-top:1px solid var(--color-border);margin:6px 0 var(--space-2);">
+          ${contextHtml}
         </div>`;
 
-      // Tab 2: 领读人简介 — host_intro + host_notes
-      const hostHtml = marked.parse(book.host_intro || '暂无领读人信息。');
-      const hostNotesHtml = marked.parse(book.host_notes || '');
+      // Tab 2: 领读人简介 — host + host_intro
+      const hostIntroHtml = marked.parse(book.host_intro || '暂无领读人信息。');
       const hostTabHtml = `
         <div class="md-content" style="max-width:none;">
-          ${hostHtml}
-          ${book.host_notes ? `<h2 style="margin-top:var(--space-4);">领读碎碎念</h2>${hostNotesHtml}` : ''}
+          <h2>领读人：${book.host || '待定'}</h2>
+          <hr style="border:none;border-top:1px solid var(--color-border);margin:var(--space-2) 0;">
+          <div style="font-size:1rem;line-height:1.8;">${hostIntroHtml}</div>
         </div>`;
 
-      // Tab 3: 版本建议 — JSONB structured cards
+      // Tab 3: 版本建议 — edition_notes + structured cards
       let editions = [];
       try { editions = typeof book.edition_guide === 'string' ? JSON.parse(book.edition_guide||'[]') : (book.edition_guide||[]); } catch(e){}
-      const editionsHtml = editions.length === 0 ? '<p style="color:var(--color-text-3);">暂无版本建议。</p>' : `
+      const editionNotesHtml = marked.parse(book.edition_notes || '');
+      const editionsCardsHtml = editions.length === 0 ? '<p style="color:var(--color-text-3);">暂无版本建议。</p>' : `
         <div style="display:flex;flex-direction:column;gap:var(--space-2);">
           ${editions.map(e => `
             <div class="edition-card">
               <h3>${e.name || '未命名版本'}</h3>
-              <div class="edition-meta">${[e.translator ? e.translator+' 译' : '', e.publisher].filter(Boolean).join(' · ')}</div>
+              <div class="edition-meta">
+                ${e.translator ? `<div>译本：${e.translator} 译</div>` : ''}
+                ${e.publisher ? `<div>出版方：${e.publisher}</div>` : ''}
+              </div>
               <div class="edition-pros-cons">
-                ${e.pros ? `<div><span class="pros-label">+</span> ${e.pros}</div>` : ''}
-                ${e.cons ? `<div><span class="cons-label">−</span> ${e.cons}</div>` : ''}
+                ${e.pros ? `<div><span class="pros-label">优点</span><p>${e.pros}</p></div>` : ''}
+                ${e.cons ? `<div><span class="cons-label">缺点</span><p>${e.cons}</p></div>` : ''}
               </div>
               <div class="edition-links">
                 ${e.buy_link ? `<a href="${e.buy_link}" target="_blank" class="btn btn-outline btn-sm">购买</a>` : ''}
-                ${e.douban_link ? `<a href="${e.douban_link}" target="_blank" class="btn btn-ghost btn-sm">豆瓣</a>` : ''}
+                ${e.douban_link ? `<a href="${e.douban_link}" target="_blank" class="btn btn-outline btn-sm">豆瓣</a>` : ''}
               </div>
             </div>
           `).join('')}
         </div>`;
+      const editionsHtml = `
+        ${book.edition_notes ? `<div class="md-content" style="max-width:none;margin-bottom:var(--space-4);">${editionNotesHtml}</div>` : ''}
+        ${editionsCardsHtml}`;
 
       // Tab 4: 时间计划
       const scheduleHtml = marked.parse(book.reading_schedule || '暂无时间安排。');
@@ -2130,7 +2142,7 @@
     // Admin: add/edit book form
     function showBookForm(bookData = null) {
       const isEdit = !!bookData;
-      const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', reading_schedule:'', host_intro:'', host_notes:'', activities:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[]}', start_date:'', end_date:'' };
+      const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', edition_notes:'', reading_schedule:'', host:'', host_intro:'', host_notes:'', activities:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[]}', start_date:'', end_date:'' };
       const genres = ['文学','历史','哲学','科幻','社科','心理','传记','商业','科普','其他'];
       // Parse JSONB data for visual builders
       let acts=[], edns=[], extR=[], txtM=[], filmR=[];
@@ -2184,6 +2196,7 @@
           <div class="form-group"><label>书籍简介（Markdown）</label><textarea name="description" style="min-height:60px;">${book.description || ''}</textarea></div>
           <div class="form-group"><label>作者简介（Markdown）</label><textarea name="author_bio" style="min-height:60px;">${book.author_bio || ''}</textarea></div>
           <div class="form-group"><label>创作时代背景（Markdown）</label><textarea name="historical_context" style="min-height:60px;">${book.historical_context || ''}</textarea></div>
+          <div class="form-group"><label>版本建议简述（Markdown）</label><textarea name="edition_notes" style="min-height:60px;" placeholder="版本选择的总体建议...">${book.edition_notes || ''}</textarea></div>
 
           <!-- Visual Builder: Edition Guide -->
           <div class="builder-section">
@@ -2193,8 +2206,9 @@
           </div>
 
           <div class="form-group"><label>共读时间计划（Markdown）</label><textarea name="reading_schedule" style="min-height:100px;">${book.reading_schedule || ''}</textarea></div>
+          <div class="form-group"><label>领读人</label><input type="text" name="host" value="${(book.host || '').replace(/"/g, '&quot;')}" placeholder="领读人姓名"></div>
           <div class="form-group"><label>领读人简介（Markdown）</label><textarea name="host_intro" style="min-height:80px;">${book.host_intro || ''}</textarea></div>
-          <div class="form-group"><label>领读碎碎念（Markdown）</label><textarea name="host_notes" style="min-height:80px;">${book.host_notes || ''}</textarea></div>
+          <div class="form-group"><label>灵沁碎碎念（Markdown）</label><textarea name="host_notes" style="min-height:80px;">${book.host_notes || ''}</textarea></div>
 
           <!-- Visual Builder: Activities (unified) -->
           <div class="builder-section">

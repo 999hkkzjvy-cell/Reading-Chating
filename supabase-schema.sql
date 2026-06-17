@@ -80,7 +80,9 @@ CREATE TABLE books (
                     CHECK (status IN ('upcoming','active','completed')),
   -- 共读详情
   edition_guide     JSONB DEFAULT '[]',
+  edition_notes     TEXT,
   reading_schedule  TEXT,
+  host              TEXT,
   host_intro        TEXT,
   host_notes        TEXT,
   activities        JSONB DEFAULT '[]',
