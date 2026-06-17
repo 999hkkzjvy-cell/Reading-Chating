@@ -2542,7 +2542,9 @@
       if (e.target.id !== 'cover-file-input') return;
       const file = e.target.files[0];
       if (!file) return;
-      const path = `${Date.now()}_${file.name}`;
+      const ext = file.name.split('.').pop();
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '').replace(/\.+/g, '.') || 'cover';
+      const path = `${Date.now()}_${safeName}.${ext}`;
       const { data, error } = await sb.storage.from('covers').upload(path, file);
       if (error) { toast('封面上传失败：' + error.message, 'error'); return; }
       const { data: { publicUrl } } = sb.storage.from('covers').getPublicUrl(path);
@@ -2558,7 +2560,9 @@
       if (e.target.id !== 'schedule-pdf-input') return;
       const file = e.target.files[0];
       if (!file) return;
-      const path = `${Date.now()}_${file.name}`;
+      const ext = file.name.split('.').pop();
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '').replace(/\.+/g, '.') || 'schedule';
+      const path = `${Date.now()}_${safeName}.${ext}`;
       const { data, error } = await sb.storage.from('files').upload(path, file);
       if (error) { toast('PDF 上传失败：' + error.message, 'error'); return; }
       const { data: { publicUrl } } = sb.storage.from('files').getPublicUrl(path);
