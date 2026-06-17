@@ -1660,6 +1660,20 @@
         </div>`;
       }).join('');
 
+      // Tab 7: 聊天干货
+      let chats = [];
+      try { chats = typeof book.chatsubstance === 'string' ? JSON.parse(book.chatsubstance||'[]') : (book.chatsubstance||[]); } catch(e){}
+      const chatsHtml = chats.length === 0 ? '<p style="color:var(--color-text-3);">暂无聊天干货。</p>' : `
+        <div style="display:flex;flex-direction:column;gap:var(--space-3);">
+          ${chats.map(c => `
+            <div class="edition-card">
+              <h3 style="margin-bottom:var(--space-1);">${c.topic || '干货主题'}</h3>
+              <div style="font-size:0.88rem;color:var(--color-text-2);margin-bottom:var(--space-2);">主发言人：${c.speaker || '未知'}</div>
+              ${c.content ? `<div class="md-content" style="max-width:none;font-size:0.95rem;">${marked.parse(c.content)}</div>` : ''}
+            </div>
+          `).join('')}
+        </div>`;
+
       return `
         <div class="container section">
           <a href="#/books" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回书库</a>
@@ -1687,6 +1701,7 @@
             <button class="tab" data-tab="schedule">时间计划</button>
             <button class="tab" data-tab="activities">活动安排</button>
             <button class="tab" data-tab="resources">资源材料</button>
+            <button class="tab" data-tab="chats">聊天干货</button>
           </div>
 
           <div id="tab-intro" class="tab-content">${introHtml}</div>
@@ -1696,6 +1711,9 @@
           <div id="tab-activities" class="tab-content" style="display:none;">${activitiesHtml}</div>
           <div id="tab-resources" class="tab-content" style="display:none;">
             ${resourcesHtml || '<p style="color:var(--color-text-3);">暂无资源材料。</p>'}
+          </div>
+          <div id="tab-chats" class="tab-content" style="display:none;">
+            ${chatsHtml}
           </div>
         </div>
       `;
@@ -2135,6 +2153,20 @@
         </div>
       </div>`;
     }
+    function chatItem(c) { c=c||{}; return `
+      <div class="builder-item">
+        <div class="b-row">
+          <input name="chat_topic" value="${esc(c.topic)}" placeholder="干货主题 *" style="flex:2" required>
+          <button type="button" class="btn-remove-row" onclick="this.closest('.builder-item').remove()">✕</button>
+        </div>
+        <div class="b-row">
+          <input name="chat_speaker" value="${esc(c.speaker)}" placeholder="主发言人">
+        </div>
+        <div class="b-row">
+          <textarea name="chat_content" placeholder="详细内容（Markdown）" style="min-height:60px;width:100%;">${esc(c.content)}</textarea>
+        </div>
+      </div>`;
+    }
     function resItem(r) { r=r||{}; return `
       <div class="builder-item">
         <div class="b-row">
@@ -2151,12 +2183,13 @@
     // Admin: add/edit book form
     function showBookForm(bookData = null) {
       const isEdit = !!bookData;
-      const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', edition_notes:'', reading_schedule:'{"summary":"","pdf_url":""}', host:'', host_intro:'', host_notes:'', activities:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[]}', start_date:'', end_date:'' };
+      const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', edition_notes:'', reading_schedule:'{"summary":"","pdf_url":""}', host:'', host_intro:'', host_notes:'', activities:'[]', chatsubstance:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[]}', start_date:'', end_date:'' };
       const genres = ['文学','历史','哲学','科幻','社科','心理','传记','商业','科普','其他'];
       // Parse JSONB data for visual builders
-      let acts=[], edns=[], extR=[], txtM=[], filmR=[];
+      let acts=[], edns=[], chats=[], extR=[], txtM=[], filmR=[];
       try { acts = typeof book.activities==='string' ? JSON.parse(book.activities||'[]') : (book.activities||[]); } catch(e){}
       try { edns = typeof book.edition_guide==='string' ? JSON.parse(book.edition_guide||'[]') : (book.edition_guide||[]); } catch(e){}
+      try { chats = typeof book.chatsubstance==='string' ? JSON.parse(book.chatsubstance||'[]') : (book.chatsubstance||[]); } catch(e){}
       try {
         const res = typeof book.resources==='string' ? JSON.parse(book.resources||'{}') : (book.resources||{});
         extR = res.extended_reading||[]; txtM = res.text_materials||[]; filmR = res.film_resources||[];
@@ -2234,6 +2267,13 @@
             <button type="button" class="btn-add-row" data-action="add-activity">+ 添加活动</button>
           </div>
 
+          <!-- Visual Builder: Chat Substance -->
+          <div class="builder-section">
+            <label>💬 聊天干货</label>
+            <div class="builder-items" id="builder-chats">${chats.length ? chats.map(chatItem).join('') : '<div class="builder-item" style="text-align:center;color:var(--color-text-3);padding:12px;font-size:0.85rem;">暂无干货</div>'}</div>
+            <button type="button" class="btn-add-row" data-action="add-chat">+ 添加聊天干货</button>
+          </div>
+
           <!-- Visual Builder: Resources -->
           <div class="builder-section">
             <label>📚 资源材料</label>
@@ -2297,6 +2337,11 @@
         const filmR = collectItems('builder-film', ['res_title','res_url','res_desc']).map(o => ({ title: o.res_title||'', url: o.res_url||'', description: o.res_desc||'' }));
         data.resources = { extended_reading: extR, text_materials: txtM, film_resources: filmR };
 
+        // Chatsubstance
+        data.chatsubstance = JSON.stringify(collectItems('builder-chats', ['chat_topic','chat_speaker','chat_content']).map(o => ({
+          topic: o.chat_topic||'', speaker: o.chat_speaker||'', content: o.chat_content||''
+        })));
+
         // Serialize reading_schedule from form fields
         data.reading_schedule = JSON.stringify({
           summary: data.schedule_summary || '',
@@ -2308,6 +2353,7 @@
         delete data.online_activities; delete data.meeting_replays; delete data.isbn; delete data.page_count;
         ['edn_name','edn_translator','edn_publisher','edn_pros','edn_cons','edn_buy_link','edn_douban_link',
          'act_type','act_title','act_time','act_status','act_meeting_link','act_replay_link','act_guests','act_desc',
+         'chat_topic','chat_speaker','chat_content',
          'res_title','res_url','res_desc'].forEach(f => delete data[f]);
         data.word_count = data.word_count ? parseInt(data.word_count) : null;
         saveBook(data, data.book_id);
@@ -2438,7 +2484,8 @@
           'add-activity': { container: 'builder-acts', html: actItem() },
           'add-ext':      { container: 'builder-ext', html: resItem() },
           'add-txt':      { container: 'builder-txt', html: resItem() },
-          'add-film':     { container: 'builder-film', html: resItem() }
+          'add-film':     { container: 'builder-film', html: resItem() },
+          'add-chat':     { container: 'builder-chats', html: chatItem() }
         };
         const cfg = map[action];
         if (cfg) {

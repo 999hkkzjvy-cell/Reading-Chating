@@ -86,6 +86,7 @@ CREATE TABLE books (
   host_intro        TEXT,
   host_notes        TEXT,
   activities        JSONB DEFAULT '[]',
+  chatsubstance     JSONB DEFAULT '[]',
   resources         JSONB DEFAULT '{"extended_reading":[],"text_materials":[],"film_resources":[]}',
   -- 时间
   start_date        DATE,

@@ -16,7 +16,8 @@ UPDATE books SET reading_schedule_new = jsonb_build_object('summary', COALESCE(r
 ALTER TABLE books DROP COLUMN IF EXISTS reading_schedule;
 ALTER TABLE books RENAME COLUMN reading_schedule_new TO reading_schedule;
 
--- 4. PDF 文件存储 bucket
+-- 5. 聊天干货 JSONB 字段
+ALTER TABLE books ADD COLUMN IF NOT EXISTS chatsubstance JSONB DEFAULT '[]';
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('files', 'files', true)
 ON CONFLICT (id) DO NOTHING;
