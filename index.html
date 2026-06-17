@@ -8,7 +8,8 @@
   <meta property="og:description" content="用阅读抵御孤独，遇见同频的书友。有深度、有温度的线上共读社群。">
   <meta property="og:type" content="website">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https: cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; style-src 'self' 'unsafe-inline' https: fonts.googleapis.com; font-src https: fonts.gstatic.com; img-src 'self' data: https:; connect-src https: wss:;">
+  <script src="https://unpkg.com/lucide@0.344.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
@@ -909,7 +910,7 @@
         container.innerHTML = `
           <a href="#/profile" style="display:flex;align-items:center;gap:8px;color:var(--color-text);font-size:0.9rem;">
             <span class="avatar">${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="">` : initial}</span>
-            <span class="nav-username">${profile.display_name}</span>
+            <span class="nav-username">${h(profile.display_name)}</span>
           </a>
           ${store.get('isAdmin') ? '<a href="#/admin" class="btn btn-outline btn-sm">管理</a>' : ''}
           <button class="btn btn-ghost btn-sm" id="btn-logout">退出</button>
@@ -1215,16 +1216,16 @@
     // ===========================================
     function renderBookCard(b, opts = {}) {
       const { showDesc = false, descLen = 150, link = true } = opts;
-      const authorLine = b.author_country ? `[${b.author_country}] ${b.author} 著` : `${b.author} 著`;
+      const authorLine = b.author_country ? `[${h(b.author_country)}] ${h(b.author)} 著` : `${h(b.author)} 著`;
       const inner = `
         <div class="cover">
-          ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
-          <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || b.status}</span>
+          ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="">` : '<i data-lucide="book"></i>'}
+          <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || h(b.status)}</span>
         </div>
         <div class="card-body">
-          <h3>${b.title}</h3>
+          <h3>${h(b.title)}</h3>
           <div class="book-meta">${authorLine}</div>
-          <div class="meta"><span class="tag tag-genre">${b.genre || '文学'}</span></div>
+          <div class="meta"><span class="tag tag-genre">${h(b.genre || '文学')}</span></div>
         </div>`;
       return link
         ? `<a href="#/books/${b.id}" class="card book-card card-clickable" style="color:inherit;">${inner}</a>`
@@ -1232,19 +1233,20 @@
     }
 
     function renderHomeBookCard(b) {
+      const authorLine = [b.author_country ? `[${h(b.author_country)}]` : '', h(b.author)].filter(Boolean).join(' ') + ' 著';
       return `
         <div class="current-book-card">
-          <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || b.status}</span>
+          <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || h(b.status)}</span>
           <div class="cover-slot">
-            ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
+            ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="">` : '<i data-lucide="book"></i>'}
           </div>
           <div class="info">
-            <h3>${b.title}</h3>
-            <div class="book-meta">${[b.author_country, b.author].filter(Boolean).join('')} 著</div>
-            <div class="book-meta${b.translator ? '' : ' muted'}">${b.translator ? b.translator + ' 译' : '不限译本'}</div>
-            <div class="book-meta${b.publisher ? '' : ' muted'}">${b.publisher || '不限版本'}</div>
+            <h3>${h(b.title)}</h3>
+            <div class="book-meta">${authorLine}</div>
+            <div class="book-meta${b.translator ? '' : ' muted'}">${b.translator ? h(b.translator) + ' 译' : '不限译本'}</div>
+            <div class="book-meta${b.publisher ? '' : ' muted'}">${h(b.publisher) || '不限版本'}</div>
             ${b.start_date && b.end_date ? `<div class="period"><i data-lucide="calendar" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${formatDate(b.start_date)} — ${formatDate(b.end_date)}</div>` : ''}
-            <p style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:12px;">${b.description ? b.description.slice(0, 150) + '...' : ''}</p>
+            <p style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:12px;">${b.description ? h(b.description.slice(0, 150)) + '...' : ''}</p>
             <a href="#/books/${b.id}" class="btn btn-primary btn-sm">查看共读详情</a>
           </div>
         </div>`;
@@ -1581,8 +1583,8 @@
                 ${e.cons ? `<div><span class="cons-label">缺点</span><p>${e.cons}</p></div>` : ''}
               </div>
               <div class="edition-links">
-                ${e.buy_link ? `<a href="${e.buy_link}" target="_blank" class="btn btn-outline btn-sm">购买</a>` : ''}
-                ${e.douban_link ? `<a href="${e.douban_link}" target="_blank" class="btn btn-outline btn-sm">豆瓣</a>` : ''}
+                ${e.buy_link ? `<a href="${safeUrl(e.buy_link)}" target="_blank" class="btn btn-outline btn-sm">购买</a>` : ''}
+                ${e.douban_link ? `<a href="${safeUrl(e.douban_link)}" target="_blank" class="btn btn-outline btn-sm">豆瓣</a>` : ''}
               </div>
             </div>
           `).join('')}
@@ -1599,7 +1601,7 @@
         <div class="md-content" style="max-width:none;">
           ${scheduleSummaryHtml}
           ${scheduleData.pdf_url ? `<div style="margin-top:var(--space-4);padding-top:var(--space-3);border-top:1px solid var(--color-border);">
-            <a href="${scheduleData.pdf_url}" target="_blank" class="btn btn-outline btn-sm"><i data-lucide="file-text"></i> 下载时间计划 PDF</a>
+            <a href="${safeUrl(scheduleData.pdf_url)}" target="_blank" class="btn btn-outline btn-sm"><i data-lucide="file-text"></i> 下载时间计划 PDF</a>
           </div>` : ''}
         </div>`;
 
@@ -1620,8 +1622,8 @@
               ${a.guests ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">👤 ${a.guests}</div>` : ''}
               ${a.description ? `<div style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:6px;">${a.description}</div>` : ''}
               <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;">
-                ${a.meeting_link ? `<a href="${a.meeting_link}" target="_blank" class="btn btn-outline btn-sm">加入会议</a>` : ''}
-                ${a.replay_link ? `<a href="${a.replay_link}" target="_blank" class="btn btn-ghost btn-sm">查看回放</a>` : ''}
+                ${a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">加入会议</a>` : ''}
+                ${a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-ghost btn-sm">查看回放</a>` : ''}
               </div>
             </div>
           `).join('')}
@@ -1644,7 +1646,7 @@
             ${items.map(item => `
               <div style="padding:6px 0;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);">
                 <span>${item.title}</span>
-                ${item.url ? `<a href="${item.url}" target="_blank" style="font-size:0.85rem;flex-shrink:0;">查看</a>` : ''}
+                ${item.url ? `<a href="${safeUrl(item.url)}" target="_blank" style="font-size:0.85rem;flex-shrink:0;">查看</a>` : ''}
               </div>
             `).join('')}
           </div>
@@ -1742,10 +1744,10 @@
                 </div>
                 <div class="card-body">
                   <span class="tag ${STATUS_CLASS[ev.status] || 'tag-upcoming'}">${STATUS_MAP[ev.status] || ev.status}</span>
-                  <h3 style="margin-top:8px;">${ev.title}</h3>
-                  <div class="info-row"><i data-lucide="map-pin"></i> ${ev.location || '待定'}</div>
+                  <h3 style="margin-top:8px;">${h(ev.title)}</h3>
+                  <div class="info-row"><i data-lucide="map-pin"></i> ${h(ev.location || '待定')}</div>
                   <div class="info-row"><i data-lucide="clock"></i> ${formatDateTime(ev.event_date)}</div>
-                  ${ev.price ? `<div class="info-row"><i data-lucide="tag"></i> ${ev.price}</div>` : ''}
+                  ${ev.price ? `<div class="info-row"><i data-lucide="tag"></i> ${h(ev.price)}</div>` : ''}
                 </div>
               </a>
             `).join('')}
@@ -1775,12 +1777,12 @@
             </div>
             <div style="flex:1;min-width:280px;">
               ${statusTag(event.status)}
-              <h1 style="margin-top:var(--space-1);">${event.title}</h1>
+              <h1 style="margin-top:var(--space-1);">${h(event.title)}</h1>
               <div style="margin-top:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);">
-                <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="map-pin" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>地点：</strong>${event.location || '待定'}</div>
+                <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="map-pin" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>地点：</strong>${h(event.location || '待定')}</div>
                 <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="clock" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>时间：</strong>${formatDateTime(event.event_date)}</div>
-                ${event.guests ? `<div style="display:flex;align-items:flex-start;gap:var(--space-2);"><i data-lucide="user" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>嘉宾：</strong><span>${guestsHtml.replace(/<[^>]*>/g, '')}</span></div>` : ''}
-                ${event.price ? `<div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="tag" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>价格：</strong>${event.price}</div>` : ''}
+                ${event.guests ? `<div style="display:flex;align-items:flex-start;gap:var(--space-2);"><i data-lucide="user" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>嘉宾：</strong><span>${h(guestsHtml.replace(/<[^>]*>/g, ''))}</span></div>` : ''}
+                ${event.price ? `<div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="tag" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>价格：</strong>${h(event.price)}</div>` : ''}
               </div>
             </div>
           </div>
@@ -1849,9 +1851,9 @@
                   <div style="width:80px;height:80px;border-radius:50%;background:var(--color-accent-bg);margin:0 auto var(--space-2);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:var(--color-accent);overflow:hidden;">
                     ${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;">` : (profile.display_name || '?')[0].toUpperCase()}
                   </div>
-                  <h3>${profile.display_name}</h3>
-                  ${profile.bio ? `<p style="color:var(--color-text-2);font-size:0.9rem;margin:8px 0;">${profile.bio}</p>` : ''}
-                  ${profile.city ? `<div style="font-size:0.85rem;color:var(--color-text-3);"><i data-lucide="map-pin" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${profile.city}</div>` : ''}
+                  <h3>${h(profile.display_name)}</h3>
+                  ${profile.bio ? `<p style="color:var(--color-text-2);font-size:0.9rem;margin:8px 0;">${h(profile.bio)}</p>` : ''}
+                  ${profile.city ? `<div style="font-size:0.85rem;color:var(--color-text-3);"><i data-lucide="map-pin" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${h(profile.city)}</div>` : ''}
                   <a href="#/profile/edit" class="btn btn-outline btn-sm" style="margin-top:var(--space-2);">编辑资料</a>
                 </div>
               </div>
@@ -2100,6 +2102,8 @@
     const ACT_TYPES = ['导读预热','精读分析','文艺放映','嘉宾分享','圆桌讨论','线下活动','签售征订','其他'];
     const ACT_STATUSES = ['计划中','进行中','已完结'];
     function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+    function h(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function safeUrl(u) { u = (u||'').trim(); return /^(https?:|mailto:|\/|#)/i.test(u) ? esc(u) : '#'; }
     function actItem(a) { a=a||{}; return `
       <div class="builder-item">
         <div class="b-row">
