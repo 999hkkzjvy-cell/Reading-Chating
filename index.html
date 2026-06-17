@@ -381,20 +381,20 @@
     .book-card .cover {
       aspect-ratio: 3/4; background: var(--color-bg-alt);
       display: flex; align-items: center; justify-content: center;
-      font-family: var(--font-serif); font-size: 2rem; color: var(--color-text-3);
+      font-family: var(--font-serif); font-size: 1.5rem; color: var(--color-text-3);
       position: relative; overflow: hidden;
     }
     .book-card .cover img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
     .book-card .cover .status-badge {
-      position: absolute; top: 8px; right: 8px;
-      padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700;
+      position: absolute; top: 6px; right: 6px;
+      padding: 3px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 700;
       font-family: var(--font-sans); backdrop-filter: blur(4px);
     }
     .book-card .card-body { flex: 1; display: flex; flex-direction: column; }
-    .book-card .card-body h3 { font-size: 1.05rem; margin-bottom: 6px; }
-    .book-card .card-body .book-meta { font-size: 0.82rem; color: var(--color-text-2); margin-bottom: 3px; }
+    .book-card .card-body h3 { font-size: 0.95rem; margin-bottom: 4px; }
+    .book-card .card-body .book-meta { font-size: 0.78rem; color: var(--color-text-2); margin-bottom: 2px; }
     .book-card .card-body .book-meta.muted { color: var(--color-text-3); }
-    .book-card .card-body .meta { margin-top: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+    .book-card .card-body .meta { margin-top: auto; display: flex; gap: 4px; flex-wrap: wrap; }
 
     /* Event Card */
     .event-card { display: flex; flex-direction: column; }
@@ -923,7 +923,7 @@
     // DATA HELPERS
     // ===========================================
     async function loadBooks() {
-      const { data } = await sb.from('books').select('*').order('created_at', { ascending: false });
+      const { data } = await sb.from('books').select('*').order('start_date', { ascending: false, nullsFirst: false });
       store.set('books', data || []);
       return data || [];
     }
@@ -1470,7 +1470,7 @@
         if (filtered.length === 0) {
           return '<div class="empty-state"><i data-lucide="book"></i><p>暂无书籍</p></div>';
         }
-        return `<div class="grid-3">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
+        return `<div class="grid-4">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
       }
 
       // We use query strings for filters. For simplicity, store filter state on the books view.
@@ -1518,7 +1518,7 @@
         if (filtered.length === 0) {
           grid.innerHTML = '<div class="empty-state"><i data-lucide="book"></i><p>暂无匹配书籍</p></div>';
         } else {
-          grid.innerHTML = `<div class="grid-3">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
+          grid.innerHTML = `<div class="grid-4">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
         }
         lucide.createIcons();
       }
