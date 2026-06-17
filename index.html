@@ -1572,6 +1572,15 @@
           <div style="font-size:1rem;line-height:1.8;">${hostIntroHtml}</div>
         </div>`;
 
+      // Tab 2.5: 灵沁碎碎念 — host_notes (only if has content)
+      const hostNotesHtml = book.host_notes ? marked.parse(book.host_notes) : '';
+      const hostNotesTabHtml = book.host_notes ? `
+        <div class="md-content" style="max-width:none;">
+          ${hostNotesHtml}
+        </div>` : '';
+      const hostNotesTabBtn = book.host_notes ? '<button class="tab" data-tab="hostnotes">灵沁碎碎念</button>' : '';
+      const hostNotesTabContent = book.host_notes ? `<div id="tab-hostnotes" class="tab-content" style="display:none;">${hostNotesTabHtml}</div>` : '';
+
       // Tab 3: 版本建议 — edition_notes + structured cards
       let editions = [];
       try { editions = typeof book.edition_guide === 'string' ? JSON.parse(book.edition_guide||'[]') : (book.edition_guide||[]); } catch(e){}
@@ -1697,6 +1706,7 @@
           <div class="tabs" id="book-tabs" style="margin-top:var(--space-5);">
             <button class="tab active" data-tab="intro">简介</button>
             <button class="tab" data-tab="host">领读人简介</button>
+            ${hostNotesTabBtn}
             <button class="tab" data-tab="edition">版本建议</button>
             <button class="tab" data-tab="schedule">时间计划</button>
             <button class="tab" data-tab="activities">活动安排</button>
@@ -1706,6 +1716,7 @@
 
           <div id="tab-intro" class="tab-content">${introHtml}</div>
           <div id="tab-host" class="tab-content" style="display:none;">${hostTabHtml}</div>
+          ${hostNotesTabContent}
           <div id="tab-edition" class="tab-content" style="display:none;">${editionsHtml}</div>
           <div id="tab-schedule" class="tab-content md-content" style="display:none;">${scheduleHtml}</div>
           <div id="tab-activities" class="tab-content" style="display:none;">${activitiesHtml}</div>
