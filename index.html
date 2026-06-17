@@ -385,13 +385,14 @@
     }
     .book-card .cover img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
     .book-card .cover .status-badge {
-      position: absolute; top: 10px; right: 10px;
+      position: absolute; top: 8px; right: 8px;
       padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700;
       font-family: var(--font-sans); backdrop-filter: blur(4px);
     }
     .book-card .card-body { flex: 1; display: flex; flex-direction: column; }
-    .book-card .card-body h3 { font-size: 1.05rem; margin-bottom: 4px; }
-    .book-card .card-body .author { color: var(--color-text-2); font-size: 0.85rem; margin-bottom: var(--space-1); }
+    .book-card .card-body h3 { font-size: 1.05rem; margin-bottom: 6px; }
+    .book-card .card-body .book-meta { font-size: 0.82rem; color: var(--color-text-2); margin-bottom: 3px; }
+    .book-card .card-body .book-meta.muted { color: var(--color-text-3); }
     .book-card .card-body .meta { margin-top: auto; display: flex; gap: 6px; flex-wrap: wrap; }
 
     /* Event Card */
@@ -542,7 +543,8 @@
     .current-book-card .cover-slot img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
     .current-book-card .info { flex: 1; }
     .current-book-card .info h3 { font-size: 1.35rem; margin-bottom: 4px; }
-    .current-book-card .info .author { color: var(--color-text-2); margin-bottom: 8px; font-size: 0.95rem; }
+    .current-book-card .info .book-meta { font-size: 0.88rem; color: var(--color-text-2); margin-bottom: 3px; }
+    .current-book-card .info .book-meta.muted { color: var(--color-text-3); }
     .current-book-card .info .period { font-size: 0.85rem; color: var(--color-text-3); margin-bottom: 12px; }
 
     /* ========================================
@@ -1215,6 +1217,52 @@
     }
 
     // ===========================================
+    // COMPONENT: Book Card
+    // ===========================================
+    function renderBookCard(b, opts = {}) {
+      const { showDesc = false, descLen = 150, link = true } = opts;
+      const authorInfo = [b.author_country, b.author].filter(Boolean).join('');
+      const authorLine = authorInfo ? `${authorInfo} 著` : b.author;
+      const translatorLine = b.translator ? `${b.translator} 译` : '不限译本';
+      const publisherLine = b.publisher || '不限版本';
+      const inner = `
+        <div class="cover">
+          ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
+          <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || b.status}</span>
+        </div>
+        <div class="card-body">
+          <h3>${b.title}</h3>
+          <div class="book-meta">${authorLine}</div>
+          <div class="book-meta${b.translator ? '' : ' muted'}">${translatorLine}</div>
+          <div class="book-meta${b.publisher ? '' : ' muted'}">${publisherLine}</div>
+          ${showDesc && b.description ? `<p style="font-size:0.85rem;color:var(--color-text-2);margin-top:6px;line-height:1.6;">${b.description.slice(0, descLen)}${b.description.length > descLen ? '...' : ''}</p>` : ''}
+          <div class="meta"><span class="tag tag-genre">${b.genre || '文学'}</span></div>
+        </div>`;
+      return link
+        ? `<a href="#/books/${b.id}" class="card book-card card-clickable" style="color:inherit;">${inner}</a>`
+        : `<div class="card book-card">${inner}</div>`;
+    }
+
+    function renderHomeBookCard(b) {
+      return `
+        <div class="current-book-card">
+          <div class="cover-slot">
+            ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
+          </div>
+          <div class="info">
+            ${statusTag(b.status)}
+            <h3>${b.title}</h3>
+            <div class="book-meta">${[b.author_country, b.author].filter(Boolean).join('')} 著</div>
+            <div class="book-meta${b.translator ? '' : ' muted'}">${b.translator ? b.translator + ' 译' : '不限译本'}</div>
+            <div class="book-meta${b.publisher ? '' : ' muted'}">${b.publisher || '不限版本'}</div>
+            ${b.start_date && b.end_date ? `<div class="period"><i data-lucide="calendar" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${formatDate(b.start_date)} — ${formatDate(b.end_date)}</div>` : ''}
+            <p style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:12px;">${b.description ? b.description.slice(0, 150) + '...' : ''}</p>
+            <a href="#/books/${b.id}" class="btn btn-primary btn-sm">查看共读详情</a>
+          </div>
+        </div>`;
+    }
+
+    // ===========================================
     // ROUTE: LOGIN / REGISTER
     // ===========================================
     route('/login', (params) => {
@@ -1380,25 +1428,8 @@
             .join('<br>')
         : '用阅读抵御孤独，遇见同频的书友。<br>有深度、有温度的线上共读社群。';
 
-      function bookCard(b) {
-        return `
-          <div class="current-book-card">
-            <div class="cover-slot">
-              ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
-            </div>
-            <div class="info">
-              ${statusTag(b.status)}
-              <h3>${b.title}</h3>
-              <div class="author">${b.author}${b.translator ? ' · ' + b.translator + ' 译' : ''}</div>
-              ${b.start_date && b.end_date ? `<div class="period"><i data-lucide="calendar" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${formatDate(b.start_date)} — ${formatDate(b.end_date)}</div>` : ''}
-              <p style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:12px;">${b.description ? b.description.slice(0, 150) + '...' : ''}</p>
-              <a href="#/books/${b.id}" class="btn btn-primary btn-sm">查看共读详情</a>
-            </div>
-          </div>`;
-      }
-
       const bookCardsHtml = latestBooks.length > 0
-        ? `<div class="current-book-section" style="display:flex;gap:1cm;justify-content:center;flex-wrap:wrap;">${latestBooks.map(bookCard).join('')}</div>`
+        ? `<div class="current-book-section" style="display:flex;gap:1cm;justify-content:center;flex-wrap:wrap;">${latestBooks.map(renderHomeBookCard).join('')}</div>`
         : '';
 
       return `
@@ -1446,18 +1477,7 @@
         if (filtered.length === 0) {
           return '<div class="empty-state"><i data-lucide="book"></i><p>暂无书籍</p></div>';
         }
-        return `<div class="grid-3">${filtered.map(b => `
-          <a href="#/books/${b.id}" class="card book-card card-clickable" style="color:inherit;">
-            <div class="cover">
-              ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
-              <span class="status-badge tag ${STATUS_CLASS[b.status]}">${STATUS_MAP[b.status]}</span>
-            </div>
-            <div class="card-body">
-              <h3>${b.title}</h3>
-              <div class="author">${b.author}</div>
-              <div class="meta"><span class="tag tag-genre">${b.genre}</span></div>
-            </div>
-          </a>`).join('')}</div>`;
+        return `<div class="grid-3">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
       }
 
       // We use query strings for filters. For simplicity, store filter state on the books view.
@@ -1505,14 +1525,7 @@
         if (filtered.length === 0) {
           grid.innerHTML = '<div class="empty-state"><i data-lucide="book"></i><p>暂无匹配书籍</p></div>';
         } else {
-          grid.innerHTML = `<div class="grid-3">${filtered.map(b => `
-            <a href="#/books/${b.id}" class="card book-card card-clickable" style="color:inherit;">
-              <div class="cover">
-                ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
-                <span class="status-badge tag ${STATUS_CLASS[b.status]}">${STATUS_MAP[b.status]}</span>
-              </div>
-              <div class="card-body"><h3>${b.title}</h3><div class="author">${b.author}</div><div class="meta"><span class="tag tag-genre">${b.genre}</span></div></div>
-            </a>`).join('')}</div>`;
+          grid.innerHTML = `<div class="grid-3">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
         }
         lucide.createIcons();
       }
