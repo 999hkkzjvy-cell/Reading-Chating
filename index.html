@@ -753,6 +753,118 @@
     }
 
     /* ========================================
+       Latin America Literary Map — 西语文学地图
+       ======================================== */
+    .latam-layout {
+      display: flex; gap: var(--space-4); align-items: flex-start;
+    }
+    .latam-map-wrap { flex: 1; min-width: 0; max-width: 580px; }
+    .latam-map-wrap svg {
+      width: 100%; height: auto;
+      border-radius: var(--radius-md);
+      background: linear-gradient(180deg, #fefaf5 0%, #faf5ec 50%, #f7f0e4 100%);
+      border: 1px solid var(--color-border);
+      box-shadow: var(--shadow-sm);
+    }
+    .latam-map-wrap svg path.latam-country {
+      fill: #e8dcc8;
+      stroke: #c4b896;
+      stroke-width: 1.2;
+      transition: fill 0.25s ease, stroke 0.25s ease;
+      cursor: pointer;
+      vector-effect: non-scaling-stroke;
+    }
+    .latam-map-wrap svg path.latam-country:hover {
+      fill: var(--color-accent);
+      stroke: var(--color-accent-h);
+      stroke-width: 2;
+      filter: drop-shadow(0 2px 4px rgba(193,125,75,0.3));
+    }
+    .latam-map-wrap svg path.latam-country.active {
+      fill: var(--color-accent-h);
+      stroke: var(--color-accent-h);
+      stroke-width: 2;
+    }
+
+    /* Map tooltip */
+    .latam-tooltip {
+      position: absolute; pointer-events: none;
+      background: var(--color-text); color: #fff;
+      padding: 4px 10px; border-radius: var(--radius-sm);
+      font-size: 0.8rem; font-weight: 600;
+      white-space: nowrap; opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 100;
+    }
+    .latam-tooltip.show { opacity: 1; }
+
+    /* Info panel */
+    .latam-panel {
+      width: 380px; flex-shrink: 0;
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+      box-shadow: var(--shadow-sm);
+      padding: var(--space-3);
+      min-height: 400px;
+    }
+    .latam-panel h2 {
+      font-size: 1.2rem; margin-bottom: 4px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .latam-panel .panel-intro {
+      color: var(--color-text-2); font-size: 0.85rem;
+      line-height: 1.6; margin-bottom: var(--space-3);
+    }
+    .latam-panel .latam-author-card {
+      padding: var(--space-2) 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .latam-panel .latam-author-card:last-child { border-bottom: none; }
+    .latam-panel .latam-author-card .author-name {
+      font-weight: 700; font-size: 0.95rem;
+      color: var(--color-text);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .latam-panel .latam-author-card .author-name .icon { font-size: 1rem; }
+    .latam-panel .latam-author-card .author-bio {
+      font-size: 0.78rem; color: var(--color-text-3);
+      line-height: 1.5; margin-top: 2px;
+    }
+    .latam-panel .latam-author-card .author-works {
+      display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;
+    }
+    .latam-panel .latam-author-card .author-works .work-tag {
+      font-size: 0.72rem; padding: 2px 8px;
+      background: var(--color-accent-bg);
+      color: var(--color-accent);
+      border-radius: 20px;
+    }
+
+    /* Country quick tags */
+    .latam-tags {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin-top: var(--space-3);
+    }
+    .latam-tags .latam-tag {
+      padding: 5px 12px; border-radius: 20px;
+      font-size: 0.78rem; font-weight: 500;
+      background: var(--color-bg-alt);
+      color: var(--color-text-2);
+      border: 1px solid transparent;
+      cursor: pointer; transition: all 0.2s ease;
+    }
+    .latam-tags .latam-tag:hover {
+      background: var(--color-accent-bg);
+      color: var(--color-accent);
+      border-color: var(--color-accent);
+    }
+    .latam-tags .latam-tag.active {
+      background: var(--color-accent);
+      color: #fff;
+    }
+
+    /* ========================================
        Responsive
        ======================================== */
     @media (max-width: 768px) {
@@ -770,6 +882,9 @@
       .grid-2, .grid-3, .grid-4, .grid-6 { grid-template-columns: repeat(2, 1fr); }
       .new-books-layout { flex-direction: column; }
       .new-books-layout .new-books-side { width: 100%; }
+      .latam-layout { flex-direction: column; }
+      .latam-map-wrap { max-width: 100%; }
+      .latam-panel { width: 100%; }
       .new-book-grid { grid-template-columns: 1fr; }
       .new-book-card .nb-cover { width: 100px; }
       .current-book-card { flex-direction: column; align-items: center; text-align: center; }
@@ -801,6 +916,7 @@
             <li><a href="#/books" data-route="/books">书库</a></li>
             <li><a href="#/events" data-route="/events">活动</a></li>
             <li><a href="#/new-books" data-route="/new-books">新书速递</a></li>
+            <li><a href="#/latin-america" data-route="/latin-america">西语文学</a></li>
           </ul>
         </div>
         <div class="nav-right">
@@ -2111,6 +2227,151 @@
     });
 
     // ===========================================
+    // LATIN AMERICA LITERARY MAP DATA
+    // ===========================================
+    const LATAM_COUNTRIES = [
+      { id:'mx', name:'墨西哥', path:'M85,50 L120,38 L200,30 L260,40 L300,55 L310,80 L295,110 L275,135 L290,155 L260,165 L230,155 L200,135 L175,130 L155,120 L130,115 L100,105 L85,85 Z',
+        authors:[
+          { name:'奥克塔维奥·帕斯', en:'Octavio Paz', bio:'1990年诺贝尔文学奖得主，墨西哥最伟大的诗人、散文家。作品融合超现实主义与拉美本土文化。', works:['《太阳石》','《孤独的迷宫》','《弓与琴》'] },
+          { name:'卡洛斯·富恩特斯', en:'Carlos Fuentes', bio:'拉美文学爆炸核心人物，以实验性叙事探索墨西哥身份认同与历史。', works:['《最明净的地区》','《阿尔特米奥·克罗斯之死》','《奥拉》'] },
+          { name:'胡安·鲁尔福', en:'Juan Rulfo', bio:'魔幻现实主义先驱，一生仅出版两部作品却影响深远，马尔克斯称其教会自己写作。', works:['《佩德罗·巴拉莫》','《燃烧的原野》'] }
+        ]},
+      { id:'gt', name:'危地马拉', path:'M155,165 L175,155 L200,158 L210,175 L195,188 L170,190 L160,178 Z',
+        authors:[
+          { name:'米格尔·安赫尔·阿斯图里亚斯', en:'Miguel Ángel Asturias', bio:'1967年诺贝尔文学奖得主，魔幻现实主义先驱，作品根植于玛雅文化与反独裁斗争。', works:['《总统先生》','《玉米人》','《强风》'] }
+        ]},
+      { id:'cu', name:'古巴', path:'M320,100 L345,90 L370,95 L390,110 L395,130 L385,150 L365,160 L340,165 L325,155 L315,135 Z',
+        authors:[
+          { name:'阿莱霍·卡彭铁尔', en:'Alejo Carpentier', bio:'魔幻现实主义奠基人，"神奇现实"理论的提出者，将巴洛克美学融入拉美叙事。', works:['《人间王国》','《消失的脚步》','《光明世纪》'] },
+          { name:'何塞·马蒂', en:'José Martí', bio:'古巴民族英雄、现代主义诗歌先驱，以热血文字呼唤拉美独立与团结。', works:['《伊斯马埃利约》','《纯朴的诗》','《我们的美洲》'] }
+        ]},
+      { id:'ni', name:'尼加拉瓜', path:'M148,192 L168,190 L190,195 L200,210 L188,225 L165,228 L152,220 L145,205 Z',
+        authors:[
+          { name:'鲁文·达里奥', en:'Rubén Darío', bio:'拉美现代主义诗歌之父，革新西班牙语诗歌韵律与意象，影响遍及整个西语世界。', works:['《蓝》','《亵渎的散文》','《生命与希望之歌》'] }
+        ]},
+      { id:'co', name:'哥伦比亚', path:'M155,240 L175,235 L210,238 L245,245 L255,270 L248,300 L235,320 L210,330 L180,325 L162,310 L150,290 L148,265 Z',
+        authors:[
+          { name:'加西亚·马尔克斯', en:'Gabriel García Márquez', bio:'1982年诺贝尔文学奖得主，魔幻现实主义巅峰代表，二十世纪最伟大的小说家之一。', works:['《百年孤独》','《霍乱时期的爱情》','《族长的秋天》'] },
+          { name:'阿尔瓦罗·穆蒂斯', en:'Álvaro Mutis', bio:'诗人、小说家，马尔克斯挚友，以航海史诗《马科洛尔的冒险》系列闻名。', works:['《阿米尔巴尔》','《伊洛娜随雨而至》'] }
+        ]},
+      { id:'ve', name:'委内瑞拉', path:'M258,240 L285,232 L330,235 L360,248 L355,280 L340,310 L320,330 L295,335 L270,325 L260,300 L252,270 Z',
+        authors:[
+          { name:'罗慕洛·加列戈斯', en:'Rómulo Gallegos', bio:'委内瑞拉最伟大的小说家，以描绘大草原与民族精神闻名，曾短暂担任总统。', works:['《堂娜芭芭拉》','《坎塔克拉罗》'] }
+        ]},
+      { id:'ec', name:'厄瓜多尔', path:'M155,338 L180,333 L210,338 L195,356 L175,362 L158,358 L150,348 Z',
+        authors:[
+          { name:'豪尔赫·伊卡萨', en:'Jorge Icaza', bio:'土著主义文学代表，以《瓦西蓬戈》揭露印第安人的悲惨命运，震撼拉美文坛。', works:['《瓦西蓬戈》','《混血儿》'] }
+        ]},
+      { id:'pe', name:'秘鲁', path:'M148,370 L168,365 L200,368 L218,380 L215,410 L210,435 L205,455 L195,470 L180,480 L165,478 L152,465 L145,440 L142,410 L143,390 Z',
+        authors:[
+          { name:'巴尔加斯·略萨', en:'Mario Vargas Llosa', bio:'2010年诺贝尔文学奖得主，结构现实主义大师，以复调叙事探索权力与自由。', works:['《城市与狗》','《绿房子》','《酒吧长谈》'] },
+          { name:'塞萨尔·巴列霍', en:'César Vallejo', bio:'二十世纪最伟大的西班牙语诗人之一，以先锋语言表达人类苦难与救赎。', works:['《特里尔塞》','《人类的诗篇》','《黑色先驱》'] }
+        ]},
+      { id:'bo', name:'玻利维亚', path:'M175,480 L200,475 L235,478 L248,500 L240,525 L215,535 L190,530 L172,518 L168,500 Z',
+        authors:[
+          { name:'海梅·萨恩斯', en:'Jaime Sáenz', bio:'玻利维亚最重要的现代诗人，作品融合安第斯神秘主义与存在主义哲思。', works:['《死亡之触》','《访客》'] }
+        ]},
+      { id:'cl', name:'智利', path:'M145,370 L160,375 L162,405 L158,440 L155,470 L152,500 L150,530 L148,560 L147,590 L144,610 L138,620 L125,618 L120,600 L118,570 L120,540 L122,505 L125,470 L128,440 L130,405 L132,380 Z',
+        authors:[
+          { name:'巴勃罗·聂鲁达', en:'Pablo Neruda', bio:'1971年诺贝尔文学奖得主，二十世纪最伟大的诗人之一，爱情与政治的诗篇传遍世界。', works:['《二十首情诗和一首绝望的歌》','《漫歌》','《元素的颂歌》'] },
+          { name:'加夫列拉·米斯特拉尔', en:'Gabriela Mistral', bio:'1945年诺贝尔文学奖得主，拉美第一位诺奖作家，以深沉母性与悲悯情怀动人。', works:['《绝望》','《柔情》','《塔拉》'] },
+          { name:'罗贝托·波拉尼奥', en:'Roberto Bolaño', bio:'后爆炸时代最具影响力的拉美作家，以《2666》重塑当代西语文学版图。', works:['《2666》','《荒野侦探》','《遥远的星辰》'] }
+        ]},
+      { id:'py', name:'巴拉圭', path:'M248,518 L275,515 L300,520 L310,538 L300,555 L278,560 L255,555 L242,540 Z',
+        authors:[
+          { name:'奥古斯托·罗亚·巴斯托斯', en:'Augusto Roa Bastos', bio:'巴拉圭最伟大的作家，塞万提斯奖得主，以《人子》三部曲书写巴拉圭民族史诗。', works:['《人子》','《我，至高无上者》'] }
+        ]},
+      { id:'ar', name:'阿根廷', path:'M170,545 L200,538 L250,535 L300,540 L350,548 L380,565 L390,595 L380,625 L355,645 L320,655 L270,658 L220,650 L185,635 L165,615 L158,595 L160,570 Z',
+        authors:[
+          { name:'豪尔赫·路易斯·博尔赫斯', en:'Jorge Luis Borges', bio:'二十世纪最具原创性的作家之一，以迷宫、镜子、图书馆构建形而上学叙事宇宙。', works:['《小径分岔的花园》','《阿莱夫》','《虚构集》'] },
+          { name:'胡利奥·科塔萨尔', en:'Julio Cortázar', bio:'拉美文学爆炸核心人物，以碎片化叙事打破现实主义传统，重新定义短篇小说。', works:['《跳房子》','《动物寓言集》','《万火归一》'] },
+          { name:'埃内斯托·萨瓦托', en:'Ernesto Sabato', bio:'物理学家出身的小说家，以存在主义视角探索理性与疯狂的边界。', works:['《隧道》','《英雄与坟墓》'] }
+        ]},
+      { id:'uy', name:'乌拉圭', path:'M310,558 L340,552 L365,558 L370,578 L355,588 L330,590 L308,582 L305,568 Z',
+        authors:[
+          { name:'胡安·卡洛斯·奥内蒂', en:'Juan Carlos Onetti', bio:'拉美心理小说先驱，以虚构城市圣玛利亚构建孤独绝望的叙事迷宫。', works:['《造船厂》','《短暂的生命》','《收尸人》'] },
+          { name:'马里奥·贝内德蒂', en:'Mario Benedetti', bio:'乌拉圭最受爱戴的作家，以平实语言书写普通人生活、爱情与流亡。', works:['《休战》','《感谢火焰》'] }
+        ]},
+      { id:'br', name:'巴西', path:'M255,260 L310,255 L365,260 L410,275 L430,310 L425,360 L415,410 L405,450 L390,490 L370,520 L365,545 L340,555 L310,555 L285,540 L270,510 L260,480 L248,440 L240,390 L238,340 L240,300 Z',
+        authors:[
+          { name:'马查多·德·阿西斯', en:'Machado de Assis', bio:'巴西文学之父，以冷峻讽刺与心理洞察开创拉美现实主义小说先河。', works:['《布拉兹·库巴斯的死后回忆》','《堂卡斯穆罗》'] },
+          { name:'克拉丽丝·李斯佩克特', en:'Clarice Lispector', bio:'二十世纪最重要的巴西作家之一，以独特内省风格探索存在与语言的边界。', works:['《星辰时刻》','《靠近狂野之心》'] },
+          { name:'若热·亚马多', en:'Jorge Amado', bio:'巴西最广为人知的作家，以热情奔放的笔触描绘巴伊亚的人情风土。', works:['《加布里埃拉、丁香与肉桂》','《弗洛尔姑娘和她的两个丈夫》'] }
+        ]},
+    ];
+
+    // ===========================================
+    // ROUTE: LATIN AMERICA LITERARY MAP
+    // ===========================================
+    route('/latin-america', async () => {
+      const countries = LATAM_COUNTRIES;
+
+      // SVG map
+      const svgHtml = `
+        <svg viewBox="0 0 450 670" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <filter id="map-shadow">
+              <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
+            </filter>
+          </defs>
+          ${countries.map(c => `
+            <path class="latam-country" data-country="${c.id}"
+              d="${c.path}"
+              title="${c.name}">
+              <title>${c.name}</title>
+            </path>
+          `).join('')}
+        </svg>`;
+
+      // Default intro panel
+      const introPanel = `
+        <h2>🌎 拉丁美洲文学地图</h2>
+        <div class="panel-intro">
+          拉丁美洲是二十世纪世界文学的爆炸原点。从魔幻现实主义到结构现实主义，
+          从博尔赫斯的迷宫到聂鲁达的情诗，这片大陆孕育了最富想象力的文学图景。<br><br>
+          <strong>点击地图上的国家</strong>，发现那些改变了世界文学版图的作家与作品。
+        </div>
+        <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--color-border);">
+          <div style="font-size:0.78rem;color:var(--color-text-3);margin-bottom:6px;">🏆 诺贝尔文学奖得主（拉美）</div>
+          <div style="font-size:0.78rem;color:var(--color-text-2);line-height:1.8;">
+            1945 · 🇨🇱 加夫列拉·米斯特拉尔<br>
+            1967 · 🇬🇹 米格尔·阿斯图里亚斯<br>
+            1971 · 🇨🇱 巴勃罗·聂鲁达<br>
+            1982 · 🇨🇴 加西亚·马尔克斯<br>
+            1990 · 🇲🇽 奥克塔维奥·帕斯<br>
+            2010 · 🇵🇪 巴尔加斯·略萨
+          </div>
+        </div>
+      `;
+
+      // Country tags
+      const tagsHtml = countries.map(c =>
+        `<span class="latam-tag" data-country="${c.id}">${c.name}</span>`
+      ).join('');
+
+      return `
+        <div class="container section">
+          <div class="page-header">
+            <h1>西语文学专区</h1>
+            <div class="subtitle">拉丁美洲文学地图 · 探索西语世界的文学瑰宝</div>
+          </div>
+
+          <div class="latam-layout">
+            <div class="latam-map-wrap" id="latam-map-wrap">
+              ${svgHtml}
+            </div>
+            <div class="latam-panel" id="latam-panel">
+              ${introPanel}
+            </div>
+          </div>
+
+          <div class="latam-tags" id="latam-tags">
+            ${tagsHtml}
+          </div>
+        </div>`;
+    });
+
+    // ===========================================
     // ROUTE: PROFILE
     // ===========================================
     route('/profile', async () => {
@@ -2912,6 +3173,80 @@
           toast('同步请求失败，请检查网络后重试', 'error');
         }
         router.render();
+        return;
+      }
+    });
+
+    // ===========================================
+    // LATIN AMERICA MAP — 西语文学地图交互
+    // ===========================================
+    function renderLatamPanel(countryId) {
+      const panel = document.getElementById('latam-panel');
+      if (!panel) return;
+
+      // Update active states
+      document.querySelectorAll('.latam-country').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.latam-tag').forEach(t => t.classList.remove('active'));
+
+      if (!countryId) {
+        // Default intro
+        panel.innerHTML = `
+          <h2>🌎 拉丁美洲文学地图</h2>
+          <div class="panel-intro">
+            拉丁美洲是二十世纪世界文学的爆炸原点。从魔幻现实主义到结构现实主义，
+            从博尔赫斯的迷宫到聂鲁达的情诗，这片大陆孕育了最富想象力的文学图景。<br><br>
+            <strong>点击地图上的国家</strong>，发现那些改变了世界文学版图的作家与作品。
+          </div>
+          <div style="margin-top:var(--space-3);padding-top:var(--space-3);border-top:1px solid var(--color-border);">
+            <div style="font-size:0.78rem;color:var(--color-text-3);margin-bottom:6px;">🏆 诺贝尔文学奖得主（拉美）</div>
+            <div style="font-size:0.78rem;color:var(--color-text-2);line-height:1.8;">
+              1945 · 🇨🇱 加夫列拉·米斯特拉尔<br>
+              1967 · 🇬🇹 米格尔·阿斯图里亚斯<br>
+              1971 · 🇨🇱 巴勃罗·聂鲁达<br>
+              1982 · 🇨🇴 加西亚·马尔克斯<br>
+              1990 · 🇲🇽 奥克塔维奥·帕斯<br>
+              2010 · 🇵🇪 巴尔加斯·略萨
+            </div>
+          </div>`;
+        return;
+      }
+
+      const country = LATAM_COUNTRIES.find(c => c.id === countryId);
+      if (!country) return;
+
+      // Highlight active
+      const pathEl = document.querySelector(`.latam-country[data-country="${countryId}"]`);
+      if (pathEl) pathEl.classList.add('active');
+      const tagEl = document.querySelector(`.latam-tag[data-country="${countryId}"]`);
+      if (tagEl) tagEl.classList.add('active');
+
+      // Render panel
+      const authorsHtml = country.authors.map(a => `
+        <div class="latam-author-card">
+          <div class="author-name"><span class="icon">✍️</span>${h(a.name)}<span style="font-weight:400;font-size:0.75rem;color:var(--color-text-3);margin-left:4px;">${h(a.en)}</span></div>
+          <div class="author-bio">${h(a.bio)}</div>
+          <div class="author-works">${a.works.map(w => `<span class="work-tag">📖 ${h(w)}</span>`).join('')}</div>
+        </div>
+      `).join('');
+
+      panel.innerHTML = `
+        <h2>📍 ${h(country.name)}</h2>
+        <div class="panel-intro">共 ${country.authors.length} 位代表作家</div>
+        ${authorsHtml}
+      `;
+    }
+
+    document.addEventListener('click', (e) => {
+      // Country path click
+      const countryPath = e.target.closest('.latam-country');
+      if (countryPath) {
+        renderLatamPanel(countryPath.dataset.country);
+        return;
+      }
+      // Country tag click
+      const countryTag = e.target.closest('.latam-tag');
+      if (countryTag) {
+        renderLatamPanel(countryTag.dataset.country);
         return;
       }
     });
