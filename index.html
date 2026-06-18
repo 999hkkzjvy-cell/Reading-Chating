@@ -8,9 +8,11 @@
   <meta property="og:description" content="用阅读抵御孤独，遇见同频的书友。有深度、有温度的线上共读社群。">
   <meta property="og:type" content="website">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https: cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; style-src 'self' 'unsafe-inline' https: fonts.googleapis.com; font-src https: fonts.gstatic.com; img-src 'self' data: https:; connect-src https: wss:;">
+  <script src="https://unpkg.com/lucide@0.344.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <style>
     /* ========================================
@@ -237,6 +239,7 @@
     .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
     .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); }
+    .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
 
     /* Filters */
     .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: var(--space-3); }
@@ -380,20 +383,20 @@
     .book-card .cover {
       aspect-ratio: 3/4; background: var(--color-bg-alt);
       display: flex; align-items: center; justify-content: center;
-      font-family: var(--font-serif); font-size: 2rem; color: var(--color-text-3);
+      font-family: var(--font-serif); font-size: 1.2rem; color: var(--color-text-3);
       position: relative; overflow: hidden;
     }
     .book-card .cover img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
     .book-card .cover .status-badge {
-      position: absolute; top: 8px; right: 8px;
-      padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700;
+      position: absolute; top: 4px; right: 4px;
+      padding: 2px 6px; border-radius: 8px; font-size: 0.6rem; font-weight: 700;
       font-family: var(--font-sans); backdrop-filter: blur(4px);
     }
-    .book-card .card-body { flex: 1; display: flex; flex-direction: column; }
-    .book-card .card-body h3 { font-size: 1.05rem; margin-bottom: 6px; }
-    .book-card .card-body .book-meta { font-size: 0.82rem; color: var(--color-text-2); margin-bottom: 3px; }
+    .book-card .card-body { flex: 1; display: flex; flex-direction: column; padding: 10px; }
+    .book-card .card-body h3 { font-size: 0.85rem; margin-bottom: 3px; line-height: 1.3; }
+    .book-card .card-body .book-meta { font-size: 0.72rem; color: var(--color-text-2); margin-bottom: 2px; }
     .book-card .card-body .book-meta.muted { color: var(--color-text-3); }
-    .book-card .card-body .meta { margin-top: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+    .book-card .card-body .meta { margin-top: auto; display: flex; gap: 4px; flex-wrap: wrap; }
 
     /* Event Card */
     .event-card { display: flex; flex-direction: column; }
@@ -617,7 +620,7 @@
         box-shadow: var(--shadow-md);
       }
       .hamburger { display: block; }
-      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .grid-2, .grid-3, .grid-4, .grid-6 { grid-template-columns: repeat(2, 1fr); }
       .current-book-card { flex-direction: column; align-items: center; text-align: center; }
       .current-book-card .cover-slot { width: 100px; }
       .hero { padding: var(--space-6) 0 var(--space-3); }
@@ -680,8 +683,11 @@
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Configure marked
-    if (typeof marked !== 'undefined') {
-      marked.setOptions({ breaks: true, gfm: true });
+    marked.setOptions({ breaks: true, gfm: true });
+
+    // Security: sanitize all markdown output with DOMPurify
+    function safeMarked(text) {
+      return DOMPurify.sanitize(marked.parse(text || ''));
     }
 
     // ===========================================
@@ -781,11 +787,18 @@
           return this.navigate('/login?redirect=' + encodeURIComponent(path));
         }
 
-        // Admin guard
-        if (path.startsWith('/admin') && !store.get('isAdmin')) {
-          document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="shield-alert"></i><p>您没有管理权限</p></div></div>';
-          lucide.createIcons();
-          return;
+        // Admin guard — verify server-side via DB query (not just client store)
+        if (path.startsWith('/admin')) {
+          const user = store.get('user');
+          if (!user) {
+            return this.navigate('/login?redirect=' + encodeURIComponent(path));
+          }
+          const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
+          if (profile?.role !== 'admin') {
+            document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="shield-alert"></i><p>您没有管理权限</p></div></div>';
+            lucide.createIcons();
+            return;
+          }
         }
 
         if (matched) {
@@ -798,7 +811,8 @@
         bindGlobalEvents();
         } catch (err) {
           console.error('Router error:', err);
-          document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="alert-triangle"></i><p>加载失败：' + err.message + '</p><p style="font-size:0.85rem;color:var(--color-text-3);">请检查网络连接或刷新重试</p></div></div>';
+          const errText = String(err.message || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="alert-triangle"></i><p>加载失败：' + errText + '</p><p style="font-size:0.85rem;color:var(--color-text-3);">请检查网络连接或刷新重试</p></div></div>';
           lucide.createIcons();
         }
       },
@@ -896,7 +910,7 @@
         container.innerHTML = `
           <a href="#/profile" style="display:flex;align-items:center;gap:8px;color:var(--color-text);font-size:0.9rem;">
             <span class="avatar">${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="">` : initial}</span>
-            <span class="nav-username">${profile.display_name}</span>
+            <span class="nav-username">${h(profile.display_name)}</span>
           </a>
           ${store.get('isAdmin') ? '<a href="#/admin" class="btn btn-outline btn-sm">管理</a>' : ''}
           <button class="btn btn-ghost btn-sm" id="btn-logout">退出</button>
@@ -911,7 +925,7 @@
     // DATA HELPERS
     // ===========================================
     async function loadBooks() {
-      const { data } = await sb.from('books').select('*').order('created_at', { ascending: false });
+      const { data } = await sb.from('books').select('*').order('start_date', { ascending: false, nullsFirst: false });
       store.set('books', data || []);
       return data || [];
     }
@@ -990,68 +1004,38 @@
     }
 
     // ===========================================
-    // AI AUTO-FILL
+    // AI AUTO-FILL — via Supabase Edge Function (no API key exposed)
     // ===========================================
     async function aiFillBookInfo(title, author) {
-      const config = store.get('config');
-      const apiKey = config.deepseek_api_key;
-      const apiUrl = config.deepseek_api_url || 'https://api.deepseek.com/v1/chat/completions';
-
-      if (!apiKey) { toast('请先在管理后台配置 DeepSeek API Key', 'error'); return null; }
       if (!title || !author) { toast('请先填写书名和作者', 'error'); return null; }
 
-      const prompt = `请根据以下书籍信息，用中文生成内容。返回纯JSON格式，不要markdown代码块。
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { toast('请先登录', 'error'); return null; }
 
-书名：《${title}》
-作者：${author}
-
-请生成以下三个字段：
-
-1. 书籍简介（400-800字），可包括：书籍类型与文学流派、核心主题和思想、重要术语/概念解释、与其他作品的关联、成书过程中有趣的轶事。但避免透露具体情节转折、人物命运和故事结局。
-
-2. 作者简介（400-800字），可包括：生卒年及重要生平事件、写作本书时的年龄和状态、主要成就（代表作品、获奖等）、写作风格特点、重要相关名人及关系。但避免透露具体情节转折、人物命运和故事结局。
-
-3. 创作时代背景（300-600字），可包括：成书年代及出版年代的社会政治环境、经济文化背景、当时的文学/思想潮流、这些因素对作品的影响。但避免透露具体情节转折、人物命运和故事结局。
-
-返回格式：{"description":"...","author_bio":"...","historical_context":"..."}`;
+      const edgeUrl = `${SUPABASE_URL}/functions/v1/deepseek-proxy`;
 
       let response;
       try {
-        response = await fetch(apiUrl, {
+        response = await fetch(edgeUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.7,
-            max_tokens: 4000
-          })
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ title, author })
         });
       } catch (err) {
-        toast('AI 请求失败：网络错误', 'error');
+        toast('AI 请求失败：网络错误，请检查 Edge Function 是否已部署', 'error');
         return null;
       }
 
       if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        toast('AI 请求失败：' + response.status + (errText ? ' ' + errText.slice(0, 80) : ''), 'error');
+        const errData = await response.json().catch(() => ({}));
+        toast('AI 请求失败：' + (errData.error || response.status), 'error');
         return null;
       }
 
-      const data = await response.json();
-      const content = data.choices?.[0]?.message?.content || '';
-
-      // Parse JSON from response
-      try {
-        return JSON.parse(content);
-      } catch {
-        const match = content.match(/\{[\s\S]*\}/);
-        if (match) {
-          try { return JSON.parse(match[0]); } catch {}
-        }
-        toast('AI 返回格式异常，请重试', 'error');
-        return null;
-      }
+      return await response.json();
     }
 
     // ===========================================
@@ -1232,22 +1216,16 @@
     // ===========================================
     function renderBookCard(b, opts = {}) {
       const { showDesc = false, descLen = 150, link = true } = opts;
-      const authorInfo = [b.author_country, b.author].filter(Boolean).join('');
-      const authorLine = authorInfo ? `${authorInfo} 著` : b.author;
-      const translatorLine = b.translator ? `${b.translator} 译` : '不限译本';
-      const publisherLine = b.publisher || '不限版本';
+      const authorLine = b.author_country ? `[${h(b.author_country)}] ${h(b.author)} 著` : `${h(b.author)} 著`;
       const inner = `
         <div class="cover">
-          ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
-          <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || b.status}</span>
+          ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="">` : '<i data-lucide="book"></i>'}
+          <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || h(b.status)}</span>
         </div>
         <div class="card-body">
-          <h3>${b.title}</h3>
+          <h3>${h(b.title)}</h3>
           <div class="book-meta">${authorLine}</div>
-          <div class="book-meta${b.translator ? '' : ' muted'}">${translatorLine}</div>
-          <div class="book-meta${b.publisher ? '' : ' muted'}">${publisherLine}</div>
-          ${showDesc && b.description ? `<p style="font-size:0.85rem;color:var(--color-text-2);margin-top:6px;line-height:1.6;">${b.description.slice(0, descLen)}${b.description.length > descLen ? '...' : ''}</p>` : ''}
-          <div class="meta"><span class="tag tag-genre">${b.genre || '文学'}</span></div>
+          <div class="meta"><span class="tag tag-genre">${h(b.genre || '文学')}</span></div>
         </div>`;
       return link
         ? `<a href="#/books/${b.id}" class="card book-card card-clickable" style="color:inherit;">${inner}</a>`
@@ -1255,19 +1233,20 @@
     }
 
     function renderHomeBookCard(b) {
+      const authorLine = [b.author_country ? `[${h(b.author_country)}]` : '', h(b.author)].filter(Boolean).join(' ') + ' 著';
       return `
         <div class="current-book-card">
-          <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || b.status}</span>
+          <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || h(b.status)}</span>
           <div class="cover-slot">
-            ${b.cover_url ? `<img src="${b.cover_url}" alt="">` : '<i data-lucide="book"></i>'}
+            ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="">` : '<i data-lucide="book"></i>'}
           </div>
           <div class="info">
-            <h3>${b.title}</h3>
-            <div class="book-meta">${[b.author_country, b.author].filter(Boolean).join('')} 著</div>
-            <div class="book-meta${b.translator ? '' : ' muted'}">${b.translator ? b.translator + ' 译' : '不限译本'}</div>
-            <div class="book-meta${b.publisher ? '' : ' muted'}">${b.publisher || '不限版本'}</div>
+            <h3>${h(b.title)}</h3>
+            <div class="book-meta">${authorLine}</div>
+            <div class="book-meta${b.translator ? '' : ' muted'}">${b.translator ? h(b.translator) + ' 译' : '不限译本'}</div>
+            <div class="book-meta${b.publisher ? '' : ' muted'}">${h(b.publisher) || '不限版本'}</div>
             ${b.start_date && b.end_date ? `<div class="period"><i data-lucide="calendar" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${formatDate(b.start_date)} — ${formatDate(b.end_date)}</div>` : ''}
-            <p style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:12px;">${b.description ? b.description.slice(0, 150) + '...' : ''}</p>
+            <p style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:12px;">${b.description ? h(b.description.slice(0, 150)) + '...' : ''}</p>
             <a href="#/books/${b.id}" class="btn btn-primary btn-sm">查看共读详情</a>
           </div>
         </div>`;
@@ -1428,7 +1407,7 @@
         latestBooks.push(...books.slice(0, 2 - latestBooks.length));
       }
 
-      const rulesHtml = marked.parse(config.group_rules || '群规加载中...');
+      const rulesHtml = safeMarked(config.group_rules || '群规加载中...');
 
       // Intro: preserve user's line breaks, strip markdown per line
       const introLines = config.reading_plan_intro
@@ -1488,7 +1467,7 @@
         if (filtered.length === 0) {
           return '<div class="empty-state"><i data-lucide="book"></i><p>暂无书籍</p></div>';
         }
-        return `<div class="grid-3">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
+        return `<div class="grid-6">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
       }
 
       // We use query strings for filters. For simplicity, store filter state on the books view.
@@ -1536,7 +1515,7 @@
         if (filtered.length === 0) {
           grid.innerHTML = '<div class="empty-state"><i data-lucide="book"></i><p>暂无匹配书籍</p></div>';
         } else {
-          grid.innerHTML = `<div class="grid-3">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
+          grid.innerHTML = `<div class="grid-6">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
         }
         lucide.createIcons();
       }
@@ -1550,9 +1529,9 @@
       if (!book) return '<div class="container section"><div class="empty-state"><i data-lucide="book"></i><p>书籍未找到</p></div></div>';
 
       // Tab 1: 简介 — description + author_bio + historical_context
-      const descHtml = marked.parse(book.description || '暂无简介。');
-      const authorBioHtml = marked.parse(book.author_bio || '暂无作者简介。');
-      const contextHtml = marked.parse(book.historical_context || '暂无时代背景介绍。');
+      const descHtml = safeMarked(book.description || '暂无简介。');
+      const authorBioHtml = safeMarked(book.author_bio || '暂无作者简介。');
+      const contextHtml = safeMarked(book.historical_context || '暂无时代背景介绍。');
       const introHtml = `
         <div class="md-content" style="max-width:none;">
           <h2>书籍简介</h2>
@@ -1569,7 +1548,7 @@
         </div>`;
 
       // Tab 2: 领读人简介 — host + host_intro
-      const hostIntroHtml = marked.parse(book.host_intro || '暂无领读人信息。');
+      const hostIntroHtml = safeMarked(book.host_intro || '暂无领读人信息。');
       const hostTabHtml = `
         <div class="md-content" style="max-width:none;">
           <h2>领读人：${book.host || '待定'}</h2>
@@ -1578,7 +1557,7 @@
         </div>`;
 
       // Tab 2.5: 灵沁碎碎念 — host_notes (only if has content)
-      const hostNotesHtml = book.host_notes ? marked.parse(book.host_notes) : '';
+      const hostNotesHtml = book.host_notes ? safeMarked(book.host_notes) : '';
       const hostNotesTabHtml = book.host_notes ? `
         <div class="md-content" style="max-width:none;">
           ${hostNotesHtml}
@@ -1589,7 +1568,7 @@
       // Tab 3: 版本建议 — edition_notes + structured cards
       let editions = [];
       try { editions = typeof book.edition_guide === 'string' ? JSON.parse(book.edition_guide||'[]') : (book.edition_guide||[]); } catch(e){}
-      const editionNotesHtml = marked.parse(book.edition_notes || '');
+      const editionNotesHtml = safeMarked(book.edition_notes || '');
       const editionsCardsHtml = editions.length === 0 ? '<p style="color:var(--color-text-3);">暂无版本建议。</p>' : `
         <div style="display:flex;flex-direction:column;gap:var(--space-2);">
           ${editions.map(e => `
@@ -1604,8 +1583,8 @@
                 ${e.cons ? `<div><span class="cons-label">缺点</span><p>${e.cons}</p></div>` : ''}
               </div>
               <div class="edition-links">
-                ${e.buy_link ? `<a href="${e.buy_link}" target="_blank" class="btn btn-outline btn-sm">购买</a>` : ''}
-                ${e.douban_link ? `<a href="${e.douban_link}" target="_blank" class="btn btn-outline btn-sm">豆瓣</a>` : ''}
+                ${e.buy_link ? `<a href="${safeUrl(e.buy_link)}" target="_blank" class="btn btn-outline btn-sm">购买</a>` : ''}
+                ${e.douban_link ? `<a href="${safeUrl(e.douban_link)}" target="_blank" class="btn btn-outline btn-sm">豆瓣</a>` : ''}
               </div>
             </div>
           `).join('')}
@@ -1617,12 +1596,12 @@
       // Tab 4: 时间计划
       let scheduleData = { summary: '', pdf_url: '' };
       try { scheduleData = typeof book.reading_schedule === 'string' ? JSON.parse(book.reading_schedule || '{}') : (book.reading_schedule || {}); } catch(e){}
-      const scheduleSummaryHtml = marked.parse(scheduleData.summary || '暂无时间安排。');
+      const scheduleSummaryHtml = safeMarked(scheduleData.summary || '暂无时间安排。');
       const scheduleHtml = `
         <div class="md-content" style="max-width:none;">
           ${scheduleSummaryHtml}
           ${scheduleData.pdf_url ? `<div style="margin-top:var(--space-4);padding-top:var(--space-3);border-top:1px solid var(--color-border);">
-            <a href="${scheduleData.pdf_url}" target="_blank" class="btn btn-outline btn-sm"><i data-lucide="file-text"></i> 下载时间计划 PDF</a>
+            <a href="${safeUrl(scheduleData.pdf_url)}" target="_blank" class="btn btn-outline btn-sm"><i data-lucide="file-text"></i> 下载时间计划 PDF</a>
           </div>` : ''}
         </div>`;
 
@@ -1643,8 +1622,8 @@
               ${a.guests ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">👤 ${a.guests}</div>` : ''}
               ${a.description ? `<div style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:6px;">${a.description}</div>` : ''}
               <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;">
-                ${a.meeting_link ? `<a href="${a.meeting_link}" target="_blank" class="btn btn-outline btn-sm">加入会议</a>` : ''}
-                ${a.replay_link ? `<a href="${a.replay_link}" target="_blank" class="btn btn-ghost btn-sm">查看回放</a>` : ''}
+                ${a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">加入会议</a>` : ''}
+                ${a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-ghost btn-sm">查看回放</a>` : ''}
               </div>
             </div>
           `).join('')}
@@ -1667,7 +1646,7 @@
             ${items.map(item => `
               <div style="padding:6px 0;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);">
                 <span>${item.title}</span>
-                ${item.url ? `<a href="${item.url}" target="_blank" style="font-size:0.85rem;flex-shrink:0;">查看</a>` : ''}
+                ${item.url ? `<a href="${safeUrl(item.url)}" target="_blank" style="font-size:0.85rem;flex-shrink:0;">查看</a>` : ''}
               </div>
             `).join('')}
           </div>
@@ -1683,7 +1662,7 @@
             <div class="edition-card">
               <h3 style="margin-bottom:var(--space-1);">${c.topic || '干货主题'}</h3>
               <div style="font-size:0.88rem;color:var(--color-text-2);margin-bottom:var(--space-2);">主发言人：${c.speaker || '未知'}</div>
-              ${c.content ? `<div class="md-content" style="max-width:none;font-size:0.95rem;">${marked.parse(c.content)}</div>` : ''}
+              ${c.content ? `<div class="md-content" style="max-width:none;font-size:0.95rem;">${safeMarked(c.content)}</div>` : ''}
             </div>
           `).join('')}
         </div>`;
@@ -1765,10 +1744,10 @@
                 </div>
                 <div class="card-body">
                   <span class="tag ${STATUS_CLASS[ev.status] || 'tag-upcoming'}">${STATUS_MAP[ev.status] || ev.status}</span>
-                  <h3 style="margin-top:8px;">${ev.title}</h3>
-                  <div class="info-row"><i data-lucide="map-pin"></i> ${ev.location || '待定'}</div>
+                  <h3 style="margin-top:8px;">${h(ev.title)}</h3>
+                  <div class="info-row"><i data-lucide="map-pin"></i> ${h(ev.location || '待定')}</div>
                   <div class="info-row"><i data-lucide="clock"></i> ${formatDateTime(ev.event_date)}</div>
-                  ${ev.price ? `<div class="info-row"><i data-lucide="tag"></i> ${ev.price}</div>` : ''}
+                  ${ev.price ? `<div class="info-row"><i data-lucide="tag"></i> ${h(ev.price)}</div>` : ''}
                 </div>
               </a>
             `).join('')}
@@ -1784,8 +1763,8 @@
       const { data: event } = await sb.from('events').select('*').eq('id', params.id).single();
       if (!event) return '<div class="container section"><div class="empty-state"><i data-lucide="calendar"></i><p>活动未找到</p></div></div>';
 
-      const descHtml = marked.parse(event.description || '暂无简介。');
-      const guestsHtml = marked.parse(event.guests || '');
+      const descHtml = safeMarked(event.description || '暂无简介。');
+      const guestsHtml = safeMarked(event.guests || '');
 
       return `
         <div class="container section">
@@ -1798,12 +1777,12 @@
             </div>
             <div style="flex:1;min-width:280px;">
               ${statusTag(event.status)}
-              <h1 style="margin-top:var(--space-1);">${event.title}</h1>
+              <h1 style="margin-top:var(--space-1);">${h(event.title)}</h1>
               <div style="margin-top:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);">
-                <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="map-pin" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>地点：</strong>${event.location || '待定'}</div>
+                <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="map-pin" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>地点：</strong>${h(event.location || '待定')}</div>
                 <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="clock" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>时间：</strong>${formatDateTime(event.event_date)}</div>
-                ${event.guests ? `<div style="display:flex;align-items:flex-start;gap:var(--space-2);"><i data-lucide="user" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>嘉宾：</strong><span>${guestsHtml.replace(/<[^>]*>/g, '')}</span></div>` : ''}
-                ${event.price ? `<div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="tag" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>价格：</strong>${event.price}</div>` : ''}
+                ${event.guests ? `<div style="display:flex;align-items:flex-start;gap:var(--space-2);"><i data-lucide="user" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>嘉宾：</strong><span>${h(guestsHtml.replace(/<[^>]*>/g, ''))}</span></div>` : ''}
+                ${event.price ? `<div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="tag" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>价格：</strong>${h(event.price)}</div>` : ''}
               </div>
             </div>
           </div>
@@ -1872,9 +1851,9 @@
                   <div style="width:80px;height:80px;border-radius:50%;background:var(--color-accent-bg);margin:0 auto var(--space-2);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:var(--color-accent);overflow:hidden;">
                     ${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;">` : (profile.display_name || '?')[0].toUpperCase()}
                   </div>
-                  <h3>${profile.display_name}</h3>
-                  ${profile.bio ? `<p style="color:var(--color-text-2);font-size:0.9rem;margin:8px 0;">${profile.bio}</p>` : ''}
-                  ${profile.city ? `<div style="font-size:0.85rem;color:var(--color-text-3);"><i data-lucide="map-pin" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${profile.city}</div>` : ''}
+                  <h3>${h(profile.display_name)}</h3>
+                  ${profile.bio ? `<p style="color:var(--color-text-2);font-size:0.9rem;margin:8px 0;">${h(profile.bio)}</p>` : ''}
+                  ${profile.city ? `<div style="font-size:0.85rem;color:var(--color-text-3);"><i data-lucide="map-pin" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i> ${h(profile.city)}</div>` : ''}
                   <a href="#/profile/edit" class="btn btn-outline btn-sm" style="margin-top:var(--space-2);">编辑资料</a>
                 </div>
               </div>
@@ -2039,11 +2018,6 @@
             <form id="rules-form">
               <div class="form-group"><label>共读群公约（Markdown）</label><textarea name="group_rules" style="min-height:200px;">${config.group_rules || ''}</textarea></div>
               <div class="form-group"><label>共读计划介绍（Markdown）</label><textarea name="reading_plan_intro" style="min-height:120px;">${config.reading_plan_intro || ''}</textarea></div>
-              <hr style="margin:var(--space-3) 0;border-color:var(--color-border);">
-              <h4 style="margin-bottom:var(--space-2);">🤖 AI 自动填充设置</h4>
-              <p style="font-size:0.85rem;color:var(--color-text-3);margin-bottom:var(--space-2);">新建书籍时可根据书名和作者自动生成简介、作者介绍和时代背景。</p>
-              <div class="form-group"><label>DeepSeek API Key</label><input type="password" name="deepseek_api_key" value="${(config.deepseek_api_key || '').replace(/"/g, '&quot;')}" placeholder="sk-..."></div>
-              <div class="form-group"><label>API 地址</label><input type="text" name="deepseek_api_url" value="${config.deepseek_api_url || 'https://api.deepseek.com/v1/chat/completions'}" placeholder="https://api.deepseek.com/v1/chat/completions"></div>
               <button type="submit" class="btn btn-primary">保存设置</button>
             </form>
             <hr style="margin:var(--space-4) 0;border-color:var(--color-border);">
@@ -2128,6 +2102,8 @@
     const ACT_TYPES = ['导读预热','精读分析','文艺放映','嘉宾分享','圆桌讨论','线下活动','签售征订','其他'];
     const ACT_STATUSES = ['计划中','进行中','已完结'];
     function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+    function h(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function safeUrl(u) { u = (u||'').trim(); return /^(https?:|mailto:|\/|#)/i.test(u) ? esc(u) : '#'; }
     function actItem(a) { a=a||{}; return `
       <div class="builder-item">
         <div class="b-row">
@@ -2240,7 +2216,7 @@
                 ${book.cover_url ? `<img src="${book.cover_url}" alt="">` : '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>'}
               </div>
               <div class="cover-inputs">
-                <input type="url" name="cover_url" value="${book.cover_url || ''}" placeholder="粘贴图片 URL" id="cover-url-input" oninput="const p=document.getElementById('cover-preview');const v=this.value;if(v){p.innerHTML='<img src='+v+' alt=>';}else{p.innerHTML='<i data-lucide=image style=width:28px;height:28px;color:var(--color-text-3);></i>';lucide.createIcons();}" required>
+                <input type="url" name="cover_url" value="${book.cover_url || ''}" placeholder="粘贴图片 URL" id="cover-url-input" required>
                 <div class="divider-text">或</div>
                 <input type="file" accept="image/*" id="cover-file-input" style="font-size:0.85rem;">
               </div>
@@ -2541,8 +2517,24 @@
     });
 
     // ===========================================
-    // COVER UPLOAD
+    // COVER UPLOAD — safe DOM, no innerHTML
     // ===========================================
+    function updateCoverPreview(url) {
+      const preview = document.getElementById('cover-preview');
+      if (!preview) return;
+      preview.innerHTML = '';
+      if (url) {
+        const img = document.createElement('img');
+        img.src = url; img.alt = ''; img.onerror = () => { preview.textContent = '?'; };
+        preview.appendChild(img);
+      } else {
+        preview.innerHTML = '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>';
+        lucide.createIcons();
+      }
+    }
+    document.addEventListener('input', (e) => {
+      if (e.target.id === 'cover-url-input') updateCoverPreview(e.target.value);
+    });
     document.addEventListener('change', async (e) => {
       if (e.target.id !== 'cover-file-input') return;
       const file = e.target.files[0];
@@ -2554,9 +2546,8 @@
       if (error) { toast('封面上传失败：' + error.message, 'error'); return; }
       const { data: { publicUrl } } = sb.storage.from('covers').getPublicUrl(path);
       const urlInput = document.getElementById('cover-url-input');
-      const preview = document.getElementById('cover-preview');
       if (urlInput) urlInput.value = publicUrl;
-      if (preview) { preview.innerHTML = `<img src="${publicUrl}" alt="">`; }
+      updateCoverPreview(publicUrl);
       toast('封面上传成功');
     });
 
