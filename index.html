@@ -608,6 +608,12 @@
     /* ========================================
        New Books Express — 新书速递
        ======================================== */
+    .new-books-layout {
+      display: flex; gap: var(--space-4); align-items: flex-start;
+    }
+    .new-books-layout .new-books-main { flex: 1; min-width: 0; }
+    .new-books-layout .new-books-side { width: 280px; flex-shrink: 0; }
+
     .new-book-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -761,6 +767,8 @@
       }
       .hamburger { display: block; }
       .grid-2, .grid-3, .grid-4, .grid-6 { grid-template-columns: repeat(2, 1fr); }
+      .new-books-layout { flex-direction: column; }
+      .new-books-layout .new-books-side { width: 100%; }
       .new-book-grid { grid-template-columns: repeat(2, 1fr); }
       .current-book-card { flex-direction: column; align-items: center; text-align: center; }
       .current-book-card .cover-slot { width: 100px; }
@@ -2084,16 +2092,19 @@
             </button>
           </div>
 
-          <h2 style="margin-bottom:var(--space-3);display:flex;align-items:center;gap:8px;">
-            <span>📚</span> 热门新书 Top 10
-          </h2>
-          <div class="new-book-grid">${booksHtml}</div>
-
-          <div style="margin-top:var(--space-7);">
-            <h2 style="margin-bottom:var(--space-3);display:flex;align-items:center;gap:8px;">
-              <span>🏆</span> 想共读排行
-            </h2>
-            <div class="leaderboard">${lbHtml}</div>
+          <div class="new-books-layout">
+            <div class="new-books-main">
+              <h2 style="margin-bottom:var(--space-3);display:flex;align-items:center;gap:8px;">
+                <span>📚</span> 热门新书 Top 10
+              </h2>
+              <div class="new-book-grid">${booksHtml}</div>
+            </div>
+            <div class="new-books-side">
+              <h2 style="margin-bottom:var(--space-3);display:flex;align-items:center;gap:8px;">
+                <span>🏆</span> 想共读排行
+              </h2>
+              <div class="leaderboard">${lbHtml}</div>
+            </div>
           </div>
         </div>`;
     });
