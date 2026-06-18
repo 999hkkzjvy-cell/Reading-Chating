@@ -7,16 +7,22 @@
   <meta property="og:title" content="以读攻独 · 共读资源站">
   <meta property="og:description" content="用阅读抵御孤独，遇见同频的书友。有深度、有温度的线上共读社群。">
   <meta property="og:type" content="website">
+  <!-- Preconnect to CDN origins -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="preconnect" href="https://zugadhgezmqrnlwogomw.supabase.co">
+  <!-- Fonts with display=swap -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
+  <!-- Leaflet CSS loaded dynamically on /latin-america -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https: cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; style-src 'self' 'unsafe-inline' https: fonts.googleapis.com cdn.jsdelivr.net; font-src https: fonts.gstatic.com; img-src 'self' data: https:; connect-src https: wss:;">
-  <script src="https://unpkg.com/lucide@0.344.0"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+  <!-- Core scripts deferred to not block rendering -->
+  <script src="https://unpkg.com/lucide@0.344.0" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js" defer></script>
   <style>
     /* ========================================
        Design Tokens — 以读攻独 · Refined Literary
@@ -3245,6 +3251,16 @@
     async function initLatamMap() {
       const mapEl = document.getElementById('latam-leaflet-map');
       if (!mapEl) return;
+
+      // Load Leaflet + topojson dynamically (only when visiting this page)
+      if (typeof L === 'undefined') {
+        await Promise.all([
+          new Promise((ok, fail) => { const l = document.createElement('link'); l.rel='stylesheet'; l.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css'; l.onload=ok; l.onerror=fail; document.head.appendChild(l); }),
+          new Promise((ok, fail) => { const s = document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js'; s.onload=ok; s.onerror=fail; document.head.appendChild(s); }),
+          new Promise((ok, fail) => { const s = document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/topojson-client@3'; s.onload=ok; s.onerror=fail; document.head.appendChild(s); })
+        ]);
+        await new Promise(r => setTimeout(r, 100)); // wait for globals to settle
+      }
 
       // Destroy existing map instance
       if (_latamMap) { _latamMap.remove(); _latamMap = null; _latamLayer = null; }
