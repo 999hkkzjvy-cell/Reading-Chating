@@ -3273,8 +3273,8 @@
         geojson.features = geojson.features
           .filter(f => isoNumSet.has(parseInt(f.id, 10)))
           .map(f => {
-            const c = LATAM_COUNTRIES.find(c => c.isoNum === f.id);
-            if (c) { f.properties = { id: c.id, name: c.name, isoNum: c.isoNum }; }
+            const c = LATAM_COUNTRIES.find(function(x) { return x.isoNum === parseInt(f.id, 10); });
+            if (c) { f.properties = { id: c.id, name: c.name, authors: c.authors }; }
             return f;
           });
 
@@ -3304,16 +3304,15 @@
                 e.target._selected = true;
                 e.target.setStyle({ fillColor: '#a46533', fillOpacity: 0.7, weight: 3, color: '#8b4a2a' });
 
-                const cid = feature.properties.id;
-                const country = LATAM_COUNTRIES.find(c => c.id === cid);
+                const props = feature.properties;
                 const panel = document.getElementById('latam-panel');
-                if (panel && country) {
+                if (panel && props && props.authors) {
                   document.querySelectorAll('.latam-tag').forEach(t => t.classList.remove('active'));
-                  const tag = document.querySelector('.latam-tag[data-country="'+cid+'"]');
+                  const tag = document.querySelector('.latam-tag[data-country="'+props.id+'"]');
                   if (tag) tag.classList.add('active');
-                  let html = '<h2>\u{1F4CD} '+h(country.name)+'</h2><div class="panel-intro">共 '+country.authors.length+' 位代表作家</div>';
-                  for (var i = 0; i < country.authors.length; i++) {
-                    var a = country.authors[i];
+                  var html = '<h2>\u{1F4CD} '+h(props.name)+'</h2><div class="panel-intro">共 '+props.authors.length+' 位代表作家</div>';
+                  for (var i = 0; i < props.authors.length; i++) {
+                    var a = props.authors[i];
                     html += '<div class="latam-author-card"><div class="author-name"><span class="icon">✍️</span>'+h(a.name)+'<span style="font-weight:400;font-size:0.75rem;color:#a09588;margin-left:4px;">'+h(a.en)+'</span></div><div class="author-bio">'+h(a.bio)+'</div><div class="author-works">';
                     for (var j = 0; j < a.works.length; j++) { html += '<span class="work-tag">\u{1F4D6} '+h(a.works[j])+'</span>'; }
                     html += '</div></div>';
@@ -3323,8 +3322,6 @@
                   document.getElementById('btn-latam-back')?.addEventListener('click', function() {
                     renderLatamPanel(null);
                   });
-                } else {
-                  toast('panel='+(panel?'found':'null')+' country='+(country?'found':'null'), 'error');
                 }
               }
             });
