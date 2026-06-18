@@ -3312,9 +3312,10 @@
                   const tag = document.querySelector('.latam-tag[data-country="'+cid+'"]');
                   if (tag) tag.classList.add('active');
                   let html = '<h2>\u{1F4CD} '+h(country.name)+'</h2><div class="panel-intro">共 '+country.authors.length+' 位代表作家</div>';
-                  for (const a of country.authors) {
-                    html += '<div class="latam-author-card"><div class="author-name"><span class="icon">✍️</span>'+h(a.name)+'<span style="font-weight:400;font-size:0.75rem;color:var(--color-text-3);margin-left:4px;">'+h(a.en)+'</span></div><div class="author-bio">'+h(a.bio)+'</div><div class="author-works">';
-                    for (const w of a.works) { html += '<span class="work-tag">\u{1F4D6} '+h(w)+'</span>'; }
+                  for (var i = 0; i < country.authors.length; i++) {
+                    var a = country.authors[i];
+                    html += '<div class="latam-author-card"><div class="author-name"><span class="icon">✍️</span>'+h(a.name)+'<span style="font-weight:400;font-size:0.75rem;color:#a09588;margin-left:4px;">'+h(a.en)+'</span></div><div class="author-bio">'+h(a.bio)+'</div><div class="author-works">';
+                    for (var j = 0; j < a.works.length; j++) { html += '<span class="work-tag">\u{1F4D6} '+h(a.works[j])+'</span>'; }
                     html += '</div></div>';
                   }
                   html += '<button class="btn btn-sm btn-outline" style="margin-top:var(--space-2);" id="btn-latam-back">← 返回总览</button>';
@@ -3322,6 +3323,8 @@
                   document.getElementById('btn-latam-back')?.addEventListener('click', function() {
                     renderLatamPanel(null);
                   });
+                } else {
+                  toast('panel='+(panel?'found':'null')+' country='+(country?'found':'null'), 'error');
                 }
               }
             });
