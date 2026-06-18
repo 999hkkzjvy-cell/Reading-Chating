@@ -1305,8 +1305,8 @@
     // GENRE & STATUS HELPERS
     // ===========================================
     const GENRES = ['全部', '文学', '历史', '哲学', '科幻', '社科', '心理', '传记', '商业', '科普', '其他'];
-    const STATUS_MAP = { upcoming: '即将开读', active: '正在共读', completed: '已读完' };
-    const STATUS_CLASS = { upcoming: 'tag-upcoming', active: 'tag-active', completed: 'tag-completed' };
+    const STATUS_MAP = { upcoming: '即将开读', active: '正在共读', completed: '已读完', ongoing: '进行中', ended: '已结束', cancelled: '已取消' };
+    const STATUS_CLASS = { upcoming: 'tag-upcoming', active: 'tag-active', completed: 'tag-completed', ongoing: 'tag-active', ended: 'tag-completed', cancelled: 'tag-completed' };
 
     function statusTag(s) {
       return `<span class="tag ${STATUS_CLASS[s] || 'tag-upcoming'}">${STATUS_MAP[s] || s}</span>`;
@@ -2592,7 +2592,7 @@
               <h4 style="margin-bottom:var(--space-1);">现有书籍</h4>
               ${books.map(b => `
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);">
-                  <span>${b.title} — ${b.author} ${statusTag(b.status)}</span>
+                  <span>${h(b.title)}${b.start_date && b.end_date ? '（' + dayjs(b.start_date).format('YYYY.MM.DD') + '-' + dayjs(b.end_date).format('YYYY.MM.DD') + '）' : ''} ${statusTag(b.status)}</span>
                   <div>
                     <button class="btn btn-ghost btn-sm btn-edit-book" data-id="${b.id}">编辑</button>
                     <button class="btn btn-danger btn-sm btn-del-book" data-id="${b.id}">删除</button>
@@ -2608,7 +2608,7 @@
               <h4 style="margin-bottom:var(--space-1);">现有活动</h4>
               ${events.map(ev => `
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);">
-                  <span>${ev.title} — ${formatDate(ev.event_date)} ${statusTag(ev.status)}</span>
+                  <span>${h(ev.title)}（${formatDateTime(ev.event_date)}${ev.location ? ' · ' + h(ev.location) : ''}） ${statusTag(ev.status)}</span>
                   <div>
                     <button class="btn btn-ghost btn-sm btn-edit-event" data-id="${ev.id}">编辑</button>
                     <button class="btn btn-danger btn-sm btn-del-event" data-id="${ev.id}">删除</button>
@@ -2623,7 +2623,7 @@
             <div style="margin-top:var(--space-3);">
               ${books.map(b => `
                 <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);">
-                  <span>${b.title} — ${b.author} ${statusTag(b.status)}</span>
+                  <span>${h(b.title)}${b.start_date && b.end_date ? '（' + dayjs(b.start_date).format('YYYY.MM.DD') + '-' + dayjs(b.end_date).format('YYYY.MM.DD') + '）' : ''} ${statusTag(b.status)}</span>
                   <div>
                     <button class="btn btn-ghost btn-sm btn-edit-book" data-id="${b.id}">编辑</button>
                     <button class="btn btn-danger btn-sm btn-del-book" data-id="${b.id}">删除</button>
@@ -2955,11 +2955,28 @@
     // Admin: add/edit event form
     function showEventForm(eventData = null) {
       const isEdit = !!eventData;
-      const ev = eventData || { title:'', poster_url:'', location:'', event_date:'', guests:'', price:'', description:'', status:'upcoming' };
+      const ev = eventData || { title:'', category:'', poster_url:'', location:'', event_date:'', guests:'', price:'', description:'', status:'upcoming' };
       const formHtml = `
         <form id="event-edit-form">
           <div class="form-group"><label>活动名称 *</label><input type="text" name="title" value="${ev.title}" required></div>
-          <div class="form-group"><label>海报图 URL</label><input type="url" name="poster_url" value="${ev.poster_url || ''}"></div>
+          <div class="form-group"><label>活动分类 *</label><select name="category" required>
+            <option value="">请选择</option>
+            <option value="文学高速" ${ev.category === '文学高速' ? 'selected' : ''}>文学高速</option>
+            <option value="其他" ${ev.category === '其他' ? 'selected' : ''}>其他</option>
+          </select></div>
+          <div class="form-group">
+            <label>海报图</label>
+            <div class="cover-upload">
+              <div class="cover-preview" id="poster-preview">
+                ${ev.poster_url ? `<img src="${ev.poster_url}" alt="">` : '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>'}
+              </div>
+              <div class="cover-inputs">
+                <input type="url" name="poster_url" value="${ev.poster_url || ''}" placeholder="粘贴图片 URL" id="poster-url-input" required>
+                <div class="divider-text">或</div>
+                <input type="file" accept="image/*" id="poster-file-input" style="font-size:0.85rem;">
+              </div>
+            </div>
+          </div>
           <div class="form-group"><label>地点</label><input type="text" name="location" value="${ev.location || ''}"></div>
           <div class="form-group"><label>时间</label><input type="datetime-local" name="event_date" value="${ev.event_date ? dayjs(ev.event_date).format('YYYY-MM-DDTHH:mm') : ''}"></div>
           <div class="form-group"><label>嘉宾</label><input type="text" name="guests" value="${ev.guests || ''}"></div>
@@ -3411,6 +3428,39 @@
       if (urlInput) urlInput.value = publicUrl;
       updateCoverPreview(publicUrl);
       toast('封面上传成功');
+    });
+
+    // Poster upload for events
+    function updatePosterPreview(url) {
+      const preview = document.getElementById('poster-preview');
+      if (!preview) return;
+      preview.innerHTML = '';
+      if (url) {
+        const img = document.createElement('img');
+        img.src = url; img.alt = ''; img.onerror = () => { preview.textContent = '?'; };
+        preview.appendChild(img);
+      } else {
+        preview.innerHTML = '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>';
+        lucide.createIcons();
+      }
+    }
+    document.addEventListener('input', (e) => {
+      if (e.target.id === 'poster-url-input') updatePosterPreview(e.target.value);
+    });
+    document.addEventListener('change', async (e) => {
+      if (e.target.id !== 'poster-file-input') return;
+      const file = e.target.files[0];
+      if (!file) return;
+      const ext = file.name.split('.').pop();
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '').replace(/\.+/g, '.') || 'poster';
+      const path = `${Date.now()}_${safeName}.${ext}`;
+      const { data, error } = await sb.storage.from('covers').upload(path, file);
+      if (error) { toast('海报上传失败：' + error.message, 'error'); return; }
+      const { data: { publicUrl } } = sb.storage.from('covers').getPublicUrl(path);
+      const urlInput = document.getElementById('poster-url-input');
+      if (urlInput) urlInput.value = publicUrl;
+      updatePosterPreview(publicUrl);
+      toast('海报上传成功');
     });
 
     // PDF upload for reading schedule
