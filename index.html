@@ -1878,9 +1878,18 @@
               ${a.time ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">📅 ${a.time}</div>` : ''}
               ${a.guests ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">👤 ${a.guests}</div>` : ''}
               ${a.description ? `<div style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:6px;">${a.description}</div>` : ''}
-              <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;">
-                ${a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">加入会议</a>` : ''}
-                ${a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-ghost btn-sm">查看回放</a>` : ''}
+              <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;align-items:center;">
+                ${a.status === '已完结'
+                  ? (a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-ghost btn-sm">查看回放</a>` : '')
+                  : a.status === '进行中'
+                  ? (a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">加入会议</a>` : '')
+                  : a.status === '计划中'
+                  ? '<span style="font-size:0.82rem;color:var(--color-text-3);">积极筹备中，敬请期待</span>'
+                  : `
+                    ${a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">加入会议</a>` : ''}
+                    ${a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-ghost btn-sm">查看回放</a>` : ''}
+                  `
+                }
               </div>
             </div>
           `).join('')}
