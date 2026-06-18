@@ -3267,7 +3267,7 @@
         const geojson = topo.feature(world, world.objects.countries);
         // Filter to Latin America and attach our metadata
         geojson.features = geojson.features
-          .filter(f => isoNumSet.has(f.id))
+          .filter(f => isoNumSet.has(parseInt(f.id, 10)))
           .map(f => {
             const c = LATAM_COUNTRIES.find(c => c.isoNum === f.id);
             if (c) { f.properties = { id: c.id, name: c.name, isoNum: c.isoNum }; }
@@ -3305,7 +3305,7 @@
         }).addTo(_latamMap);
       } catch (err) {
         console.error('Failed to load map data:', err);
-        mapEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--color-text-3);">地图数据加载失败，请刷新重试</div>';
+        mapEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-danger);">地图数据加载失败：' + (err.message || '未知错误') + '<br><small>请检查网络后刷新重试</small></div>';
       }
     }
 
