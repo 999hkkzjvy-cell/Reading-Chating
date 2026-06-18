@@ -3295,7 +3295,7 @@
                 }
               },
               click: function(e) {
-                _latamLayer.eachLayer(function(l) { l._selected = false; l.setStyle(defaultStyle); });
+                _latamLayer.eachLayer(function(l) { l._selected = false; l.setStyle({ fillColor: '#d9a87a', fillOpacity: 0.45, color: '#8b6914', weight: 1.5 }); });
                 e.target._selected = true;
                 e.target.setStyle({ fillColor: '#a46533', fillOpacity: 0.7, weight: 3, color: '#8b4a2a' });
                 renderLatamPanel(feature.properties.id);
