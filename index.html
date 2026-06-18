@@ -2038,7 +2038,7 @@
                 <div class="nb-body">
                   <h3><a href="${safeUrl(b.douban_url)}" target="_blank" rel="noopener">${h(b.title)}</a></h3>
                   <div class="nb-row"><span class="nb-label">作者</span>${h(b.author || '--')}</div>
-                  <div class="nb-row"><span class="nb-label">译者</span>${b.translator ? h(b.translator) : '--'}</div>
+                  ${b.translator ? `<div class="nb-row"><span class="nb-label">译者</span>${h(b.translator)}</div>` : ''}
                   <div class="nb-row"><span class="nb-label">出版方</span>${h(b.publisher || '--')}</div>
                   <div class="nb-row rating">${b.rating ? '⭐' + h(b.rating) + ' · ' + b.review_count + '人评价' : '暂无评分'}</div>
                   <div class="nb-actions">
