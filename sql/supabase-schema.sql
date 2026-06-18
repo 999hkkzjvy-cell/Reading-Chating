@@ -112,6 +112,7 @@ CREATE TABLE events (
   id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   title           TEXT NOT NULL,
   category        TEXT DEFAULT '其他',
+  link            TEXT,
   poster_url      TEXT,
   location        TEXT,
   event_date      TIMESTAMPTZ NOT NULL,

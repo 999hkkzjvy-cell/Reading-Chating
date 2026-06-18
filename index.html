@@ -2058,8 +2058,9 @@
               </div>
             </div>
           </div>
+          ${event.link ? `<div style="margin-top:var(--space-3);"><a href="${safeUrl(event.link)}" target="_blank" class="btn btn-outline"><i data-lucide="external-link"></i> 活动链接</a></div>` : ''}
           <div class="card" style="margin-top:var(--space-4);">
-            <div class="card-body md-content"><h3>活动简介</h3>${descHtml}</div>
+            <div class="card-body md-content" style="max-width:none;"><h3>活动简介</h3>${descHtml}</div>
           </div>
         </div>
       `;
@@ -2955,7 +2956,7 @@
     // Admin: add/edit event form
     function showEventForm(eventData = null) {
       const isEdit = !!eventData;
-      const ev = eventData || { title:'', category:'', poster_url:'', location:'', event_date:'', guests:'', price:'', description:'', status:'upcoming' };
+      const ev = eventData || { title:'', category:'', link:'', poster_url:'', location:'', event_date:'', guests:'', price:'', description:'', status:'upcoming' };
       const formHtml = `
         <form id="event-edit-form">
           <div class="form-group"><label>活动名称 *</label><input type="text" name="title" value="${ev.title}" required></div>
@@ -2964,6 +2965,7 @@
             <option value="文学高速" ${ev.category === '文学高速' ? 'selected' : ''}>文学高速</option>
             <option value="其他" ${ev.category === '其他' ? 'selected' : ''}>其他</option>
           </select></div>
+          <div class="form-group"><label>活动链接</label><input type="url" name="link" value="${ev.link || ''}" placeholder="https://...（可选）"></div>
           <div class="form-group">
             <label>海报图</label>
             <div class="cover-upload">
