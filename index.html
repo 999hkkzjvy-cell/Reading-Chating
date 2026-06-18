@@ -3157,8 +3157,8 @@
 
     function renderLatamPanel(countryId) {
       const panel = document.getElementById('latam-panel');
-      if (!panel) return;
-
+      if (!panel) { console.warn('latam-panel not found'); return; }
+      try {
       // Update tag active states
       document.querySelectorAll('.latam-tag').forEach(t => t.classList.remove('active'));
 
@@ -3227,6 +3227,10 @@
         ${authorsHtml}
         <button class="btn btn-sm btn-outline" style="margin-top:var(--space-2);" onclick="renderLatamPanel(null);if(_latamLayer)_latamLayer.resetStyle();">← 返回总览</button>
       `;
+      } catch (err) {
+        console.error('renderLatamPanel error:', err);
+        panel.innerHTML = '<p style="color:var(--color-danger);">出错了：' + err.message + '</p>';
+      }
     }
 
     async function initLatamMap() {
