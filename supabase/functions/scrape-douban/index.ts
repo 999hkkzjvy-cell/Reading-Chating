@@ -15,7 +15,7 @@ Deno.serve(async (req: Request) => {
     return new Response(null, {
       headers: {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",
+        "Access-Control-Allow-Headers": "apikey, Authorization, Content-Type",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
       },
     });
@@ -90,91 +90,67 @@ Deno.serve(async (req: Request) => {
       scraped_at: string;
     }> = [];
 
-    // Parse both columns: fiction (first ul) and non-fiction (second ul with .pl20)
-    const columns = [
-      { selector: "ul.cover-col-4.clearfix li", type: "fiction" },
-      { selector: 'ul.cover-col-4.pl20.clearfix li', type: "non-fiction" },
-    ];
-
-    for (const col of columns) {
-      $(col.selector).each((_, el) => {
+    // Parse the single book list: ul.chart-dashed-list > li.media.clearfix
+    $("ul.chart-dashed-list li.media.clearfix").each((_, el) => {
         const $el = $(el);
 
-        const title = $el.find("h2 a").text().trim();
-        const coverEl = $el.find("a.cover img");
-        const cover_url = coverEl.attr("src") || "";
-        const linkEl = $el.find("a.cover");
-        const douban_url = linkEl.attr("href") || "";
-        const infoRaw = $el.find("p.color-gray").text().trim();
-        const ratingRaw = $el.find("p.rating").text().trim();
-        const description = $el.find("p.detail").text().trim();
+        const coverLink = $el.find("div.media__img a");
+        const coverImg = coverLink.find("img.subject-cover");
+        const cover_url = coverImg.attr("src") || "";
+        const douban_url = coverLink.attr("href") || "";
+
+        const titleEl = $el.find("div.media__body h2 a.fleft");
+        const title = titleEl.text().trim();
 
         if (!title) return;
 
-        // Parse info line: "作者 / 译者 / 出版社 / 出版年 / 定价"
+        // Info line: "作者 / 出版日期 / 出版社 / 价格 / 装帧"
+        const infoRaw = $el.find("p.subject-abstract.color-gray").text().trim();
         const infoParts = infoRaw.split("/").map((s) => s.trim()).filter(Boolean);
+
         const author = infoParts[0] || "";
-        // Translator detection: check if part 2 looks like a person name (Chinese 2-3 chars, not a year/number)
-        let translator = "";
-        const secondPart = infoParts[1] || "";
-        const thirdPart = infoParts[2] || "";
 
-        // Heuristic: if we have >=2 parts, part2 is likely translator (not a 4-digit year or price)
-        const isPersonName = (s: string) => s.length <= 4 && !/^\d/.test(s) && !s.includes("元") && !s.includes("出版") && !s.includes("社");
-        if (infoParts.length >= 3 && isPersonName(secondPart)) {
-          translator = secondPart;
-        }
-
-        // Publisher is usually the part before year/price or a part containing 出版/社
+        // Publisher: part containing 出版/社/书局/书店
         let publisher = "";
-        for (let i = 1; i < infoParts.length; i++) {
-          const p = infoParts[i];
+        for (const p of infoParts) {
           if (p.includes("出版") || p.includes("社") || p.includes("书局") || p.includes("书店")) {
             publisher = p;
             break;
           }
         }
-        // Fallback: if no publisher found, use the part that doesn't look like author/translator/year/price
-        if (!publisher && infoParts.length >= 3) {
-          for (let i = infoParts.length - 1; i >= 0; i--) {
-            const p = infoParts[i];
-            if (p !== author && p !== translator && !/^\d{4}/.test(p) && !p.includes("元")) {
-              publisher = p;
-              break;
-            }
-          }
-        }
 
-        // Parse rating: "8.5 (1234人评价)" or just numbers
+        // Rating area
+        const ratingRaw = $el.find("p.subject-rating").text().trim();
         let rating = "";
         let review_count = 0;
-        const ratingMatch = ratingRaw.match(/([\d.]+)/);
-        if (ratingMatch) {
-          // Could be average rating or review count
-          const nums = ratingRaw.match(/([\d.]+)/g);
-          if (nums && nums.length >= 2) {
-            rating = nums[0];
-            review_count = parseInt(nums[1].replace(/\.\d+$/, ""), 10) || 0;
-          } else if (nums && nums.length === 1) {
-            rating = nums[0];
-          }
-        }
+
+        // Extract rating score (e.g. "8.5")
+        const scoreMatch = ratingRaw.match(/([\d.]+)/);
+        if (scoreMatch) rating = scoreMatch[1];
+
+        // Extract review count (e.g. "(380人评价)")
+        const reviewMatch = ratingRaw.match(/\((\d+)人评价\)/);
+        if (reviewMatch) review_count = parseInt(reviewMatch[1], 10) || 0;
+
+        // Tags / genre (from div.subject-tags span)
+        const tagText = $el.find("div.subject-tags span").text().trim();
+        const fiction_type = tagText.includes("虚构") || tagText.includes("小说") || tagText.includes("文学")
+          ? "fiction" : "non-fiction";
 
         books.push({
           title,
-          cover_url,
+          cover_url: cover_url || "",
           author: author || "",
-          translator,
+          translator: "",
           publisher,
-          description: description || "",
+          description: "",
           douban_url,
           rating,
           review_count,
-          fiction_type: col.type,
+          fiction_type,
           scraped_at: new Date().toISOString(),
         });
       });
-    }
 
     if (books.length === 0) {
       return new Response(
