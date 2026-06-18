@@ -8,12 +8,14 @@
   <meta property="og:description" content="用阅读抵御孤独，遇见同频的书友。有深度、有温度的线上共读社群。">
   <meta property="og:type" content="website">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https: cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; style-src 'self' 'unsafe-inline' https: fonts.googleapis.com; font-src https: fonts.gstatic.com; img-src 'self' data: https:; connect-src https: wss:;">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https: cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; style-src 'self' 'unsafe-inline' https: fonts.googleapis.com cdn.jsdelivr.net; font-src https: fonts.gstatic.com; img-src 'self' data: https:; connect-src https: wss:;">
   <script src="https://unpkg.com/lucide@0.344.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
   <style>
     /* ========================================
        Design Tokens — 以读攻独 · Refined Literary
@@ -759,44 +761,25 @@
       display: flex; gap: var(--space-4); align-items: flex-start;
     }
     .latam-map-wrap { flex: 1; min-width: 0; max-width: 580px; }
-    .latam-map-wrap svg {
-      width: 100%; height: auto;
-      border-radius: var(--radius-md);
-      background: linear-gradient(180deg, #fefaf5 0%, #faf5ec 50%, #f7f0e4 100%);
-      border: 1px solid var(--color-border);
-      box-shadow: var(--shadow-sm);
+    .latam-map-wrap .leaflet-container {
+      background: #fefaf5;
+      font-family: var(--font-sans);
     }
-    .latam-map-wrap svg path.latam-country {
-      fill: #e8dcc8;
-      stroke: #c4b896;
-      stroke-width: 1.2;
-      transition: fill 0.25s ease, stroke 0.25s ease;
-      cursor: pointer;
-      vector-effect: non-scaling-stroke;
+    /* Leaflet control overrides for warm amber theme */
+    .latam-map-wrap .leaflet-control-zoom a {
+      color: var(--color-text-2);
+      background: var(--color-surface);
+      border-color: var(--color-border);
     }
-    .latam-map-wrap svg path.latam-country:hover {
-      fill: var(--color-accent);
-      stroke: var(--color-accent-h);
-      stroke-width: 2;
-      filter: drop-shadow(0 2px 4px rgba(193,125,75,0.3));
+    .latam-map-wrap .leaflet-control-zoom a:hover {
+      color: var(--color-accent);
+      background: var(--color-accent-bg);
     }
-    .latam-map-wrap svg path.latam-country.active {
-      fill: var(--color-accent-h);
-      stroke: var(--color-accent-h);
-      stroke-width: 2;
+    .latam-map-wrap .leaflet-control-attribution {
+      font-size: 0.65rem;
+      color: var(--color-text-3);
+      background: rgba(255,255,255,0.7);
     }
-
-    /* Map tooltip */
-    .latam-tooltip {
-      position: absolute; pointer-events: none;
-      background: var(--color-text); color: #fff;
-      padding: 4px 10px; border-radius: var(--radius-sm);
-      font-size: 0.8rem; font-weight: 600;
-      white-space: nowrap; opacity: 0;
-      transition: opacity 0.15s ease;
-      z-index: 100;
-    }
-    .latam-tooltip.show { opacity: 1; }
 
     /* Info panel */
     .latam-panel {
@@ -884,6 +867,7 @@
       .new-books-layout .new-books-side { width: 100%; }
       .latam-layout { flex-direction: column; }
       .latam-map-wrap { max-width: 100%; }
+      #latam-leaflet-map { height: 350px !important; }
       .latam-panel { width: 100%; }
       .new-book-grid { grid-template-columns: 1fr; }
       .new-book-card .nb-cover { width: 100px; }
@@ -1075,6 +1059,10 @@
           document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="file-question"></i><p>页面未找到</p></div></div>';
         }
         lucide.createIcons();
+        // Init Leaflet map if present
+        if (document.getElementById('latam-leaflet-map')) {
+          setTimeout(() => initLatamMap(), 50);
+        }
         this.updateNav(path);
         bindGlobalEvents();
         } catch (err) {
@@ -2230,69 +2218,83 @@
     // LATIN AMERICA LITERARY MAP DATA
     // ===========================================
     const LATAM_COUNTRIES = [
-      { id:'mx', name:'墨西哥', path:'M85,50 L120,38 L200,30 L260,40 L300,55 L310,80 L295,110 L275,135 L290,155 L260,165 L230,155 L200,135 L175,130 L155,120 L130,115 L100,105 L85,85 Z',
+      { id:'mx', name:'墨西哥',
+        geo: [[-117.1,32.7],[-115,32],[-113,30],[-109,28],[-105,23],[-100,20],[-96,18],[-91,17],[-87,20],[-86.7,16.5],[-88.3,15.8],[-91,14.5],[-92.5,15],[-95,16],[-98,18],[-100,19],[-103,21],[-106,25],[-109,27],[-112,30],[-117.1,32.7]]],
         authors:[
           { name:'奥克塔维奥·帕斯', en:'Octavio Paz', bio:'1990年诺贝尔文学奖得主，墨西哥最伟大的诗人、散文家。作品融合超现实主义与拉美本土文化。', works:['《太阳石》','《孤独的迷宫》','《弓与琴》'] },
           { name:'卡洛斯·富恩特斯', en:'Carlos Fuentes', bio:'拉美文学爆炸核心人物，以实验性叙事探索墨西哥身份认同与历史。', works:['《最明净的地区》','《阿尔特米奥·克罗斯之死》','《奥拉》'] },
           { name:'胡安·鲁尔福', en:'Juan Rulfo', bio:'魔幻现实主义先驱，一生仅出版两部作品却影响深远，马尔克斯称其教会自己写作。', works:['《佩德罗·巴拉莫》','《燃烧的原野》'] }
         ]},
-      { id:'gt', name:'危地马拉', path:'M155,165 L175,155 L200,158 L210,175 L195,188 L170,190 L160,178 Z',
+      { id:'gt', name:'危地马拉',
+        geo: [[-92.2,17.8],[-90.5,17.8],[-89,16],[-88.2,15.7],[-88.3,13.7],[-90,13.8],[-92,14.5],[-92.2,17.8]]],
         authors:[
           { name:'米格尔·安赫尔·阿斯图里亚斯', en:'Miguel Ángel Asturias', bio:'1967年诺贝尔文学奖得主，魔幻现实主义先驱，作品根植于玛雅文化与反独裁斗争。', works:['《总统先生》','《玉米人》','《强风》'] }
         ]},
-      { id:'cu', name:'古巴', path:'M320,100 L345,90 L370,95 L390,110 L395,130 L385,150 L365,160 L340,165 L325,155 L315,135 Z',
+      { id:'cu', name:'古巴',
+        geo: [[-84.9,22],[-83.5,22.5],[-82,23],[-80.5,23.2],[-78,22.5],[-76,21],[-75,20],[-76,20],[-78,20.5],[-80,21.5],[-82,22.5],[-84,22.8],[-84.9,22]]],
         authors:[
           { name:'阿莱霍·卡彭铁尔', en:'Alejo Carpentier', bio:'魔幻现实主义奠基人，"神奇现实"理论的提出者，将巴洛克美学融入拉美叙事。', works:['《人间王国》','《消失的脚步》','《光明世纪》'] },
           { name:'何塞·马蒂', en:'José Martí', bio:'古巴民族英雄、现代主义诗歌先驱，以热血文字呼唤拉美独立与团结。', works:['《伊斯马埃利约》','《纯朴的诗》','《我们的美洲》'] }
         ]},
-      { id:'ni', name:'尼加拉瓜', path:'M148,192 L168,190 L190,195 L200,210 L188,225 L165,228 L152,220 L145,205 Z',
+      { id:'ni', name:'尼加拉瓜',
+        geo: [[-87.7,15],[-86.5,15],[-85,14.5],[-83.5,14],[-83.5,11.5],[-84.5,11],[-86,11],[-87,12],[-87.5,13.5],[-87.7,15]]],
         authors:[
           { name:'鲁文·达里奥', en:'Rubén Darío', bio:'拉美现代主义诗歌之父，革新西班牙语诗歌韵律与意象，影响遍及整个西语世界。', works:['《蓝》','《亵渎的散文》','《生命与希望之歌》'] }
         ]},
-      { id:'co', name:'哥伦比亚', path:'M155,240 L175,235 L210,238 L245,245 L255,270 L248,300 L235,320 L210,330 L180,325 L162,310 L150,290 L148,265 Z',
+      { id:'co', name:'哥伦比亚',
+        geo: [[-78.9,12.5],[-77.5,9],[-77,7],[-76,4],[-74,0],[-70,-4.2],[-69,-3],[-70,-1],[-72,1],[-74,2],[-75.5,5],[-77,7],[-78,8],[-79,9],[-79,12],[-78.9,12.5]]],
         authors:[
           { name:'加西亚·马尔克斯', en:'Gabriel García Márquez', bio:'1982年诺贝尔文学奖得主，魔幻现实主义巅峰代表，二十世纪最伟大的小说家之一。', works:['《百年孤独》','《霍乱时期的爱情》','《族长的秋天》'] },
           { name:'阿尔瓦罗·穆蒂斯', en:'Álvaro Mutis', bio:'诗人、小说家，马尔克斯挚友，以航海史诗《马科洛尔的冒险》系列闻名。', works:['《阿米尔巴尔》','《伊洛娜随雨而至》'] }
         ]},
-      { id:'ve', name:'委内瑞拉', path:'M258,240 L285,232 L330,235 L360,248 L355,280 L340,310 L320,330 L295,335 L270,325 L260,300 L252,270 Z',
+      { id:'ve', name:'委内瑞拉',
+        geo: [[-72,12.2],[-70,12],[-67,10.5],[-65,10],[-62,8],[-60,6],[-60,3.5],[-63,1.5],[-67,1],[-70,2],[-72,4],[-73,7],[-73,10],[-72,12.2]]],
         authors:[
           { name:'罗慕洛·加列戈斯', en:'Rómulo Gallegos', bio:'委内瑞拉最伟大的小说家，以描绘大草原与民族精神闻名，曾短暂担任总统。', works:['《堂娜芭芭拉》','《坎塔克拉罗》'] }
         ]},
-      { id:'ec', name:'厄瓜多尔', path:'M155,338 L180,333 L210,338 L195,356 L175,362 L158,358 L150,348 Z',
+      { id:'ec', name:'厄瓜多尔',
+        geo: [[-80,2],[-79,1],[-78.5,0],[-78,-1],[-77,-3],[-76.5,-4],[-76.5,-5.5],[-78,-5],[-79,-4],[-80.5,-3],[-81,-2],[-80,1],[-80,2]]],
         authors:[
           { name:'豪尔赫·伊卡萨', en:'Jorge Icaza', bio:'土著主义文学代表，以《瓦西蓬戈》揭露印第安人的悲惨命运，震撼拉美文坛。', works:['《瓦西蓬戈》','《混血儿》'] }
         ]},
-      { id:'pe', name:'秘鲁', path:'M148,370 L168,365 L200,368 L218,380 L215,410 L210,435 L205,455 L195,470 L180,480 L165,478 L152,465 L145,440 L142,410 L143,390 Z',
+      { id:'pe', name:'秘鲁',
+        geo: [[-80.5,-3],[-79,-4],[-78,-5],[-76.5,-5.5],[-73,-8],[-70,-10],[-69,-12],[-68.5,-14],[-69,-16],[-70.5,-17],[-71,-18.5],[-72.5,-17],[-74,-15],[-76,-14],[-78,-12],[-79.5,-9],[-81,-6],[-80.5,-3]]],
         authors:[
           { name:'巴尔加斯·略萨', en:'Mario Vargas Llosa', bio:'2010年诺贝尔文学奖得主，结构现实主义大师，以复调叙事探索权力与自由。', works:['《城市与狗》','《绿房子》','《酒吧长谈》'] },
           { name:'塞萨尔·巴列霍', en:'César Vallejo', bio:'二十世纪最伟大的西班牙语诗人之一，以先锋语言表达人类苦难与救赎。', works:['《特里尔塞》','《人类的诗篇》','《黑色先驱》'] }
         ]},
-      { id:'bo', name:'玻利维亚', path:'M175,480 L200,475 L235,478 L248,500 L240,525 L215,535 L190,530 L172,518 L168,500 Z',
+      { id:'bo', name:'玻利维亚',
+        geo: [[-69,-10],[-67,-10],[-65.5,-11],[-63,-13],[-61,-16],[-59.5,-19],[-58,-20],[-58.5,-22],[-60,-22.5],[-63,-22],[-65.5,-21],[-68,-19],[-69.5,-17],[-70,-15],[-69.5,-12],[-69,-10]]],
         authors:[
           { name:'海梅·萨恩斯', en:'Jaime Sáenz', bio:'玻利维亚最重要的现代诗人，作品融合安第斯神秘主义与存在主义哲思。', works:['《死亡之触》','《访客》'] }
         ]},
-      { id:'cl', name:'智利', path:'M145,370 L160,375 L162,405 L158,440 L155,470 L152,500 L150,530 L148,560 L147,590 L144,610 L138,620 L125,618 L120,600 L118,570 L120,540 L122,505 L125,470 L128,440 L130,405 L132,380 Z',
+      { id:'cl', name:'智利',
+        geo: [[-70.5,-18],[-69,-20],[-69,-23],[-68.5,-27],[-68.5,-32],[-69,-36],[-70,-38],[-72,-41],[-73,-44],[-72.5,-47],[-71,-50],[-69.5,-52],[-68.5,-54],[-67.5,-55],[-67,-52],[-68.5,-48],[-69,-43],[-71,-38],[-70.5,-33],[-70,-28],[-70.5,-23],[-70.5,-18]]],
         authors:[
           { name:'巴勃罗·聂鲁达', en:'Pablo Neruda', bio:'1971年诺贝尔文学奖得主，二十世纪最伟大的诗人之一，爱情与政治的诗篇传遍世界。', works:['《二十首情诗和一首绝望的歌》','《漫歌》','《元素的颂歌》'] },
           { name:'加夫列拉·米斯特拉尔', en:'Gabriela Mistral', bio:'1945年诺贝尔文学奖得主，拉美第一位诺奖作家，以深沉母性与悲悯情怀动人。', works:['《绝望》','《柔情》','《塔拉》'] },
           { name:'罗贝托·波拉尼奥', en:'Roberto Bolaño', bio:'后爆炸时代最具影响力的拉美作家，以《2666》重塑当代西语文学版图。', works:['《2666》','《荒野侦探》','《遥远的星辰》'] }
         ]},
-      { id:'py', name:'巴拉圭', path:'M248,518 L275,515 L300,520 L310,538 L300,555 L278,560 L255,555 L242,540 Z',
+      { id:'py', name:'巴拉圭',
+        geo: [[-59.5,-19],[-58,-20],[-56,-21.5],[-54.5,-23],[-54,-25.5],[-55.5,-27.5],[-57.5,-27.5],[-59.5,-26],[-61.5,-24],[-62.5,-22.5],[-62,-20],[-59.5,-19]]],
         authors:[
           { name:'奥古斯托·罗亚·巴斯托斯', en:'Augusto Roa Bastos', bio:'巴拉圭最伟大的作家，塞万提斯奖得主，以《人子》三部曲书写巴拉圭民族史诗。', works:['《人子》','《我，至高无上者》'] }
         ]},
-      { id:'ar', name:'阿根廷', path:'M170,545 L200,538 L250,535 L300,540 L350,548 L380,565 L390,595 L380,625 L355,645 L320,655 L270,658 L220,650 L185,635 L165,615 L158,595 L160,570 Z',
+      { id:'ar', name:'阿根廷',
+        geo: [[-68.5,-23],[-66,-24],[-63,-26],[-60,-25],[-57,-28],[-55,-30],[-54,-33],[-55.5,-35],[-58.5,-35],[-60,-37],[-63,-38],[-65.5,-40],[-67,-43],[-67.5,-47],[-68,-50],[-67,-53],[-65.5,-55],[-63.5,-54],[-62,-52],[-61,-48],[-60,-43],[-58.5,-38],[-57,-35],[-58,-30],[-60,-27],[-63,-25],[-66,-24],[-68,-23],[-68.5,-23]]],
         authors:[
           { name:'豪尔赫·路易斯·博尔赫斯', en:'Jorge Luis Borges', bio:'二十世纪最具原创性的作家之一，以迷宫、镜子、图书馆构建形而上学叙事宇宙。', works:['《小径分岔的花园》','《阿莱夫》','《虚构集》'] },
           { name:'胡利奥·科塔萨尔', en:'Julio Cortázar', bio:'拉美文学爆炸核心人物，以碎片化叙事打破现实主义传统，重新定义短篇小说。', works:['《跳房子》','《动物寓言集》','《万火归一》'] },
           { name:'埃内斯托·萨瓦托', en:'Ernesto Sabato', bio:'物理学家出身的小说家，以存在主义视角探索理性与疯狂的边界。', works:['《隧道》','《英雄与坟墓》'] }
         ]},
-      { id:'uy', name:'乌拉圭', path:'M310,558 L340,552 L365,558 L370,578 L355,588 L330,590 L308,582 L305,568 Z',
+      { id:'uy', name:'乌拉圭',
+        geo: [[-58.5,-30],[-56.5,-30],[-55,-31],[-53.5,-33.5],[-53.5,-35],[-55,-35],[-57,-34],[-58.5,-32],[-58.5,-30]]],
         authors:[
           { name:'胡安·卡洛斯·奥内蒂', en:'Juan Carlos Onetti', bio:'拉美心理小说先驱，以虚构城市圣玛利亚构建孤独绝望的叙事迷宫。', works:['《造船厂》','《短暂的生命》','《收尸人》'] },
           { name:'马里奥·贝内德蒂', en:'Mario Benedetti', bio:'乌拉圭最受爱戴的作家，以平实语言书写普通人生活、爱情与流亡。', works:['《休战》','《感谢火焰》'] }
         ]},
-      { id:'br', name:'巴西', path:'M255,260 L310,255 L365,260 L410,275 L430,310 L425,360 L415,410 L405,450 L390,490 L370,520 L365,545 L340,555 L310,555 L285,540 L270,510 L260,480 L248,440 L240,390 L238,340 L240,300 Z',
+      { id:'br', name:'巴西',
+        geo: [[-70,2],[-65,1],[-60,3],[-55,3],[-50,2],[-46,0],[-40,-1],[-36,-3],[-35,-5],[-35,-9],[-37,-12],[-38,-16],[-39,-19],[-40,-22],[-43,-23],[-48,-23],[-50,-24],[-53,-26],[-55,-28],[-56,-30],[-54,-33],[-51,-34],[-48,-32],[-45,-30],[-43,-27],[-43,-23],[-38,-22],[-37,-18],[-35,-12],[-36,-6],[-38,-2],[-42,2],[-46,4],[-50,5],[-54,6],[-58,5],[-62,4],[-66,3],[-70,2]]],
         authors:[
           { name:'马查多·德·阿西斯', en:'Machado de Assis', bio:'巴西文学之父，以冷峻讽刺与心理洞察开创拉美现实主义小说先河。', works:['《布拉兹·库巴斯的死后回忆》','《堂卡斯穆罗》'] },
           { name:'克拉丽丝·李斯佩克特', en:'Clarice Lispector', bio:'二十世纪最重要的巴西作家之一，以独特内省风格探索存在与语言的边界。', works:['《星辰时刻》','《靠近狂野之心》'] },
@@ -2301,27 +2303,23 @@
     ];
 
     // ===========================================
-    // ROUTE: LATIN AMERICA LITERARY MAP
+    // ROUTE: LATIN AMERICA LITERARY MAP (Leaflet + GeoJSON)
     // ===========================================
     route('/latin-america', async () => {
       const countries = LATAM_COUNTRIES;
 
-      // SVG map
-      const svgHtml = `
-        <svg viewBox="0 0 450 670" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <filter id="map-shadow">
-              <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
-            </filter>
-          </defs>
-          ${countries.map(c => `
-            <path class="latam-country" data-country="${c.id}"
-              d="${c.path}"
-              title="${c.name}">
-              <title>${c.name}</title>
-            </path>
-          `).join('')}
-        </svg>`;
+      // Build GeoJSON FeatureCollection
+      const geojson = {
+        type: 'FeatureCollection',
+        features: countries.map(c => ({
+          type: 'Feature',
+          properties: { id: c.id, name: c.name },
+          geometry: { type: 'Polygon', coordinates: c.geo }
+        }))
+      };
+
+      // Store geojson globally for Leaflet init after render
+      window._latamGeojson = geojson;
 
       // Default intro panel
       const introPanel = `
@@ -2358,7 +2356,7 @@
 
           <div class="latam-layout">
             <div class="latam-map-wrap" id="latam-map-wrap">
-              ${svgHtml}
+              <div id="latam-leaflet-map" style="width:100%;height:550px;border-radius:var(--radius-md);border:1px solid var(--color-border);box-shadow:var(--shadow-sm);"></div>
             </div>
             <div class="latam-panel" id="latam-panel">
               ${introPanel}
@@ -3178,18 +3176,19 @@
     });
 
     // ===========================================
-    // LATIN AMERICA MAP — 西语文学地图交互
+    // LATIN AMERICA MAP — 西语文学地图交互 (Leaflet + GeoJSON)
     // ===========================================
+    let _latamMap = null;
+    let _latamLayer = null;
+
     function renderLatamPanel(countryId) {
       const panel = document.getElementById('latam-panel');
       if (!panel) return;
 
-      // Update active states
-      document.querySelectorAll('.latam-country').forEach(p => p.classList.remove('active'));
+      // Update tag active states
       document.querySelectorAll('.latam-tag').forEach(t => t.classList.remove('active'));
 
       if (!countryId) {
-        // Default intro
         panel.innerHTML = `
           <h2>🌎 拉丁美洲文学地图</h2>
           <div class="panel-intro">
@@ -3208,19 +3207,38 @@
               2010 · 🇵🇪 巴尔加斯·略萨
             </div>
           </div>`;
+        // Reset GeoJSON layer
+        if (_latamLayer) {
+          _latamLayer.eachLayer(function(l) { l._selected = false; l.setStyle({ fillColor: '#d9a87a', fillOpacity: 0.45, color: '#8b6914', weight: 1.5 }); });
+        }
         return;
       }
 
       const country = LATAM_COUNTRIES.find(c => c.id === countryId);
       if (!country) return;
 
-      // Highlight active
-      const pathEl = document.querySelector(`.latam-country[data-country="${countryId}"]`);
-      if (pathEl) pathEl.classList.add('active');
+      // Highlight tag
       const tagEl = document.querySelector(`.latam-tag[data-country="${countryId}"]`);
       if (tagEl) tagEl.classList.add('active');
 
-      // Render panel
+      // Highlight map feature
+      if (_latamLayer) {
+        _latamLayer.eachLayer(function(layer) {
+          layer._selected = false;
+          layer.setStyle({ fillColor: '#d9a87a', fillOpacity: 0.45, color: '#8b6914', weight: 1.5 });
+        });
+        _latamLayer.eachLayer(function(layer) {
+          if (layer.feature && layer.feature.properties.id === countryId) {
+            layer._selected = true;
+            layer.setStyle({ fillColor: '#a46533', fillOpacity: 0.7, weight: 3, color: '#8b4a2a' });
+            layer.bringToFront();
+            if (layer._map) {
+              layer._map.fitBounds(layer.getBounds(), { padding: [30,30], maxZoom: 6 });
+            }
+          }
+        });
+      }
+
       const authorsHtml = country.authors.map(a => `
         <div class="latam-author-card">
           <div class="author-name"><span class="icon">✍️</span>${h(a.name)}<span style="font-weight:400;font-size:0.75rem;color:var(--color-text-3);margin-left:4px;">${h(a.en)}</span></div>
@@ -3233,20 +3251,82 @@
         <h2>📍 ${h(country.name)}</h2>
         <div class="panel-intro">共 ${country.authors.length} 位代表作家</div>
         ${authorsHtml}
+        <button class="btn btn-sm btn-outline" style="margin-top:var(--space-2);" onclick="renderLatamPanel(null);if(_latamLayer)_latamLayer.resetStyle();">← 返回总览</button>
       `;
     }
 
+    function initLatamMap() {
+      const mapEl = document.getElementById('latam-leaflet-map');
+      if (!mapEl || !window._latamGeojson) return;
+
+      // Destroy existing map instance
+      if (_latamMap) { _latamMap.remove(); _latamMap = null; _latamLayer = null; }
+
+      // Create Leaflet map centered on Latin America
+      _latamMap = L.map(mapEl, {
+        center: [-15, -65],
+        zoom: 4,
+        minZoom: 3,
+        maxZoom: 8,
+        zoomControl: true,
+        scrollWheelZoom: true,
+        maxBounds: [[15, -120], [-60, -30]],
+        maxBoundsViscosity: 0.5
+      });
+
+      // Light basemap (CartoDB)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+      }).addTo(_latamMap);
+
+      // GeoJSON layer
+      const defaultStyle = { fillColor: '#d9a87a', fillOpacity: 0.45, color: '#8b6914', weight: 1.5, opacity: 0.8 };
+
+      _latamLayer = L.geoJSON(window._latamGeojson, {
+        style: function() { return defaultStyle; },
+        onEachFeature: function(feature, layer) {
+          layer.on({
+            mouseover: function(e) {
+              const lyr = e.target;
+              if (!lyr._selected) {
+                lyr.setStyle({ fillColor: '#c17d4b', fillOpacity: 0.7, weight: 2.5, color: '#6b3a1f' });
+              }
+              lyr.bringToFront();
+            },
+            mouseout: function(e) {
+              const lyr = e.target;
+              if (!lyr._selected) {
+                lyr.setStyle(defaultStyle);
+              }
+            },
+            click: function(e) {
+              _latamLayer.eachLayer(function(l) { l._selected = false; l.setStyle(defaultStyle); });
+              e.target._selected = true;
+              e.target.setStyle({ fillColor: '#a46533', fillOpacity: 0.7, weight: 3, color: '#8b4a2a' });
+              renderLatamPanel(feature.properties.id);
+            }
+          });
+        }
+      }).addTo(_latamMap);
+    }
+
+    // Country tag click handler
     document.addEventListener('click', (e) => {
-      // Country path click
-      const countryPath = e.target.closest('.latam-country');
-      if (countryPath) {
-        renderLatamPanel(countryPath.dataset.country);
-        return;
-      }
-      // Country tag click
       const countryTag = e.target.closest('.latam-tag');
       if (countryTag) {
-        renderLatamPanel(countryTag.dataset.country);
+        const countryId = countryTag.dataset.country;
+        // Highlight on map and show panel
+        if (_latamLayer) {
+          _latamLayer.eachLayer(function(layer) {
+            if (layer.feature && layer.feature.properties.id === countryId) {
+              layer.fire('click');
+            }
+          });
+        } else {
+          renderLatamPanel(countryId);
+        }
         return;
       }
     });
