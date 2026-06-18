@@ -2023,7 +2023,7 @@
               <div class="new-book-card">
                 <a href="${safeUrl(b.douban_url)}" target="_blank" rel="noopener" class="nb-cover">
                   ${b.cover_url
-                    ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">`
+                    ? `<img src="${esc(proxyImg(b.cover_url))}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">`
                     : ''}
                   <i data-lucide="book" class="cover-fallback" style="${b.cover_url ? 'display:none;' : ''}"></i>
                 </a>
@@ -2054,7 +2054,7 @@
             return `
               <div class="leaderboard-item">
                 <div class="lb-rank ${rankCls}">${i + 1}</div>
-                ${b.cover_url ? `<div class="lb-cover"><img src="${esc(b.cover_url)}" alt="" loading="lazy"></div>` : ''}
+                ${b.cover_url ? `<div class="lb-cover"><img src="${esc(proxyImg(b.cover_url))}" alt="" loading="lazy"></div>` : ''}
                 <div class="lb-info">
                   <div class="lb-title">
                     <a href="${safeUrl(b.douban_url)}" target="_blank" rel="noopener">${h(b.title)}</a>
@@ -2409,6 +2409,14 @@
     function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
     function h(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
     function safeUrl(u) { u = (u||'').trim(); return /^(https?:|mailto:|\/|#)/i.test(u) ? esc(u) : '#'; }
+    function proxyImg(url) {
+      // Proxy Douban images to bypass hotlink protection (HTTP 418)
+      if (!url) return '';
+      if (url.includes('doubanio.com')) {
+        return 'https://images.weserv.nl/?url=' + encodeURIComponent(url);
+      }
+      return url;
+    }
     function actItem(a) { a=a||{}; return `
       <div class="builder-item">
         <div class="b-row">
