@@ -898,8 +898,8 @@
           </a>
           <ul class="nav-links" id="nav-links">
             <li><a href="#/" data-route="/">首页</a></li>
-            <li><a href="#/books" data-route="/books">书库</a></li>
-            <li><a href="#/events" data-route="/events">活动</a></li>
+            <li><a href="#/books" data-route="/books">共读书库</a></li>
+            <li><a href="#/events" data-route="/events">线下活动</a></li>
             <li><a href="#/new-books" data-route="/new-books">新书速递</a></li>
             <li><a href="#/latin-america" data-route="/latin-america">西语文学</a></li>
           </ul>
@@ -1730,7 +1730,7 @@
       // We use query strings for filters. For simplicity, store filter state on the books view.
       return `
         <div class="container section" id="books-page">
-          <div class="page-header"><h1>书库</h1><div class="subtitle">共 ${books.length} 本书</div></div>
+          <div class="page-header"><h1>共读书库</h1><div class="subtitle">共 ${books.length} 本书</div></div>
           <div style="display:flex;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-3);">
             <div>
               <div style="font-size:0.85rem;color:var(--color-text-3);margin-bottom:4px;">类型</div>
@@ -1935,7 +1935,7 @@
 
       return `
         <div class="container section">
-          <a href="#/books" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回书库</a>
+          <a href="#/books" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回共读书库</a>
           <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
             <div style="width:180px;flex-shrink:0;">
               <div style="aspect-ratio:3/4;border-radius:var(--radius-md);background:var(--color-bg-alt);overflow:hidden;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif);font-size:2rem;color:var(--color-text-3);">
@@ -2001,7 +2001,7 @@
       }
       return `
         <div class="container section">
-          <div class="page-header"><h1>线下活动</h1><div class="subtitle">推荐线下活动，与线上共读区分开</div></div>
+          <div class="page-header"><h1>线下活动</h1><div class="subtitle">推荐线下活动</div></div>
           <div class="grid-3">
             ${events.map(ev => `
               <a href="#/events/${ev.id}" class="card event-card card-clickable" style="color:inherit;">
