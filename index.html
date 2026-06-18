@@ -1954,7 +1954,11 @@
       if (hoursSince > 24) {
         fetch(`${SUPABASE_URL}/functions/v1/scrape-douban`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+          },
           body: JSON.stringify({ force: false })
         }).catch(() => {});
       }
@@ -2869,7 +2873,11 @@
         try {
           const resp = await fetch(`${SUPABASE_URL}/functions/v1/scrape-douban`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            },
             body: JSON.stringify({ force: true })
           });
           const result = await resp.json();
