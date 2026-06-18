@@ -3299,7 +3299,6 @@
                 }
               },
               click: function(e) {
-                toast('点击了 ' + feature.properties.name);
                 _latamLayer.eachLayer(function(l) { l._selected = false; l.setStyle({ fillColor: '#d9a87a', fillOpacity: 0.45, color: '#8b6914', weight: 1.5 }); });
                 e.target._selected = true;
                 e.target.setStyle({ fillColor: '#a46533', fillOpacity: 0.7, weight: 3, color: '#8b4a2a' });
@@ -3338,7 +3337,6 @@
       const countryTag = e.target.closest('.latam-tag');
       if (countryTag) {
         const countryId = countryTag.dataset.country;
-        toast('标签点击: ' + countryId);
         if (_latamLayer) {
           let found = false;
           _latamLayer.eachLayer(function(layer) {
