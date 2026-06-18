@@ -2421,10 +2421,10 @@
     function h(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
     function safeUrl(u) { u = (u||'').trim(); return /^(https?:|mailto:|\/|#)/i.test(u) ? esc(u) : '#'; }
     function proxyImg(url) {
-      // Proxy Douban images to bypass hotlink protection (HTTP 418)
+      // Proxy Douban images through our own Edge Function to bypass hotlink protection
       if (!url) return '';
       if (url.includes('doubanio.com')) {
-        return 'https://images.weserv.nl/?url=' + encodeURIComponent(url);
+        return SUPABASE_URL + '/functions/v1/img-proxy?url=' + encodeURIComponent(url);
       }
       return url;
     }
