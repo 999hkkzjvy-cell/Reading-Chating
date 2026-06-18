@@ -3302,7 +3302,26 @@
                 _latamLayer.eachLayer(function(l) { l._selected = false; l.setStyle({ fillColor: '#d9a87a', fillOpacity: 0.45, color: '#8b6914', weight: 1.5 }); });
                 e.target._selected = true;
                 e.target.setStyle({ fillColor: '#a46533', fillOpacity: 0.7, weight: 3, color: '#8b4a2a' });
-                renderLatamPanel(feature.properties.id);
+
+                const cid = feature.properties.id;
+                const country = LATAM_COUNTRIES.find(c => c.id === cid);
+                const panel = document.getElementById('latam-panel');
+                if (panel && country) {
+                  document.querySelectorAll('.latam-tag').forEach(t => t.classList.remove('active'));
+                  const tag = document.querySelector('.latam-tag[data-country="'+cid+'"]');
+                  if (tag) tag.classList.add('active');
+                  let html = '<h2>\u{1F4CD} '+h(country.name)+'</h2><div class="panel-intro">共 '+country.authors.length+' 位代表作家</div>';
+                  for (const a of country.authors) {
+                    html += '<div class="latam-author-card"><div class="author-name"><span class="icon">✍️</span>'+h(a.name)+'<span style="font-weight:400;font-size:0.75rem;color:var(--color-text-3);margin-left:4px;">'+h(a.en)+'</span></div><div class="author-bio">'+h(a.bio)+'</div><div class="author-works">';
+                    for (const w of a.works) { html += '<span class="work-tag">\u{1F4D6} '+h(w)+'</span>'; }
+                    html += '</div></div>';
+                  }
+                  html += '<button class="btn btn-sm btn-outline" style="margin-top:var(--space-2);" id="btn-latam-back">← 返回总览</button>';
+                  panel.innerHTML = html;
+                  document.getElementById('btn-latam-back')?.addEventListener('click', function() {
+                    renderLatamPanel(null);
+                  });
+                }
               }
             });
           }
