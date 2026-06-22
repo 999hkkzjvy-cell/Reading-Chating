@@ -1200,7 +1200,7 @@
     }
 
     async function loadEvents() {
-      const { data } = await sb.from('events').select('*').order('event_date', { ascending: true });
+      const { data } = await sb.from('events').select('*').order('event_date', { ascending: false });
       store.set('events', data || []);
       return data || [];
     }
