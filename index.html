@@ -195,6 +195,14 @@
     .tag-active    { background: #fdf3dc; color: var(--color-tag-active); }
     .tag-completed { background: #eee9e2; color: var(--color-tag-completed); }
     .tag-genre     { background: var(--color-accent-bg); color: var(--color-accent); }
+    .tag-act-导读预热 { background: #fff3e0; color: #e65100; }
+    .tag-act-精读分析 { background: #e3f2fd; color: #1565c0; }
+    .tag-act-文艺放映 { background: #f3e5f5; color: #7b1fa2; }
+    .tag-act-嘉宾分享 { background: #e0f2f1; color: #00695c; }
+    .tag-act-圆桌讨论 { background: #fce4ec; color: #c62828; }
+    .tag-act-线下活动 { background: #fff8e1; color: #f57f17; }
+    .tag-act-签售征订 { background: #e8eaf6; color: #283593; }
+    .tag-act-其他    { background: #eceff1; color: #546e7a; }
 
     /* ========================================
        Component: Forms
@@ -1878,12 +1886,13 @@
       let activities = [];
       try { activities = typeof book.activities === 'string' ? JSON.parse(book.activities||'[]') : (book.activities||[]); } catch(e){}
       const STATUS_TAG_CLASS = { '计划中': 'tag-upcoming', '进行中': 'tag-active', '已完结': 'tag-completed' };
+      const ACT_TYPE_CLASS = { '导读预热':'tag-act-导读预热','精读分析':'tag-act-精读分析','文艺放映':'tag-act-文艺放映','嘉宾分享':'tag-act-嘉宾分享','圆桌讨论':'tag-act-圆桌讨论','线下活动':'tag-act-线下活动','签售征订':'tag-act-签售征订','其他':'tag-act-其他' };
       const activitiesHtml = activities.length === 0 ? '<p style="color:var(--color-text-3);">暂无活动安排。</p>' : `
         <div style="display:flex;flex-direction:column;gap:var(--space-2);">
           ${activities.map(a => `
             <div class="card" style="padding:var(--space-2) var(--space-3);">
               <div style="display:flex;align-items:center;gap:var(--space-1);flex-wrap:wrap;margin-bottom:6px;">
-                <span class="tag tag-genre">${a.type || '活动'}</span>
+                <span class="tag ${ACT_TYPE_CLASS[a.type] || 'tag-genre'}">${a.type || '活动'}</span>
                 <span class="tag ${STATUS_TAG_CLASS[a.status] || 'tag-upcoming'}">${a.status || ''}</span>
                 <strong>${a.title}</strong>
               </div>
