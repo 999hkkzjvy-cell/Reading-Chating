@@ -415,6 +415,12 @@
       color: var(--color-text-3); position: relative; overflow: hidden;
     }
     .event-card .poster img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+    .event-card .cat-tag {
+      display: inline-block; font-size: 0.72rem; padding: 2px 8px;
+      border-radius: 4px; font-weight: 500;
+      background: var(--color-bg-alt); color: var(--color-text-2);
+      border: 1px solid var(--color-border);
+    }
     .event-card .card-body h3 { font-size: 1rem; }
     .event-card .info-row {
       display: flex; align-items: center; gap: 6px;
@@ -942,7 +948,7 @@
     const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Configure marked
-    marked.setOptions({ breaks: true, gfm: true });
+    marked.setOptions({ breaks: false, gfm: true });
 
     // Security: sanitize all markdown output with DOMPurify
     function safeMarked(text) {
@@ -1885,17 +1891,9 @@
               ${a.guests ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">👤 ${a.guests}</div>` : ''}
               ${a.description ? `<div style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:6px;">${a.description}</div>` : ''}
               <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;align-items:center;">
-                ${a.status === '已完结'
-                  ? (a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-outline btn-sm">查看回放</a>` : '')
-                  : a.status === '进行中'
-                  ? (a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">加入会议</a>` : '')
-                  : a.status === '计划中'
-                  ? '<span style="font-size:0.82rem;color:var(--color-text-3);">积极筹备中，敬请期待</span>'
-                  : `
-                    ${a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">加入会议</a>` : ''}
-                    ${a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-outline btn-sm">查看回放</a>` : ''}
-                  `
-                }
+                ${a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">活动链接</a>` : ''}
+                ${a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-outline btn-sm">回放回顾</a>` : ''}
+                ${!a.meeting_link && !a.replay_link && a.status === '计划中' ? '<span style="font-size:0.82rem;color:var(--color-text-3);">积极筹备中，敬请期待</span>' : ''}
               </div>
             </div>
           `).join('')}
@@ -2020,6 +2018,7 @@
                   <div class="info-row"><i data-lucide="map-pin"></i> ${h(ev.location || '待定')}</div>
                   <div class="info-row"><i data-lucide="clock"></i> ${formatDateTime(ev.event_date)}</div>
                   ${ev.price ? `<div class="info-row"><i data-lucide="tag"></i> ${h(ev.price)}</div>` : ''}
+                  ${ev.category ? `<div style="text-align:right;margin-top:6px;"><span class="cat-tag">${h(ev.category)}</span></div>` : ''}
                 </div>
               </a>
             `).join('')}
@@ -2042,8 +2041,8 @@
         <div class="container section">
           <a href="#/events" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回活动列表</a>
           <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;margin-top:var(--space-3);">
-            <div style="width:100%;max-width:400px;flex-shrink:0;">
-              <div style="aspect-ratio:16/10;border-radius:var(--radius-md);background:var(--color-bg-alt);overflow:hidden;display:flex;align-items:center;justify-content:center;">
+            <div style="width:100%;max-width:320px;flex-shrink:0;">
+              <div style="aspect-ratio:2/3;border-radius:var(--radius-md);background:var(--color-bg-alt);overflow:hidden;display:flex;align-items:center;justify-content:center;">
                 ${event.poster_url ? `<img src="${event.poster_url}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '<i data-lucide="image" style="width:48px;height:48px;color:var(--color-text-3);"></i>'}
               </div>
             </div>
@@ -2051,10 +2050,12 @@
               ${statusTag(event.status)}
               <h1 style="margin-top:var(--space-1);">${h(event.title)}</h1>
               <div style="margin-top:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);">
+                ${event.category ? `<div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="bookmark" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>分类：</strong>${h(event.category)}</div>` : ''}
                 <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="map-pin" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>地点：</strong>${h(event.location || '待定')}</div>
                 <div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="clock" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>时间：</strong>${formatDateTime(event.event_date)}</div>
                 ${event.guests ? `<div style="display:flex;align-items:flex-start;gap:var(--space-2);"><i data-lucide="user" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>嘉宾：</strong><span>${h(guestsHtml.replace(/<[^>]*>/g, ''))}</span></div>` : ''}
                 ${event.price ? `<div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="tag" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>价格：</strong>${h(event.price)}</div>` : ''}
+                ${event.link ? `<div style="display:flex;align-items:center;gap:var(--space-2);"><i data-lucide="external-link" style="color:var(--color-accent);width:20px;height:20px;"></i><strong>链接：</strong><a href="${safeUrl(event.link)}" target="_blank" class="btn btn-outline btn-sm">查看详情</a></div>` : ''}
               </div>
             </div>
           </div>
