@@ -1900,14 +1900,81 @@
         </div>`;
 
       // Tab 6: 资源材料
-      let resources = { extended_reading: [], text_materials: [], film_resources: [] };
+      let resources = { extended_reading: [], text_materials: [], film_resources: [], other: [] };
       try { resources = typeof book.resources === 'string' ? JSON.parse(book.resources) : (book.resources || {}); } catch(e) {}
-      const resourceSections = [
-        { key: 'extended_reading', label: '延伸读物' },
+
+      // Fetch Douban metadata for extended reading items with Douban URLs
+      const extItems = resources.extended_reading || [];
+      const doubanCache = {};
+      const doubanUrls = extItems.filter(item => item.url && item.url.includes('douban.com')).map(item => item.url);
+      if (doubanUrls.length > 0) {
+        // Check cache first
+        try {
+          const { data: cached } = await sb.from('douban_book_cache').select('*').in('douban_url', doubanUrls);
+          if (cached) cached.forEach(c => { doubanCache[c.douban_url] = c; });
+        } catch(e) {}
+        // Fetch uncached ones via Edge Function
+        const uncached = doubanUrls.filter(url => !doubanCache[url]);
+        if (uncached.length > 0) {
+          const results = await Promise.allSettled(uncached.map(url =>
+            fetch(`${SUPABASE_URL}/functions/v1/fetch-douban-book`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+              body: JSON.stringify({ url })
+            }).then(r => r.json()).then(r => (r && r.success) ? r.data : null).catch(() => null)
+          ));
+          // Store fetched results
+          const toInsert = [];
+          results.forEach((r, i) => {
+            if (r.status === 'fulfilled' && r.value) {
+              doubanCache[uncached[i]] = r.value;
+              toInsert.push(r.value);
+            }
+          });
+          // Write back to cache table (best effort)
+          if (toInsert.length > 0) {
+            try { await sb.from('douban_book_cache').upsert(toInsert, { onConflict: 'douban_url' }); } catch(e) {}
+          }
+        }
+      }
+
+      // Render extended reading as cards with Douban metadata
+      const extReadingHtml = extItems.length === 0 ? '' : `
+        <div style="margin-bottom:var(--space-3);">
+          <h4 style="margin-bottom:var(--space-1);">延伸读物</h4>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-2);">
+            ${extItems.map(item => {
+              const db = doubanCache[item.url] || {};
+              return `
+              <div class="new-book-card">
+                <a href="${safeUrl(item.url)}" target="_blank" rel="noopener" class="nb-cover" style="width:100px;">
+                  ${db.cover_url
+                    ? `<img src="${esc(proxyImg(db.cover_url))}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">`
+                    : ''}
+                  <i data-lucide="book" class="cover-fallback" style="${db.cover_url ? 'display:none;' : ''}"></i>
+                </a>
+                <div class="nb-body">
+                  <h3><a href="${safeUrl(item.url)}" target="_blank" rel="noopener">${h(db.title || item.title)}</a></h3>
+                  ${db.author ? `<div class="nb-row"><span class="nb-label">作者</span>${h(db.author)}</div>` : ''}
+                  ${db.publisher ? `<div class="nb-row"><span class="nb-label">出版方</span>${h(db.publisher)}</div>` : ''}
+                  ${db.rating ? `<div class="nb-row rating">⭐${h(db.rating)} · ${db.review_count || 0}人评价</div>` : ''}
+                  ${item.description ? `<div class="nb-row" style="white-space:normal;margin-top:2px;">${h(item.description)}</div>` : ''}
+                  <div class="nb-actions" style="margin-top:4px;">
+                    <a href="${safeUrl(item.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">豆瓣详情</a>
+                  </div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+
+      // Render other resource sections as simple lists
+      const otherSections = [
         { key: 'text_materials', label: '文字材料' },
-        { key: 'film_resources', label: '影视资源' }
+        { key: 'film_resources', label: '影视资源' },
+        { key: 'other', label: '其他' }
       ];
-      const resourcesHtml = resourceSections.map(sec => {
+      const resourcesHtml = extReadingHtml + otherSections.map(sec => {
         const items = resources[sec.key] || [];
         if (items.length === 0) return '';
         return `<div style="margin-bottom:var(--space-3);">
@@ -2749,16 +2816,16 @@
     // Admin: add/edit book form
     function showBookForm(bookData = null) {
       const isEdit = !!bookData;
-      const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', edition_notes:'', reading_schedule:'{"summary":"","pdf_url":""}', host:'', host_intro:'', host_notes:'', activities:'[]', chatsubstance:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[]}', start_date:'', end_date:'' };
+      const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', edition_notes:'', reading_schedule:'{"summary":"","pdf_url":""}', host:'', host_intro:'', host_notes:'', activities:'[]', chatsubstance:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[],"other":[]}', start_date:'', end_date:'' };
       const genres = ['文学','历史','哲学','科幻','社科','心理','传记','商业','科普','其他'];
       // Parse JSONB data for visual builders
-      let acts=[], edns=[], chats=[], extR=[], txtM=[], filmR=[];
+      let acts=[], edns=[], chats=[], extR=[], txtM=[], filmR=[], otherR=[];
       try { acts = typeof book.activities==='string' ? JSON.parse(book.activities||'[]') : (book.activities||[]); } catch(e){}
       try { edns = typeof book.edition_guide==='string' ? JSON.parse(book.edition_guide||'[]') : (book.edition_guide||[]); } catch(e){}
       try { chats = typeof book.chatsubstance==='string' ? JSON.parse(book.chatsubstance||'[]') : (book.chatsubstance||[]); } catch(e){}
       try {
         const res = typeof book.resources==='string' ? JSON.parse(book.resources||'{}') : (book.resources||{});
-        extR = res.extended_reading||[]; txtM = res.text_materials||[]; filmR = res.film_resources||[];
+        extR = res.extended_reading||[]; txtM = res.text_materials||[]; filmR = res.film_resources||[]; otherR = res.other||[];
       } catch(e){}
 
       const formHtml = `
@@ -2858,6 +2925,11 @@
               <div class="builder-items" id="builder-film">${filmR.length ? filmR.map(resItem).join('') : '<div class="builder-item" style="text-align:center;color:var(--color-text-3);padding:12px;font-size:0.85rem;">暂无</div>'}</div>
               <button type="button" class="btn-add-row" data-action="add-film">+ 添加影视资源</button>
             </div>
+            <div class="res-section">
+              <h5>其他</h5>
+              <div class="builder-items" id="builder-other">${otherR.length ? otherR.map(resItem).join('') : '<div class="builder-item" style="text-align:center;color:var(--color-text-3);padding:12px;font-size:0.85rem;">暂无</div>'}</div>
+              <button type="button" class="btn-add-row" data-action="add-other">+ 添加其他</button>
+            </div>
           </div>
 
           <button type="submit" class="btn btn-primary">${isEdit ? '保存修改' : '添加书籍'}</button>
@@ -2901,7 +2973,8 @@
         const extR = collectItems('builder-ext', ['res_title','res_url','res_desc']).map(o => ({ title: o.res_title||'', url: o.res_url||'', description: o.res_desc||'' }));
         const txtM = collectItems('builder-txt', ['res_title','res_url','res_desc']).map(o => ({ title: o.res_title||'', url: o.res_url||'', description: o.res_desc||'' }));
         const filmR = collectItems('builder-film', ['res_title','res_url','res_desc']).map(o => ({ title: o.res_title||'', url: o.res_url||'', description: o.res_desc||'' }));
-        data.resources = { extended_reading: extR, text_materials: txtM, film_resources: filmR };
+        const otherR = collectItems('builder-other', ['res_title','res_url','res_desc']).map(o => ({ title: o.res_title||'', url: o.res_url||'', description: o.res_desc||'' }));
+        data.resources = { extended_reading: extR, text_materials: txtM, film_resources: filmR, other: otherR };
 
         // Chatsubstance
         data.chatsubstance = JSON.stringify(collectItems('builder-chats', ['chat_topic','chat_speaker','chat_content']).map(o => ({
@@ -3069,6 +3142,7 @@
           'add-ext':      { container: 'builder-ext', html: resItem() },
           'add-txt':      { container: 'builder-txt', html: resItem() },
           'add-film':     { container: 'builder-film', html: resItem() },
+          'add-other':    { container: 'builder-other', html: resItem() },
           'add-chat':     { container: 'builder-chats', html: chatItem() }
         };
         const cfg = map[action];
