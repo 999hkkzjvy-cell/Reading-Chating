@@ -17,6 +17,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Serif+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Leaflet CSS loaded dynamically on /latin-america -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https: cdn.jsdelivr.net cdnjs.cloudflare.com unpkg.com; style-src 'self' 'unsafe-inline' https: fonts.googleapis.com cdn.jsdelivr.net; font-src https: fonts.gstatic.com; img-src 'self' data: https:; connect-src https: wss:;">
+  <!-- Preload critical scripts: browser starts downloading during HTML parse -->
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" as="script">
+  <link rel="preload" href="https://cdn.jsdelivr.net/npm/marked/marked.min.js" as="script">
   <!-- Core scripts deferred to not block rendering -->
   <script src="https://unpkg.com/lucide@0.344.0" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
@@ -1184,7 +1187,13 @@
     }
 
     window.addEventListener('hashchange', () => router.render());
-    window.addEventListener('load', () => { bindGlobalEvents(); router.render(); });
+    window.addEventListener('load', () => {
+      bindGlobalEvents();
+      router.render();
+      // Prefetch data in background — makes subsequent navigation instant
+      loadBooks().catch(() => {});
+      loadEvents().catch(() => {});
+    });
 
     // Click delegation for internal links + captcha refresh
     document.addEventListener('click', (e) => {
@@ -2109,7 +2118,12 @@
     // ROUTE: BOOK DETAIL (v2)
     // ===========================================
     route('/books/:id', async (params) => {
-      const { data: book } = await sb.from('books').select('*').eq('id', params.id).single();
+      // Check memory cache first (hit if user visited book list before)
+      let book = store.get('books').find(b => b.id == params.id);
+      if (!book) {
+        const { data } = await sb.from('books').select('*').eq('id', params.id).single();
+        book = data;
+      }
       if (!book) return '<div class="container section"><div class="empty-state"><i data-lucide="book"></i><p>书籍未找到</p></div></div>';
 
       // Tab 1: 简介 — description + author_bio + historical_context
