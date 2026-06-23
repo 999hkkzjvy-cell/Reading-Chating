@@ -529,6 +529,72 @@
       text-align: center; margin-top: var(--space-3);
       font-size: 0.9rem; color: var(--color-text-2);
     }
+    .captcha-row {
+      margin-bottom: var(--space-3); position: relative;
+    }
+    .puzzle-box {
+      position: relative; width: 100%; height: 160px;
+      border-radius: var(--radius-sm); overflow: hidden;
+      user-select: none; margin-bottom: 12px;
+    }
+    .puzzle-box .pz-bg {
+      width: 100%; height: 100%;
+    }
+    .puzzle-box .pz-gap {
+      position: absolute; top: 55px; width: 50px; height: 50px;
+      background: rgba(0,0,0,0.18);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,0.5), 0 0 0 2px rgba(0,0,0,0.08);
+      pointer-events: none; z-index: 1;
+    }
+    .puzzle-box .pz-piece {
+      position: absolute; top: 55px; width: 50px; height: 50px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35); z-index: 3;
+      pointer-events: none;
+    }
+    .puzzle-box .pz-piece svg,
+    .puzzle-box .pz-gap svg {
+      width: 100%; height: 100%; display: block;
+    }
+    .puzzle-box .pz-status {
+      position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+      font-size: 0.82rem; padding: 3px 14px; border-radius: 12px;
+      pointer-events: none; z-index: 5; font-weight: 500;
+      background: rgba(0,0,0,0.4); color: #fff;
+    }
+    .puzzle-box.success .pz-status { background: rgba(76,175,80,0.8); }
+    .puzzle-box.fail .pz-status { background: rgba(220,53,69,0.8); }
+    .puzzle-slider {
+      position: relative; width: 100%; height: 44px;
+      background: var(--color-bg-alt); border: 1px solid var(--color-border);
+      border-radius: 22px; overflow: hidden;
+    }
+    .puzzle-slider .pz-track {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      background: linear-gradient(90deg, #c8e6c9, #81c784);
+      border-radius: 22px 0 0 22px; pointer-events: none;
+      transition: width 0.05s linear; width: 0;
+    }
+    .puzzle-slider .pz-handle {
+      position: absolute; left: 2px; top: 2px;
+      width: 40px; height: 40px; background: #fff;
+      border-radius: 50%; cursor: grab; z-index: 2;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      display: flex; align-items: center; justify-content: center;
+      transition: left 0.05s linear;
+    }
+    .puzzle-slider .pz-handle:active { cursor: grabbing; }
+    .puzzle-slider .pz-handle svg { width: 18px; height: 18px; color: #999; pointer-events: none; }
+    .puzzle-slider.success .pz-handle { background: #4caf50; left: calc(100% - 42px) !important; }
+    .puzzle-slider.success .pz-handle svg { color: #fff; }
+    .puzzle-slider.success .pz-track { width: 100% !important; background: linear-gradient(90deg, #66bb6a, #43a047); }
+    .captcha-refresh {
+      display: inline-block; margin-top: 4px; font-size: 0.78rem;
+      color: var(--color-text-3); cursor: pointer;
+      background: none; border: none; padding: 2px 4px;
+    }
+    .captcha-refresh:hover { color: var(--color-accent); }
+    .puzzle-slider.locked { pointer-events: none; opacity: 0.5; }
+    .puzzle-slider.locked .pz-handle { cursor: not-allowed; }
 
     /* ========================================
        Home Hero
@@ -1080,6 +1146,10 @@
           document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="file-question"></i><p>页面未找到</p></div></div>';
         }
         lucide.createIcons();
+        // Init puzzle captcha if present (login page)
+        if (document.querySelector('.puzzle-box')) {
+          setTimeout(() => initPuzzleCaptcha(), 150);
+        }
         // Init Leaflet map if present
         if (document.getElementById('latam-leaflet-map')) {
           setTimeout(() => initLatamMap(), 50);
@@ -1116,13 +1186,17 @@
     window.addEventListener('hashchange', () => router.render());
     window.addEventListener('load', () => { bindGlobalEvents(); router.render(); });
 
-    // Click delegation for internal links
+    // Click delegation for internal links + captcha refresh
     document.addEventListener('click', (e) => {
       const link = e.target.closest('a[href^="#/"]');
       if (link) {
         e.preventDefault();
         const path = link.getAttribute('href').slice(1);
         router.navigate(path);
+      }
+      // Captcha refresh button
+      if (e.target.closest('[data-action="captcha-refresh"]')) {
+        refreshCaptcha();
       }
     });
 
@@ -1138,6 +1212,208 @@
         store.set('isAdmin', profile?.role === 'admin');
       }
       renderNavUser();
+    }
+
+    // ===========================================
+    // CAPTCHA — jigsaw puzzle (anti-DOS)
+    // ===========================================
+    let _pzVerified = false;
+    let _pzDragging = false;
+    let _pzGapX = 0;
+    let _pzFailCount = 0;
+
+    // Shared puzzle shape clip path
+    const PZ_SHAPE = 'path("M0,6 C0,2 2,0 6,0 L44,0 C48,0 50,2 50,6 L50,18 C50,18 40,15 38,22 C36,29 46,28 50,32 L50,44 C50,48 48,50 44,50 L6,50 C2,50 0,48 0,44 L0,6 Z")';
+
+    function randomGradient() {
+      const h1 = Math.floor(Math.random() * 360);
+      const h2 = (h1 + 30 + Math.floor(Math.random() * 60)) % 360;
+      const h3 = (h1 + 120 + Math.floor(Math.random() * 60)) % 360;
+      return `linear-gradient(135deg, hsl(${h1},55%,60%), hsl(${h2},65%,50%), hsl(${h3},55%,55%))`;
+    }
+
+    function makePuzzleSvg(boxW, bgGradient, showX) {
+      const enc = encodeURIComponent;
+      const bgSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${boxW}" height="160"><rect width="${boxW}" height="160" fill="${bgGradient.replace(/#/g, '%23')}"/></svg>`;
+      return `<svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+        <defs><clipPath id="pzc"><path d="M0,6 C0,2 2,0 6,0 L44,0 C48,0 50,2 50,6 L50,18 C50,18 40,15 38,22 C36,29 46,28 50,32 L50,44 C50,48 48,50 44,50 L6,50 C2,50 0,48 0,44 L0,6 Z"/></clipPath></defs>
+        <image href="data:image/svg+xml,${enc(bgSvg)}" x="${showX}" y="-55" width="${boxW}" height="160" clip-path="url(#pzc)" preserveAspectRatio="none"/>
+      </svg>`;
+    }
+
+    function initPuzzleCaptcha() {
+      _pzVerified = false;
+      _pzDragging = false;
+      const box = document.querySelector('.puzzle-box');
+      if (!box) return;
+      box.classList.remove('success', 'fail');
+      const slider = document.querySelector('.puzzle-slider');
+      slider.classList.remove('success', 'locked');
+      const status = box.querySelector('.pz-status');
+      status.textContent = '拖动滑块使拼图对齐缺口';
+      status.style.background = 'rgba(0,0,0,0.4)';
+
+      const bgGradient = randomGradient();
+      const boxW = box.clientWidth;
+      const pieceW = 50;
+
+      // Gap in the middle area (35%-65%)
+      _pzGapX = Math.floor(boxW * 0.35) + Math.floor(Math.random() * (boxW * 0.3));
+
+      // Fill background
+      box.querySelector('.pz-bg').style.background = bgGradient;
+
+      // Position gap
+      const gap = box.querySelector('.pz-gap');
+      gap.style.left = _pzGapX + 'px';
+      gap.style.clipPath = PZ_SHAPE;
+      gap.style.background = 'rgba(0,0,0,0.2)';
+      gap.innerHTML = '';
+
+      // Puzzle piece starts near left edge
+      const pieceStartX = 16;
+      const piece = box.querySelector('.pz-piece');
+      piece.style.left = pieceStartX + 'px';
+      piece.innerHTML = makePuzzleSvg(boxW, bgGradient, -_pzGapX);
+      piece.style.clipPath = PZ_SHAPE;
+
+      // Slider: handle starts at left, 1:1 mapping with piece
+      const handle = slider.querySelector('.pz-handle');
+      handle.style.left = '2px';
+      slider.querySelector('.pz-track').style.width = '0';
+      const handleMax = slider.clientWidth - handle.clientWidth - 4;
+      // Target: where handle should be when piece aligns with gap
+      const handleTarget = Math.min(2 + _pzGapX - pieceStartX, handleMax);
+
+      bindPuzzleEvents(box, slider, handle, piece, handleMax, pieceStartX, handleTarget);
+    }
+
+    function bindPuzzleEvents(box, slider, handle, piece, handleMax, pieceStartX, handleTarget) {
+      let startX = 0, startLeft = 0;
+      const track = slider.querySelector('.pz-track');
+      const status = box.querySelector('.pz-status');
+
+      const onStart = (e) => {
+        if (_pzVerified || slider.classList.contains('locked')) return;
+        _pzDragging = true;
+        handle.style.transition = 'none';
+        piece.style.transition = 'none';
+        track.style.transition = 'none';
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        startX = clientX;
+        startLeft = parseFloat(handle.style.left) || 2;
+      };
+      const onMove = (e) => {
+        if (!_pzDragging) return;
+        e.preventDefault();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let hLeft = startLeft + (clientX - startX);
+        hLeft = Math.max(2, Math.min(handleMax, hLeft));
+        handle.style.left = hLeft + 'px';
+        track.style.width = (hLeft + handle.clientWidth / 2) + 'px';
+        // 1:1 mapping: piece moves same amount
+        const pLeft = pieceStartX + (hLeft - 2);
+        piece.style.left = pLeft + 'px';
+      };
+      const onEnd = () => {
+        if (!_pzDragging) return;
+        _pzDragging = false;
+        handle.style.transition = 'left 0.35s ease';
+        piece.style.transition = 'left 0.35s ease';
+        track.style.transition = 'width 0.35s ease';
+        const hLeft = parseFloat(handle.style.left) || 2;
+        const pLeft = pieceStartX + (hLeft - 2);
+        const tolerance = 6;
+
+        if (Math.abs(pLeft - _pzGapX) <= tolerance) {
+          // SUCCESS — snap to target position
+          piece.style.left = _pzGapX + 'px';
+          handle.style.left = handleTarget + 'px';
+          track.style.width = (handleTarget + handle.clientWidth / 2) + 'px';
+          box.classList.add('success');
+          slider.classList.add('success');
+          status.textContent = '✓ 核验成功';
+          box.classList.remove('fail');
+          _pzVerified = true;
+          _pzFailCount = 0;
+        } else {
+          // FAIL — snap back to start
+          _pzFailCount++;
+          piece.style.left = pieceStartX + 'px';
+          handle.style.left = '2px';
+          track.style.width = '0';
+          box.classList.add('fail');
+          box.classList.remove('success');
+          status.textContent = '✗ 核验失败';
+          setTimeout(() => {
+            if (!_pzVerified) {
+              if (_pzFailCount >= 3) {
+                lockCaptcha(slider, box);
+              } else {
+                initPuzzleCaptcha();
+              }
+            }
+          }, 1200);
+        }
+      };
+
+      // Clean old
+      handle.removeEventListener('mousedown', onStart);
+      handle.removeEventListener('touchstart', onStart);
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchend', onEnd);
+      // Bind
+      handle.addEventListener('mousedown', onStart);
+      handle.addEventListener('touchstart', onStart, { passive: false });
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('mouseup', onEnd);
+      document.addEventListener('touchend', onEnd);
+    }
+
+    function lockCaptcha(slider, box) {
+      slider.classList.add('locked');
+      const status = box.querySelector('.pz-status');
+      status.textContent = '失败次数过多，请 5 分钟后再试';
+      status.style.background = 'rgba(220,53,69,0.85)';
+      _pzVerified = false;
+      // Auto unlock after 5 min
+      setTimeout(() => {
+        _pzFailCount = 0;
+        initPuzzleCaptcha();
+      }, 300000);
+    }
+
+    function refreshCaptcha() {
+      _pzFailCount = 0;
+      initPuzzleCaptcha();
+    }
+    function isCaptchaVerified() { return _pzVerified; }
+
+    // Rate limiting
+    function checkLoginRateLimit() {
+      const now = Date.now();
+      const key = 'login_attempts';
+      let record;
+      try { record = JSON.parse(sessionStorage.getItem(key) || '{"count":0,"until":0}'); } catch(e) { record = { count: 0, until: 0 }; }
+      if (record.until > now) return { blocked: true, remaining: Math.ceil((record.until - now) / 1000) };
+      return { blocked: false, count: record.count };
+    }
+    function recordLoginAttempt(success) {
+      const now = Date.now();
+      const record = checkLoginRateLimit();
+      if (success) {
+        sessionStorage.removeItem('login_attempts');
+        return;
+      }
+      const count = record.count + 1;
+      let until = 0;
+      if (count >= 10) until = now + 300000;
+      else if (count >= 5) until = now + 60000;
+      else if (count >= 3) until = now + 15000;
+      sessionStorage.setItem('login_attempts', JSON.stringify({ count, until }));
     }
 
     async function signIn(email, password) {
@@ -1538,13 +1814,30 @@
         <div class="container auth-page">
           <div class="card">
             <h2>登录</h2>
-            <form id="login-form">
+            <form id="login-form" autocomplete="off">
               <div class="form-group"><label>邮箱</label><input type="email" name="email" required></div>
               <div class="form-group"><label>密码</label><input type="password" name="password" required minlength="6"></div>
-              <button type="submit" class="btn btn-primary" style="width:100%">登录</button>
+              <div class="captcha-row">
+                <div class="puzzle-box">
+                  <div class="pz-bg"></div>
+                  <div class="pz-gap"></div>
+                  <div class="pz-piece"></div>
+                  <div class="pz-status">拖动滑块使拼图对齐缺口</div>
+                </div>
+                <div class="puzzle-slider">
+                  <div class="pz-track"></div>
+                  <div class="pz-handle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+                </div>
+                <button type="button" class="captcha-refresh" data-action="captcha-refresh">🔄 换一张</button>
+              </div>
+              <div style="display:flex;gap:var(--space-2);">
+                <button type="submit" class="btn btn-primary" style="flex:1">登录</button>
+                <a href="#/register" class="btn btn-outline" style="flex:1;text-align:center;">注册</a>
+              </div>
+              <div style="text-align:center;margin-top:var(--space-2);">
+                <a href="#/forgot-password" style="font-size:0.9rem;color:var(--color-text-2);">忘记密码？</a>
+              </div>
             </form>
-            <div class="alt-link">还没有账号？<a href="#/register">立即注册</a></div>
-            <div class="alt-link"><a href="#/forgot-password">忘记密码？</a></div>
             <div id="login-error" style="color:var(--color-danger);text-align:center;margin-top:12px;font-size:0.9rem;"></div>
           </div>
         </div>
@@ -1615,12 +1908,26 @@
     document.addEventListener('submit', async (e) => {
       if (e.target.id === 'login-form') {
         e.preventDefault();
+        // Rate limit check
+        const limit = checkLoginRateLimit();
+        if (limit.blocked) {
+          document.getElementById('login-error').textContent = `登录尝试次数过多，请 ${limit.remaining} 秒后重试。`;
+          return;
+        }
+        // Captcha validation
+        if (!isCaptchaVerified()) {
+          document.getElementById('login-error').textContent = '请完成滑动验证。';
+          return;
+        }
         const fd = new FormData(e.target);
         try {
           await signIn(fd.get('email'), fd.get('password'));
+          recordLoginAttempt(true);
           const redirect = location.hash.includes('redirect=') ? decodeURIComponent(location.hash.split('redirect=')[1]) : '/';
           router.navigate(redirect);
         } catch (err) {
+          recordLoginAttempt(false);
+          refreshCaptcha();
           document.getElementById('login-error').textContent = err.message;
         }
       }
