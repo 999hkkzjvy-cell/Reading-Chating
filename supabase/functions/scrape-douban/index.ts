@@ -7,17 +7,45 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import * as cheerio from "npm:cheerio@1.0.0";
 
 const DOUBAN_LATEST_URL = "https://book.douban.com/latest";
-const SB_URL = "https://zugadhgezmqrnlwogomw.supabase.co";
+const SB_URL = Deno.env.get("SUPABASE_URL") || "https://zugadhgezmqrnlwogomw.supabase.co";
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "apikey, Authorization, Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+async function requireAdmin(req: Request, serviceRoleKey: string) {
+  const authHeader = req.headers.get("Authorization");
+  const token = authHeader?.replace(/^Bearer\s+/i, "");
+  if (!token) return { ok: false, status: 401, error: "Unauthorized", client: null };
+
+  const sb = createClient(SB_URL, serviceRoleKey);
+  const { data: userData, error: userError } = await sb.auth.getUser(token);
+  const user = userData?.user;
+  if (userError || !user) return { ok: false, status: 401, error: "Invalid session", client: null };
+
+  const { data: profile, error: profileError } = await sb
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileError || profile?.role !== "admin") return { ok: false, status: 403, error: "Admin only", client: null };
+  return { ok: true, status: 200, error: "", client: sb };
+}
 
 Deno.serve(async (req: Request) => {
   // CORS
   if (req.method === "OPTIONS") {
     return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "apikey, Authorization, Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-      },
+      headers: CORS_HEADERS,
+    });
+  }
+
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     });
   }
 
@@ -30,11 +58,18 @@ Deno.serve(async (req: Request) => {
     if (!serviceRoleKey) {
       return new Response(
         JSON.stringify({ error: "Server config missing: SB_SERVICE_ROLE_KEY" }),
-        { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+        { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
       );
     }
 
-    const sb = createClient(SB_URL, serviceRoleKey);
+    const adminCheck = await requireAdmin(req, serviceRoleKey);
+    if (!adminCheck.ok || !adminCheck.client) {
+      return new Response(
+        JSON.stringify({ error: adminCheck.error }),
+        { status: adminCheck.status, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
+      );
+    }
+    const sb = adminCheck.client;
 
     // Check last scrape time — skip if within 24h and not forced
     if (!force) {
@@ -50,7 +85,7 @@ Deno.serve(async (req: Request) => {
         if (hoursSince < 24) {
           return new Response(
             JSON.stringify({ cached: true, scraped_at: last.scraped_at, message: "数据在 24 小时内已更新，跳过抓取" }),
-            { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+            { headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
           );
         }
       }
@@ -69,7 +104,7 @@ Deno.serve(async (req: Request) => {
     if (!res.ok) {
       return new Response(
         JSON.stringify({ error: `豆瓣请求失败: HTTP ${res.status}` }),
-        { status: 502, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+        { status: 502, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
       );
     }
 
@@ -155,7 +190,7 @@ Deno.serve(async (req: Request) => {
     if (books.length === 0) {
       return new Response(
         JSON.stringify({ error: "未解析到任何书籍数据，豆瓣页面结构可能已变化" }),
-        { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+        { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
       );
     }
 
@@ -171,7 +206,7 @@ Deno.serve(async (req: Request) => {
     if (upsertError) {
       return new Response(
         JSON.stringify({ error: "写入数据库失败", detail: upsertError.message }),
-        { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+        { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
       );
     }
 
@@ -211,13 +246,13 @@ Deno.serve(async (req: Request) => {
         cleaned: idsToDelete.length,
         books: topBooks,
       }),
-      { headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+      { headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return new Response(
       JSON.stringify({ error: "抓取失败", detail: message }),
-      { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+      { status: 500, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
     );
   }
 });

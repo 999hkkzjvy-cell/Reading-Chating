@@ -3,37 +3,72 @@
 // Set secret: supabase secrets set DEEPSEEK_API_KEY=sk-xxx
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+async function requireAdmin(req: Request) {
+  const authHeader = req.headers.get("Authorization");
+  const token = authHeader?.replace(/^Bearer\s+/i, "");
+  if (!token) return { ok: false, status: 401, error: "Unauthorized" };
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SB_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !serviceRoleKey) {
+    return { ok: false, status: 500, error: "Server config missing: SUPABASE_URL or service role key" };
+  }
+
+  const adminClient = createClient(supabaseUrl, serviceRoleKey);
+  const { data: userData, error: userError } = await adminClient.auth.getUser(token);
+  const user = userData?.user;
+  if (userError || !user) return { ok: false, status: 401, error: "Invalid session" };
+
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (profileError || profile?.role !== "admin") return { ok: false, status: 403, error: "Admin only" };
+  return { ok: true, status: 200, error: "" };
+}
 
 Deno.serve(async (req: Request) => {
   // CORS
   if (req.method === "OPTIONS") {
     return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Authorization, Content-Type",
-      },
+      headers: CORS_HEADERS,
     });
   }
 
-  // Auth: only allow authenticated Supabase users
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     });
   }
 
   try {
+    const adminCheck = await requireAdmin(req);
+    if (!adminCheck.ok) {
+      return new Response(JSON.stringify({ error: adminCheck.error }), {
+        status: adminCheck.status,
+        headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+      });
+    }
+
     const body = await req.json();
     const { title, author } = body;
 
     if (!title || !author) {
       return new Response(JSON.stringify({ error: "Missing title or author" }), {
         status: 400,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: { "Content-Type": "application/json", ...CORS_HEADERS },
       });
     }
 
@@ -41,7 +76,7 @@ Deno.serve(async (req: Request) => {
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "API key not configured" }), {
         status: 500,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: { "Content-Type": "application/json", ...CORS_HEADERS },
       });
     }
 
@@ -78,7 +113,7 @@ Deno.serve(async (req: Request) => {
       const errText = await response.text().catch(() => "");
       return new Response(JSON.stringify({ error: `DeepSeek API error: ${response.status} ${errText.slice(0, 200)}` }), {
         status: 502,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: { "Content-Type": "application/json", ...CORS_HEADERS },
       });
     }
 
@@ -99,17 +134,17 @@ Deno.serve(async (req: Request) => {
     if (!result || !result.description) {
       return new Response(JSON.stringify({ error: "Failed to parse AI response", raw: content.slice(0, 500) }), {
         status: 500,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        headers: { "Content-Type": "application/json", ...CORS_HEADERS },
       });
     }
 
     return new Response(JSON.stringify(result), {
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     });
   } catch (err) {
     return new Response(JSON.stringify({ error: "Internal error", detail: String(err) }), {
       status: 500,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
     });
   }
 });

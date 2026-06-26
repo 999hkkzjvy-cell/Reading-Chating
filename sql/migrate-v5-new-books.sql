@@ -21,7 +21,14 @@ CREATE TABLE IF NOT EXISTS douban_new_books (
 );
 
 -- 豆瓣链接作为去重键
-ALTER TABLE douban_new_books ADD CONSTRAINT uq_douban_new_books_url UNIQUE (douban_url);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'uq_douban_new_books_url'
+  ) THEN
+    ALTER TABLE douban_new_books ADD CONSTRAINT uq_douban_new_books_url UNIQUE (douban_url);
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_dnb_scraped   ON douban_new_books(scraped_at);
 CREATE INDEX IF NOT EXISTS idx_dnb_reviews   ON douban_new_books(review_count DESC);
@@ -37,7 +44,8 @@ END $$;
 DO $$ BEGIN
   DROP POLICY IF EXISTS "dnb_admin_write" ON douban_new_books;
   CREATE POLICY "dnb_admin_write" ON douban_new_books FOR ALL
-    USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+    USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
+    WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 

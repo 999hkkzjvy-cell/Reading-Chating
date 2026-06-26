@@ -1187,8 +1187,9 @@
     }
 
     window.addEventListener('hashchange', () => router.render());
-    window.addEventListener('load', () => {
+    window.addEventListener('load', async () => {
       bindGlobalEvents();
+      await init();
       router.render();
       // Prefetch data in background — makes subsequent navigation instant
       loadBooks().catch(() => {});
@@ -1471,7 +1472,7 @@
         const initial = (profile.display_name || user.email)[0].toUpperCase();
         container.innerHTML = `
           <a href="#/profile" style="display:flex;align-items:center;gap:8px;color:var(--color-text);font-size:0.9rem;">
-            <span class="avatar">${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="">` : initial}</span>
+            <span class="avatar">${profile.avatar_url ? `<img src="${safeUrl(profile.avatar_url)}" alt="">` : h(initial)}</span>
             <span class="nav-username">${h(profile.display_name)}</span>
           </a>
           ${store.get('isAdmin') ? '<a href="#/admin" class="btn btn-outline btn-sm">管理</a>' : ''}
@@ -1608,7 +1609,7 @@
     const STATUS_CLASS = { upcoming: 'tag-upcoming', active: 'tag-active', completed: 'tag-completed', ongoing: 'tag-active', ended: 'tag-completed', cancelled: 'tag-completed' };
 
     function statusTag(s) {
-      return `<span class="tag ${STATUS_CLASS[s] || 'tag-upcoming'}">${STATUS_MAP[s] || s}</span>`;
+      return `<span class="tag ${STATUS_CLASS[s] || 'tag-upcoming'}">${STATUS_MAP[s] || h(s)}</span>`;
     }
 
     function formatDate(d) {
@@ -1644,20 +1645,20 @@
         <form id="checkin-form">
           <div class="form-group">
             <label>签到日期</label>
-            <input type="date" value="${dateStr}" readonly disabled style="opacity:0.7;cursor:not-allowed;">
-            <input type="hidden" name="checkin_date" value="${dateStr}">
+            <input type="date" value="${esc(dateStr)}" readonly disabled style="opacity:0.7;cursor:not-allowed;">
+            <input type="hidden" name="checkin_date" value="${esc(dateStr)}">
           </div>
           <div class="form-group">
             <label>正在读的书 *</label>
-            <input type="text" name="book_title" value="${(existing?.book_title || '').replace(/"/g, '&quot;')}" placeholder="例如：《红楼梦》" required>
+            <input type="text" name="book_title" value="${esc(existing?.book_title || '')}" placeholder="例如：《红楼梦》" required>
           </div>
           <div class="form-group">
             <label>摘抄</label>
-            <textarea name="excerpt" placeholder="今天读到的触动你的句子...">${(existing?.excerpt || '').replace(/"/g, '&quot;')}</textarea>
+            <textarea name="excerpt" placeholder="今天读到的触动你的句子...">${h(existing?.excerpt || '')}</textarea>
           </div>
           <div class="form-group">
             <label>感想</label>
-            <textarea name="reflection" placeholder="今天的阅读感悟...">${(existing?.reflection || '').replace(/"/g, '&quot;')}</textarea>
+            <textarea name="reflection" placeholder="今天的阅读感悟...">${h(existing?.reflection || '')}</textarea>
           </div>
           <div class="form-group">
             <label>心情颜色</label>
@@ -1671,7 +1672,7 @@
                   title="${m.label}"></div>`;
               }).join('')}
             </div>
-            <input type="hidden" name="mood_color" value="${currentMood}" id="mood-color-input">
+            <input type="hidden" name="mood_color" value="${esc(currentMood)}" id="mood-color-input">
           </div>
           <button type="submit" class="btn btn-primary" style="width:100%">
             ${isEdit ? '保存修改' : '签到'}
@@ -1691,7 +1692,7 @@
     }
 
     function showCheckinDetail(checkin) {
-      const moodColor = checkin.mood_color || 'transparent';
+      const moodColor = safeColor(checkin.mood_color);
       const bookTitle = checkin.book_title || '未记录';
       const html = `
         <div class="checkin-detail-head">
@@ -1700,7 +1701,7 @@
         </div>
         <div class="checkin-detail-book">
           <span style="color:var(--color-text-3);">在读：</span>
-          <strong>${bookTitle}</strong>
+          <strong>${h(bookTitle)}</strong>
         </div>
         ${checkin.excerpt ? `
           <div style="margin-bottom:var(--space-2);">
@@ -1715,7 +1716,7 @@
           </div>
         ` : ''}
         <div style="text-align:right;margin-top:var(--space-3);">
-          <button class="btn btn-outline btn-sm" id="edit-checkin-btn" data-date="${checkin.checkin_date}">编辑</button>
+          <button class="btn btn-outline btn-sm" id="edit-checkin-btn" data-date="${esc(checkin.checkin_date)}">编辑</button>
         </div>
       `;
       showModal('签到详情', html);
@@ -1750,8 +1751,8 @@
         } else if (dateStr === todayStr) cls += ' today';
         else if (dayjs(dateStr).isAfter(now, 'day')) cls += ' future';
         const style = (checkin && checkin.mood_color)
-          ? `style="--mood-dot:${checkin.mood_color}"` : '';
-        const dataDate = checkin ? `data-date="${dateStr}"` : '';
+          ? `style="--mood-dot:${safeColor(checkin.mood_color, '#c17d4b')}"` : '';
+        const dataDate = checkin ? `data-date="${esc(dateStr)}"` : '';
         cells += `<div class="${cls}" ${style} ${dataDate}><span>${d}</span></div>`;
       }
       const totalCells = startDayOfWeek + daysInMonth;
@@ -1781,7 +1782,7 @@
       const authorLine = b.author_country ? `[${h(b.author_country)}] ${h(b.author)} 著` : `${h(b.author)} 著`;
       const inner = `
         <div class="cover">
-          ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="">` : '<i data-lucide="book"></i>'}
+          ${b.cover_url ? `<img src="${safeUrl(b.cover_url)}" alt="">` : '<i data-lucide="book"></i>'}
           <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || h(b.status)}</span>
         </div>
         <div class="card-body">
@@ -1800,7 +1801,7 @@
         <div class="current-book-card">
           <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || h(b.status)}</span>
           <div class="cover-slot">
-            ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="">` : '<i data-lucide="book"></i>'}
+            ${b.cover_url ? `<img src="${safeUrl(b.cover_url)}" alt="">` : '<i data-lucide="book"></i>'}
           </div>
           <div class="info">
             <h3>${h(b.title)}</h3>
@@ -2149,7 +2150,7 @@
       const hostIntroHtml = safeMarked(book.host_intro || '暂无领读人信息。');
       const hostTabHtml = `
         <div class="md-content" style="max-width:none;">
-          <h2>领读人：${book.host || '待定'}</h2>
+          <h2>领读人：${h(book.host || '待定')}</h2>
           <hr style="border:none;border-top:1px solid var(--color-border);margin:var(--space-2) 0;">
           <div style="font-size:1rem;line-height:1.8;">${hostIntroHtml}</div>
         </div>`;
@@ -2171,14 +2172,14 @@
         <div style="display:flex;flex-direction:column;gap:var(--space-2);">
           ${editions.map(e => `
             <div class="edition-card">
-              <h3>${e.name || '未命名版本'}</h3>
+              <h3>${h(e.name || '未命名版本')}</h3>
               <div class="edition-meta">
-                ${e.translator ? `<div>译本：${e.translator} 译</div>` : ''}
-                ${e.publisher ? `<div>出版方：${e.publisher}</div>` : ''}
+                ${e.translator ? `<div>译本：${h(e.translator)} 译</div>` : ''}
+                ${e.publisher ? `<div>出版方：${h(e.publisher)}</div>` : ''}
               </div>
               <div class="edition-pros-cons">
-                ${e.pros ? `<div><span class="pros-label">优点</span><p>${e.pros}</p></div>` : ''}
-                ${e.cons ? `<div><span class="cons-label">缺点</span><p>${e.cons}</p></div>` : ''}
+                ${e.pros ? `<div><span class="pros-label">优点</span><p>${h(e.pros)}</p></div>` : ''}
+                ${e.cons ? `<div><span class="cons-label">缺点</span><p>${h(e.cons)}</p></div>` : ''}
               </div>
               <div class="edition-links">
                 ${e.buy_link ? `<a href="${safeUrl(e.buy_link)}" target="_blank" class="btn btn-outline btn-sm">购买</a>` : ''}
@@ -2213,13 +2214,13 @@
           ${activities.map(a => `
             <div class="card" style="padding:var(--space-2) var(--space-3);">
               <div style="display:flex;align-items:center;gap:var(--space-1);flex-wrap:wrap;margin-bottom:6px;">
-                <span class="tag ${ACT_TYPE_CLASS[a.type] || 'tag-genre'}">${a.type || '活动'}</span>
-                <span class="tag ${STATUS_TAG_CLASS[a.status] || 'tag-upcoming'}">${a.status || ''}</span>
-                <strong>${a.title}</strong>
+                <span class="tag ${ACT_TYPE_CLASS[a.type] || 'tag-genre'}">${h(a.type || '活动')}</span>
+                <span class="tag ${STATUS_TAG_CLASS[a.status] || 'tag-upcoming'}">${h(a.status || '')}</span>
+                <strong>${h(a.title)}</strong>
               </div>
-              ${a.time ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">📅 ${a.time}</div>` : ''}
-              ${a.guests ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">👤 ${a.guests}</div>` : ''}
-              ${a.description ? `<div style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:6px;">${a.description}</div>` : ''}
+              ${a.time ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">📅 ${h(a.time)}</div>` : ''}
+              ${a.guests ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">👤 ${h(a.guests)}</div>` : ''}
+              ${a.description ? `<div style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:6px;">${h(a.description)}</div>` : ''}
               <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;align-items:center;">
                 ${a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">活动链接</a>` : ''}
                 ${a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-outline btn-sm">回放回顾</a>` : ''}
@@ -2236,7 +2237,7 @@
       // Fetch Douban metadata for extended reading items with Douban URLs
       const extItems = resources.extended_reading || [];
       const doubanCache = {};
-      const doubanUrls = extItems.filter(item => item.url && item.url.includes('douban.com')).map(item => item.url);
+      const doubanUrls = extItems.filter(item => isDoubanBookUrl(item.url)).map(item => item.url);
       if (doubanUrls.length > 0) {
         // Check cache first
         try {
@@ -2253,18 +2254,11 @@
               body: JSON.stringify({ url })
             }).then(r => r.json()).then(r => (r && r.success) ? r.data : null).catch(() => null)
           ));
-          // Store fetched results
-          const toInsert = [];
           results.forEach((r, i) => {
             if (r.status === 'fulfilled' && r.value) {
               doubanCache[uncached[i]] = r.value;
-              toInsert.push(r.value);
             }
           });
-          // Write back to cache table (best effort)
-          if (toInsert.length > 0) {
-            try { await sb.from('douban_book_cache').upsert(toInsert, { onConflict: 'douban_url' }); } catch(e) {}
-          }
         }
       }
 
@@ -2312,7 +2306,7 @@
           <div style="display:flex;flex-direction:column;gap:4px;">
             ${items.map(item => `
               <div style="padding:6px 0;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);">
-                <span>${item.title}</span>
+                <span>${h(item.title)}</span>
                 ${item.url ? `<a href="${safeUrl(item.url)}" target="_blank" style="font-size:0.85rem;flex-shrink:0;">查看</a>` : ''}
               </div>
             `).join('')}
@@ -2340,16 +2334,16 @@
           <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
             <div style="width:180px;flex-shrink:0;">
               <div style="aspect-ratio:3/4;border-radius:var(--radius-md);background:var(--color-bg-alt);overflow:hidden;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif);font-size:2rem;color:var(--color-text-3);">
-                ${book.cover_url ? `<img src="${book.cover_url}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '<i data-lucide="book"></i>'}
+                ${book.cover_url ? `<img src="${safeUrl(book.cover_url)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '<i data-lucide="book"></i>'}
               </div>
             </div>
             <div style="flex:1;min-width:280px;">
               ${statusTag(book.status)}
-              <h1 style="margin-top:var(--space-1);">${book.title}</h1>
+              <h1 style="margin-top:var(--space-1);">${h(book.title)}</h1>
               <div style="color:var(--color-text-2);font-size:1.05rem;margin:var(--space-1) 0;">
-                ${book.author} 著${book.translator ? ' · ' + book.translator + ' 译' : ''}
+                ${h(book.author)} 著${book.translator ? ' · ' + h(book.translator) + ' 译' : ''}
               </div>
-              ${book.publisher ? `<div style="color:var(--color-text-3);font-size:0.9rem;">${book.publisher}</div>` : ''}
+              ${book.publisher ? `<div style="color:var(--color-text-3);font-size:0.9rem;">${h(book.publisher)}</div>` : ''}
               ${book.start_date && book.end_date ? `<div style="color:var(--color-text-3);font-size:0.9rem;margin-top:4px;">共读期：${formatDate(book.start_date)} — ${formatDate(book.end_date)}</div>` : ''}
             </div>
           </div>
@@ -2407,7 +2401,7 @@
             ${events.map(ev => `
               <a href="#/events/${ev.id}" class="card event-card card-clickable" style="color:inherit;">
                 <div class="poster">
-                  ${ev.poster_url ? `<img src="${ev.poster_url}" alt="">` : '<i data-lucide="image" style="width:36px;height:36px;"></i>'}
+                  ${ev.poster_url ? `<img src="${safeUrl(ev.poster_url)}" alt="">` : '<i data-lucide="image" style="width:36px;height:36px;"></i>'}
                 </div>
                 <div class="card-body">
                   <span class="tag ${STATUS_CLASS[ev.status] || 'tag-upcoming'}">${STATUS_MAP[ev.status] || ev.status}</span>
@@ -2440,7 +2434,7 @@
           <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;margin-top:var(--space-3);">
             <div style="width:100%;max-width:320px;flex-shrink:0;">
               <div style="aspect-ratio:2/3;border-radius:var(--radius-md);background:var(--color-bg-alt);overflow:hidden;display:flex;align-items:center;justify-content:center;">
-                ${event.poster_url ? `<img src="${event.poster_url}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '<i data-lucide="image" style="width:48px;height:48px;color:var(--color-text-3);"></i>'}
+                ${event.poster_url ? `<img src="${safeUrl(event.poster_url)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '<i data-lucide="image" style="width:48px;height:48px;color:var(--color-text-3);"></i>'}
               </div>
             </div>
             <div style="flex:1;min-width:280px;">
@@ -2468,6 +2462,7 @@
     // ===========================================
     route('/new-books', async () => {
       const user = store.get('user');
+      const isAdmin = store.get('isAdmin');
 
       // Check staleness and trigger background refresh if > 24h
       const { data: lastScrape } = await sb.from('douban_new_books')
@@ -2479,16 +2474,18 @@
         : 999;
 
       // Fire-and-forget refresh if stale
-      if (hoursSince > 24) {
-        fetch(`${SUPABASE_URL}/functions/v1/scrape-douban`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({ force: false })
-        }).catch(() => {});
+      if (hoursSince > 24 && isAdmin) {
+        sb.auth.getSession().then(({ data: { session } }) => {
+          if (!session) return;
+          fetch(`${SUPABASE_URL}/functions/v1/scrape-douban`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ force: false })
+          }).catch(() => {});
+        });
       }
 
       // Load books from cache (top 10 by review_count)
@@ -2604,11 +2601,11 @@
             <span class="last-update">
               <i data-lucide="clock" style="width:14px;height:14px;display:inline;vertical-align:-2px;"></i>
               最近同步：${lastUpdateText}
-              ${isStale ? ' <span class="refresh-hint">（数据已过期，正在后台更新...）</span>' : ''}
+              ${isStale ? `<span class="refresh-hint">（数据已过期${isAdmin ? '，正在后台更新...' : '，等待管理员同步'}）</span>` : ''}
             </span>
-            <button class="btn btn-outline btn-sm" id="btn-refresh-books">
+            ${isAdmin ? `<button class="btn btn-outline btn-sm" id="btn-refresh-books">
               <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> 刷新数据
-            </button>
+            </button>` : ''}
           </div>
 
           <div class="new-books-layout">
@@ -2793,8 +2790,8 @@
           } else if (dateStr === todayStr) cls += ' today';
           else if (dayjs(dateStr).isAfter(now, 'day')) cls += ' future';
           const style = (checkin && checkin.mood_color)
-            ? `style="--mood-dot:${checkin.mood_color}"` : '';
-          const dataDate = checkin ? `data-date="${dateStr}"` : '';
+            ? `style="--mood-dot:${safeColor(checkin.mood_color, '#c17d4b')}"` : '';
+          const dataDate = checkin ? `data-date="${esc(dateStr)}"` : '';
           cells += `<div class="${cls}" ${style} ${dataDate}><span>${d}</span></div>`;
         }
         const totalCells = startDayOfWeek + daysInMonth;
@@ -2812,7 +2809,7 @@
               <div class="card">
                 <div class="card-body" style="text-align:center;">
                   <div style="width:80px;height:80px;border-radius:50%;background:var(--color-accent-bg);margin:0 auto var(--space-2);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:700;color:var(--color-accent);overflow:hidden;">
-                    ${profile.avatar_url ? `<img src="${profile.avatar_url}" alt="" style="width:100%;height:100%;object-fit:cover;">` : (profile.display_name || '?')[0].toUpperCase()}
+                    ${profile.avatar_url ? `<img src="${safeUrl(profile.avatar_url)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : h((profile.display_name || '?')[0].toUpperCase())}
                   </div>
                   <h3>${h(profile.display_name)}</h3>
                   ${profile.bio ? `<p style="color:var(--color-text-2);font-size:0.9rem;margin:8px 0;">${h(profile.bio)}</p>` : ''}
@@ -2859,11 +2856,11 @@
           <h2 style="margin-bottom:var(--space-3);">编辑资料</h2>
           <div class="card"><div class="card-body">
             <form id="profile-form">
-              <div class="form-group"><label>显示名称</label><input type="text" name="display_name" value="${profile.display_name || ''}" required></div>
-              <div class="form-group"><label>个人简介</label><textarea name="bio">${profile.bio || ''}</textarea></div>
-              <div class="form-group"><label>微信号</label><input type="text" name="wechat_id" value="${profile.wechat_id || ''}"></div>
-              <div class="form-group"><label>所在城市</label><input type="text" name="city" value="${profile.city || ''}"></div>
-              <div class="form-group"><label>头像链接</label><input type="url" name="avatar_url" value="${profile.avatar_url || ''}" placeholder="https://..."></div>
+              <div class="form-group"><label>显示名称</label><input type="text" name="display_name" value="${esc(profile.display_name || '')}" required></div>
+              <div class="form-group"><label>个人简介</label><textarea name="bio">${h(profile.bio || '')}</textarea></div>
+              <div class="form-group"><label>微信号</label><input type="text" name="wechat_id" value="${esc(profile.wechat_id || '')}"></div>
+              <div class="form-group"><label>所在城市</label><input type="text" name="city" value="${esc(profile.city || '')}"></div>
+              <div class="form-group"><label>头像链接</label><input type="url" name="avatar_url" value="${esc(profile.avatar_url || '')}" placeholder="https://..."></div>
               <button type="submit" class="btn btn-primary">保存</button>
               <a href="#/profile" class="btn btn-ghost">取消</a>
             </form>
@@ -2979,8 +2976,8 @@
           <div id="admin-tab-rules">
             <h3 style="margin-bottom:var(--space-2);">群规</h3>
             <form id="rules-form">
-              <div class="form-group"><label>共读群公约（Markdown）</label><textarea name="group_rules" style="min-height:200px;">${config.group_rules || ''}</textarea></div>
-              <div class="form-group"><label>共读计划介绍（Markdown）</label><textarea name="reading_plan_intro" style="min-height:120px;">${config.reading_plan_intro || ''}</textarea></div>
+              <div class="form-group"><label>共读群公约（Markdown）</label><textarea name="group_rules" style="min-height:200px;">${h(config.group_rules || '')}</textarea></div>
+              <div class="form-group"><label>共读计划介绍（Markdown）</label><textarea name="reading_plan_intro" style="min-height:120px;">${h(config.reading_plan_intro || '')}</textarea></div>
               <button type="submit" class="btn btn-primary">保存设置</button>
             </form>
             <hr style="margin:var(--space-4) 0;border-color:var(--color-border);">
@@ -3064,13 +3061,38 @@
     // ===========================================
     const ACT_TYPES = ['导读预热','精读分析','文艺放映','嘉宾分享','圆桌讨论','线下活动','签售征订','其他'];
     const ACT_STATUSES = ['计划中','进行中','已完结'];
-    function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
-    function h(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    function safeUrl(u) { u = (u||'').trim(); return /^(https?:|mailto:|\/|#)/i.test(u) ? esc(u) : '#'; }
+    function h(s)  { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function esc(s) { return h(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    function safeUrl(u) {
+      u = String(u || '').trim();
+      return /^(https?:|mailto:|\/|#)/i.test(u) ? esc(u) : '#';
+    }
+    function parseHttpUrl(u) {
+      try {
+        const parsed = new URL(String(u || '').trim());
+        return ['http:', 'https:'].includes(parsed.protocol) ? parsed : null;
+      } catch(e) {
+        return null;
+      }
+    }
+    function isDoubanBookUrl(u) {
+      const parsed = parseHttpUrl(u);
+      return !!parsed && parsed.hostname === 'book.douban.com' && parsed.pathname.startsWith('/subject/');
+    }
+    function isDoubanioImageUrl(u) {
+      const parsed = parseHttpUrl(u);
+      if (!parsed) return false;
+      const host = parsed.hostname.toLowerCase();
+      return host === 'doubanio.com' || host.endsWith('.doubanio.com');
+    }
+    function safeColor(c, fallback = 'transparent') {
+      c = String(c || '').trim();
+      return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(c) ? c : fallback;
+    }
     function proxyImg(url) {
       // Proxy Douban images through our own Edge Function to bypass hotlink protection
       if (!url) return '';
-      if (url.includes('doubanio.com')) {
+      if (isDoubanioImageUrl(url)) {
         return SUPABASE_URL + '/functions/v1/img-proxy?url=' + encodeURIComponent(url);
       }
       return url;
@@ -3157,26 +3179,34 @@
         const res = typeof book.resources==='string' ? JSON.parse(book.resources||'{}') : (book.resources||{});
         extR = res.extended_reading||[]; txtM = res.text_materials||[]; filmR = res.film_resources||[]; otherR = res.other||[];
       } catch(e){}
+      let scheduleForForm = { summary: '', pdf_url: '' };
+      try {
+        scheduleForForm = typeof book.reading_schedule === 'string'
+          ? JSON.parse(book.reading_schedule || '{}')
+          : (book.reading_schedule || {});
+      } catch(e) {
+        scheduleForForm = { summary: String(book.reading_schedule || ''), pdf_url: '' };
+      }
 
       const formHtml = `
         <form id="book-edit-form" style="max-height:70vh;overflow-y:auto;">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);">
-            <div class="form-group"><label>书名 *</label><input type="text" name="title" value="${book.title}" required></div>
-            <div class="form-group"><label>作者 *</label><input type="text" name="author" value="${book.author}" required></div>
-            <div class="form-group"><label>作者国别</label><input type="text" name="author_country" value="${book.author_country || ''}"></div>
-            <div class="form-group"><label>作者性别</label><input type="text" name="author_gender" value="${book.author_gender || ''}"></div>
-            <div class="form-group"><label>译者</label><input type="text" name="translator" value="${book.translator || ''}"></div>
-            <div class="form-group"><label>译者性别</label><input type="text" name="translator_gender" value="${book.translator_gender || ''}"></div>
-            <div class="form-group"><label>出版方</label><input type="text" name="publisher" value="${book.publisher || ''}"></div>
-            <div class="form-group"><label>字数</label><input type="number" name="word_count" value="${book.word_count || ''}"></div>
+            <div class="form-group"><label>书名 *</label><input type="text" name="title" value="${esc(book.title)}" required></div>
+            <div class="form-group"><label>作者 *</label><input type="text" name="author" value="${esc(book.author)}" required></div>
+            <div class="form-group"><label>作者国别</label><input type="text" name="author_country" value="${esc(book.author_country || '')}"></div>
+            <div class="form-group"><label>作者性别</label><input type="text" name="author_gender" value="${esc(book.author_gender || '')}"></div>
+            <div class="form-group"><label>译者</label><input type="text" name="translator" value="${esc(book.translator || '')}"></div>
+            <div class="form-group"><label>译者性别</label><input type="text" name="translator_gender" value="${esc(book.translator_gender || '')}"></div>
+            <div class="form-group"><label>出版方</label><input type="text" name="publisher" value="${esc(book.publisher || '')}"></div>
+            <div class="form-group"><label>字数</label><input type="number" name="word_count" value="${esc(book.word_count || '')}"></div>
             <div class="form-group"><label>类型 *</label><select name="genre" required>${genres.map(g => `<option value="${g}" ${book.genre === g ? 'selected' : ''}>${g}</option>`).join('')}</select></div>
             <div class="form-group"><label>共读状态 *</label><select name="status">
               <option value="upcoming" ${book.status === 'upcoming' ? 'selected' : ''}>即将开读</option>
               <option value="active" ${book.status === 'active' ? 'selected' : ''}>正在共读</option>
               <option value="completed" ${book.status === 'completed' ? 'selected' : ''}>已读完</option>
             </select></div>
-            <div class="form-group"><label>开始日期 *</label><input type="date" name="start_date" value="${book.start_date || ''}" required></div>
-            <div class="form-group"><label>结束日期 *</label><input type="date" name="end_date" value="${book.end_date || ''}" required></div>
+            <div class="form-group"><label>开始日期 *</label><input type="date" name="start_date" value="${esc(book.start_date || '')}" required></div>
+            <div class="form-group"><label>结束日期 *</label><input type="date" name="end_date" value="${esc(book.end_date || '')}" required></div>
           </div>
 
           <!-- Cover image: URL + upload -->
@@ -3184,10 +3214,10 @@
             <label>封面图 *</label>
             <div class="cover-upload">
               <div class="cover-preview" id="cover-preview">
-                ${book.cover_url ? `<img src="${book.cover_url}" alt="">` : '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>'}
+                ${book.cover_url ? `<img src="${safeUrl(book.cover_url)}" alt="">` : '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>'}
               </div>
               <div class="cover-inputs">
-                <input type="url" name="cover_url" value="${book.cover_url || ''}" placeholder="粘贴图片 URL" id="cover-url-input" required>
+                <input type="url" name="cover_url" value="${esc(book.cover_url || '')}" placeholder="粘贴图片 URL" id="cover-url-input" required>
                 <div class="divider-text">或</div>
                 <input type="file" accept="image/*" id="cover-file-input" style="font-size:0.85rem;">
               </div>
@@ -3198,10 +3228,10 @@
             <button type="button" class="btn btn-outline btn-sm" id="btn-ai-fill">🤖 AI 自动填充简介</button>
             <span style="font-size:0.78rem;color:var(--color-text-3);">AI 自动编写书籍简介、作者简介、时代背景（不剧透）</span>
           </div>
-          <div class="form-group"><label>书籍简介（Markdown）</label><textarea name="description" style="min-height:60px;">${book.description || ''}</textarea></div>
-          <div class="form-group"><label>作者简介（Markdown）</label><textarea name="author_bio" style="min-height:60px;">${book.author_bio || ''}</textarea></div>
-          <div class="form-group"><label>创作时代背景（Markdown）</label><textarea name="historical_context" style="min-height:60px;">${book.historical_context || ''}</textarea></div>
-          <div class="form-group"><label>版本建议简述（Markdown）</label><textarea name="edition_notes" style="min-height:60px;" placeholder="版本选择的总体建议...">${book.edition_notes || ''}</textarea></div>
+          <div class="form-group"><label>书籍简介（Markdown）</label><textarea name="description" style="min-height:60px;">${h(book.description || '')}</textarea></div>
+          <div class="form-group"><label>作者简介（Markdown）</label><textarea name="author_bio" style="min-height:60px;">${h(book.author_bio || '')}</textarea></div>
+          <div class="form-group"><label>创作时代背景（Markdown）</label><textarea name="historical_context" style="min-height:60px;">${h(book.historical_context || '')}</textarea></div>
+          <div class="form-group"><label>版本建议简述（Markdown）</label><textarea name="edition_notes" style="min-height:60px;" placeholder="版本选择的总体建议...">${h(book.edition_notes || '')}</textarea></div>
 
           <!-- Visual Builder: Edition Guide -->
           <div class="builder-section">
@@ -3210,18 +3240,18 @@
             <button type="button" class="btn-add-row" data-action="add-edition">+ 添加版本</button>
           </div>
 
-          <div class="form-group"><label>共读时间计划简述（Markdown）</label><textarea name="schedule_summary" style="min-height:80px;">${(()=>{ try { const s=typeof book.reading_schedule==='string'?JSON.parse(book.reading_schedule):book.reading_schedule; return (s?.summary||'').replace(/"/g,'&quot;'); } catch{ return (book.reading_schedule||'').replace(/"/g,'&quot;'); } })()}</textarea></div>
+          <div class="form-group"><label>共读时间计划简述（Markdown）</label><textarea name="schedule_summary" style="min-height:80px;">${h(scheduleForForm.summary || '')}</textarea></div>
           <div class="form-group">
             <label>时间计划 PDF</label>
             <div style="display:flex;gap:var(--space-2);align-items:center;">
               <input type="file" id="schedule-pdf-input" accept=".pdf" style="flex:1;">
-              <input type="hidden" name="schedule_pdf_url" id="schedule-pdf-url" value="${(()=>{ try { const s=typeof book.reading_schedule==='string'?JSON.parse(book.reading_schedule):book.reading_schedule; return s?.pdf_url||''; } catch{ return ''; } })()}">
+              <input type="hidden" name="schedule_pdf_url" id="schedule-pdf-url" value="${esc(scheduleForForm.pdf_url || '')}">
             </div>
-            <div id="schedule-pdf-name" style="font-size:0.82rem;color:var(--color-text-2);margin-top:4px;">${(()=>{ try { const s=typeof book.reading_schedule==='string'?JSON.parse(book.reading_schedule):book.reading_schedule; return s?.pdf_url ? '已上传：' + s.pdf_url.split('/').pop() : ''; } catch{ return ''; } })()}</div>
+            <div id="schedule-pdf-name" style="font-size:0.82rem;color:var(--color-text-2);margin-top:4px;">${scheduleForForm.pdf_url ? '已上传：' + h(String(scheduleForForm.pdf_url).split('/').pop()) : ''}</div>
           </div>
-          <div class="form-group"><label>领读人</label><input type="text" name="host" value="${(book.host || '').replace(/"/g, '&quot;')}" placeholder="领读人姓名"></div>
-          <div class="form-group"><label>领读人简介（Markdown）</label><textarea name="host_intro" style="min-height:80px;">${book.host_intro || ''}</textarea></div>
-          <div class="form-group"><label>灵沁碎碎念（Markdown）</label><textarea name="host_notes" style="min-height:80px;">${book.host_notes || ''}</textarea></div>
+          <div class="form-group"><label>领读人</label><input type="text" name="host" value="${esc(book.host || '')}" placeholder="领读人姓名"></div>
+          <div class="form-group"><label>领读人简介（Markdown）</label><textarea name="host_intro" style="min-height:80px;">${h(book.host_intro || '')}</textarea></div>
+          <div class="form-group"><label>灵沁碎碎念（Markdown）</label><textarea name="host_notes" style="min-height:80px;">${h(book.host_notes || '')}</textarea></div>
 
           <!-- Visual Builder: Activities (unified) -->
           <div class="builder-section">
@@ -3263,7 +3293,7 @@
           </div>
 
           <button type="submit" class="btn btn-primary">${isEdit ? '保存修改' : '添加书籍'}</button>
-          <input type="hidden" name="book_id" value="${book.id || ''}">
+          <input type="hidden" name="book_id" value="${esc(book.id || '')}">
         </form>`;
       const modal = showModal(isEdit ? '编辑书籍' : '添加书籍', formHtml, () => {
         document.removeEventListener('submit', bookFormHandler);
@@ -3362,39 +3392,39 @@
       const ev = eventData || { title:'', category:'', link:'', poster_url:'', location:'', event_date:'', guests:'', price:'', description:'', status:'upcoming' };
       const formHtml = `
         <form id="event-edit-form">
-          <div class="form-group"><label>活动名称 *</label><input type="text" name="title" value="${ev.title}" required></div>
+          <div class="form-group"><label>活动名称 *</label><input type="text" name="title" value="${esc(ev.title)}" required></div>
           <div class="form-group"><label>活动分类 *</label><select name="category" required>
             <option value="">请选择</option>
             <option value="文学高速" ${ev.category === '文学高速' ? 'selected' : ''}>文学高速</option>
             <option value="其他" ${ev.category === '其他' ? 'selected' : ''}>其他</option>
           </select></div>
-          <div class="form-group"><label>活动链接</label><input type="url" name="link" value="${ev.link || ''}" placeholder="https://...（可选）"></div>
+          <div class="form-group"><label>活动链接</label><input type="url" name="link" value="${esc(ev.link || '')}" placeholder="https://...（可选）"></div>
           <div class="form-group">
             <label>海报图</label>
             <div class="cover-upload">
               <div class="cover-preview" id="poster-preview">
-                ${ev.poster_url ? `<img src="${ev.poster_url}" alt="">` : '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>'}
+                ${ev.poster_url ? `<img src="${safeUrl(ev.poster_url)}" alt="">` : '<i data-lucide="image" style="width:28px;height:28px;color:var(--color-text-3);"></i>'}
               </div>
               <div class="cover-inputs">
-                <input type="url" name="poster_url" value="${ev.poster_url || ''}" placeholder="粘贴图片 URL" id="poster-url-input" required>
+                <input type="url" name="poster_url" value="${esc(ev.poster_url || '')}" placeholder="粘贴图片 URL" id="poster-url-input" required>
                 <div class="divider-text">或</div>
                 <input type="file" accept="image/*" id="poster-file-input" style="font-size:0.85rem;">
               </div>
             </div>
           </div>
-          <div class="form-group"><label>地点</label><input type="text" name="location" value="${ev.location || ''}"></div>
-          <div class="form-group"><label>时间</label><input type="datetime-local" name="event_date" value="${ev.event_date ? dayjs(ev.event_date).format('YYYY-MM-DDTHH:mm') : ''}"></div>
-          <div class="form-group"><label>嘉宾</label><input type="text" name="guests" value="${ev.guests || ''}"></div>
-          <div class="form-group"><label>价格</label><input type="text" name="price" value="${ev.price || ''}" placeholder="免费 / ¥68"></div>
+          <div class="form-group"><label>地点</label><input type="text" name="location" value="${esc(ev.location || '')}"></div>
+          <div class="form-group"><label>时间</label><input type="datetime-local" name="event_date" value="${esc(ev.event_date ? dayjs(ev.event_date).format('YYYY-MM-DDTHH:mm') : '')}"></div>
+          <div class="form-group"><label>嘉宾</label><input type="text" name="guests" value="${esc(ev.guests || '')}"></div>
+          <div class="form-group"><label>价格</label><input type="text" name="price" value="${esc(ev.price || '')}" placeholder="免费 / ¥68"></div>
           <div class="form-group"><label>状态</label><select name="status">
             <option value="upcoming" ${ev.status === 'upcoming' ? 'selected' : ''}>即将开始</option>
             <option value="ongoing" ${ev.status === 'ongoing' ? 'selected' : ''}>进行中</option>
             <option value="ended" ${ev.status === 'ended' ? 'selected' : ''}>已结束</option>
             <option value="cancelled" ${ev.status === 'cancelled' ? 'selected' : ''}>已取消</option>
           </select></div>
-          <div class="form-group"><label>活动简介（Markdown）</label><textarea name="description" style="min-height:100px;">${ev.description || ''}</textarea></div>
+          <div class="form-group"><label>活动简介（Markdown）</label><textarea name="description" style="min-height:100px;">${h(ev.description || '')}</textarea></div>
           <button type="submit" class="btn btn-primary">${isEdit ? '保存修改' : '添加活动'}</button>
-          <input type="hidden" name="event_id" value="${ev.id || ''}">
+          <input type="hidden" name="event_id" value="${esc(ev.id || '')}">
         </form>`;
       const modal = showModal(isEdit ? '编辑活动' : '添加活动', formHtml, () => {
         document.removeEventListener('submit', eventFormHandler);
@@ -3558,6 +3588,16 @@
       const refreshBtn = e.target.closest('#btn-refresh-books');
       if (refreshBtn) {
         e.preventDefault();
+        if (!store.get('isAdmin')) {
+          toast('只有管理员可以同步新书数据', 'error');
+          return;
+        }
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) {
+          toast('请先登录管理员账号', 'error');
+          router.navigate('/login?redirect=' + encodeURIComponent('/new-books'));
+          return;
+        }
         refreshBtn.disabled = true;
         refreshBtn.innerHTML = '<i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> 同步中...';
         lucide.createIcons();
@@ -3566,8 +3606,7 @@
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'apikey': SUPABASE_ANON_KEY,
-              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+              'Authorization': `Bearer ${session.access_token}`
             },
             body: JSON.stringify({ force: true })
           });
@@ -3898,7 +3937,7 @@
       }
     }
 
-    init().catch(err => console.error('Init error:', err));
+    // Auth is initialized from the window load handler before the first route render.
   </script>
 </body>
 </html>

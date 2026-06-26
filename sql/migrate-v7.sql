@@ -25,8 +25,11 @@ CREATE TABLE IF NOT EXISTS douban_book_cache (
 CREATE INDEX IF NOT EXISTS idx_dbc_url ON douban_book_cache(douban_url);
 
 ALTER TABLE douban_book_cache ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "dbc_read_all"   ON douban_book_cache FOR SELECT USING (true);
-CREATE POLICY "dbc_insert_all" ON douban_book_cache FOR INSERT WITH CHECK (true);
-CREATE POLICY "dbc_update_all" ON douban_book_cache FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "dbc_read_all" ON douban_book_cache;
+DROP POLICY IF EXISTS "dbc_insert_all" ON douban_book_cache;
+DROP POLICY IF EXISTS "dbc_update_all" ON douban_book_cache;
+DROP POLICY IF EXISTS "dbc_admin_write" ON douban_book_cache;
+CREATE POLICY "dbc_read_all" ON douban_book_cache FOR SELECT USING (true);
 CREATE POLICY "dbc_admin_write" ON douban_book_cache FOR ALL
-  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));

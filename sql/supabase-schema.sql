@@ -21,11 +21,22 @@ CREATE TABLE profiles (
 );
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "profiles_read_all" ON profiles FOR SELECT USING (true);
+
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE POLICY "profiles_read_self_or_admin" ON profiles FOR SELECT
+  USING (auth.uid() = id OR is_admin());
 CREATE POLICY "profiles_update_self" ON profiles FOR UPDATE
-  USING (auth.uid() = id OR EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-  ));
+  USING (auth.uid() = id OR is_admin())
+  WITH CHECK (auth.uid() = id OR is_admin());
 CREATE POLICY "profiles_insert_self" ON profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
 
@@ -87,7 +98,7 @@ CREATE TABLE books (
   host_notes        TEXT,
   activities        JSONB DEFAULT '[]',
   chatsubstance     JSONB DEFAULT '[]',
-  resources         JSONB DEFAULT '{"extended_reading":[],"text_materials":[],"film_resources":[]}',
+  resources         JSONB DEFAULT '{"extended_reading":[],"text_materials":[],"film_resources":[],"other":[]}',
   -- 时间
   start_date        DATE,
   end_date          DATE,
@@ -135,7 +146,83 @@ CREATE POLICY "events_admin_write" ON events FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
 
 -- ============================================================
--- 5. daily_checkins — 每日阅读签到（依赖 profiles）
+-- 5. douban_new_books — 新书速递缓存
+-- ============================================================
+CREATE TABLE douban_new_books (
+  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title           TEXT NOT NULL,
+  cover_url       TEXT,
+  author          TEXT,
+  translator      TEXT,
+  publisher       TEXT,
+  description     TEXT,
+  douban_url      TEXT NOT NULL UNIQUE,
+  rating          TEXT,
+  review_count    INTEGER DEFAULT 0,
+  fiction_type    TEXT CHECK (fiction_type IN ('fiction','non-fiction')),
+  scraped_at      TIMESTAMPTZ DEFAULT now(),
+  created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_dnb_scraped ON douban_new_books(scraped_at);
+CREATE INDEX idx_dnb_reviews ON douban_new_books(review_count DESC);
+
+ALTER TABLE douban_new_books ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "dnb_read_all" ON douban_new_books FOR SELECT USING (true);
+CREATE POLICY "dnb_admin_write" ON douban_new_books FOR ALL
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- ============================================================
+-- 6. reading_wishlist — 想共读投票
+-- ============================================================
+CREATE TABLE reading_wishlist (
+  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id         UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  book_id         BIGINT NOT NULL REFERENCES douban_new_books(id) ON DELETE CASCADE,
+  created_at      TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, book_id)
+);
+
+CREATE INDEX idx_wishlist_book ON reading_wishlist(book_id);
+CREATE INDEX idx_wishlist_user ON reading_wishlist(user_id);
+
+ALTER TABLE reading_wishlist ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "wishlist_read_all" ON reading_wishlist FOR SELECT USING (true);
+CREATE POLICY "wishlist_insert_auth" ON reading_wishlist FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "wishlist_delete_own" ON reading_wishlist FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- ============================================================
+-- 7. douban_book_cache — 豆瓣详情缓存
+-- ============================================================
+CREATE TABLE douban_book_cache (
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  douban_url    TEXT UNIQUE NOT NULL,
+  title         TEXT,
+  cover_url     TEXT,
+  author        TEXT,
+  translator    TEXT,
+  publisher     TEXT,
+  rating        TEXT,
+  review_count  INTEGER DEFAULT 0,
+  description   TEXT,
+  pages         TEXT,
+  fetched_at    TIMESTAMPTZ DEFAULT now(),
+  created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_dbc_url ON douban_book_cache(douban_url);
+
+ALTER TABLE douban_book_cache ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "dbc_read_all" ON douban_book_cache FOR SELECT USING (true);
+CREATE POLICY "dbc_admin_write" ON douban_book_cache FOR ALL
+  USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
+
+-- ============================================================
+-- 8. daily_checkins — 每日阅读签到（依赖 profiles）
 -- ============================================================
 CREATE TABLE daily_checkins (
   id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -164,7 +251,7 @@ CREATE POLICY "checkins_update_self" ON daily_checkins FOR UPDATE
   WITH CHECK (auth.uid() = user_id);
 
 -- ============================================================
--- 6. Storage — 封面图 bucket
+-- 9. Storage — 封面图 bucket
 -- ============================================================
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('covers', 'covers', true)
