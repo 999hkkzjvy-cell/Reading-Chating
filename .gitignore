@@ -4,3 +4,5 @@ supabase/.temp/
 .DS_Store
 memberplan.md
 badges/
+__pycache__/
+*.pyc
