@@ -45,7 +45,7 @@ export const router = {
       const path = this.currentPath();
       const matched = this.match(path);
 
-      const authRequired = ['/member', '/profile', '/profile/edit', '/admin'].some(p => path.startsWith(p));
+      const authRequired = ['/member', '/profile', '/profile/edit', '/reading-circle/mine', '/admin'].some(p => path.startsWith(p));
       if (authRequired && !store.get('user')) {
         return this.navigate('/login?redirect=' + encodeURIComponent(path));
       }

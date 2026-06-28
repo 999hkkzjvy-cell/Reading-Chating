@@ -12,8 +12,10 @@ import {
 import './events.js';
 import { bindLatamEvents, initLatamMap, renderLatamPage } from './latam.js';
 import { bindMemberCenterEvents, registerMemberCenterRoutes } from './memberCenter.js';
+import { registerMemberSystemInfoRoutes } from './memberSystemInfo.js';
 import './newBooks.js';
 import { bindProfileEvents, registerProfileRoutes } from './profile.js';
+import { bindReadingPostEvents, registerReadingPostRoutes } from './readingPosts.js';
 import { route, router, setAfterRouteRender } from './router.js';
 import { store } from './store.js';
 import { bindUploadHandlers } from './uploads.js';
@@ -70,6 +72,8 @@ import { safeMarked } from './utils.js';
 
     registerAuthRoutes();
     registerMemberCenterRoutes();
+    registerMemberSystemInfoRoutes();
+    registerReadingPostRoutes();
 
     // ===========================================
     // ROUTE: HOME
@@ -114,6 +118,10 @@ import { safeMarked } from './utils.js';
           <div class="container">
             <h2 style="margin-bottom:var(--space-3);">📋 群规</h2>
             <div class="card"><div class="card-body md-content" style="max-width:none;">${rulesHtml}</div></div>
+            <a href="#/member-system" class="home-member-system-link">
+              <span><i data-lucide="badge-help"></i> 会员积分、票券与徽章系统说明</span>
+              <i data-lucide="chevron-right"></i>
+            </a>
           </div>
         </section>
         <section class="section" style="background:var(--color-bg-alt);">
@@ -140,6 +148,7 @@ import { safeMarked } from './utils.js';
         bindUploadHandlers();
         bindLatamEvents();
         bindMemberCenterEvents();
+        bindReadingPostEvents();
         await initAuth();
       } catch (err) {
         console.error('Init error:', err);
