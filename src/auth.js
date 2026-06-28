@@ -1,7 +1,7 @@
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { toast } from './ui.js';
-import { h, safeUrl } from './utils.js';
+import { loadMemberSummary } from './members.js';
 
 export async function initAuth() {
   const { data: { user } } = await sb.auth.getUser();
@@ -10,6 +10,7 @@ export async function initAuth() {
     const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
     store.set('profile', profile);
     store.set('isAdmin', profile?.role === 'admin');
+    await loadMemberSummary(user.id);
   }
   renderNavUser();
 }
@@ -64,6 +65,7 @@ export async function signOut() {
   await sb.auth.signOut();
   store.set('user', null);
   store.set('profile', null);
+  store.set('member', null);
   store.set('isAdmin', false);
   renderNavUser();
   location.hash = '#/';
@@ -88,12 +90,8 @@ export function renderNavUser() {
   const profile = store.get('profile');
   const container = document.getElementById('nav-user');
   if (user && profile) {
-    const initial = (profile.display_name || user.email)[0].toUpperCase();
     container.innerHTML = `
-      <a href="#/profile" style="display:flex;align-items:center;gap:8px;color:var(--color-text);font-size:0.9rem;">
-        <span class="avatar">${profile.avatar_url ? `<img src="${safeUrl(profile.avatar_url)}" alt="">` : h(initial)}</span>
-        <span class="nav-username">${h(profile.display_name)}</span>
-      </a>
+      <a href="#/member" class="nav-user-link">个人中心</a>
       ${store.get('isAdmin') ? '<a href="#/admin" class="btn btn-outline btn-sm">管理</a>' : ''}
       <button class="btn btn-ghost btn-sm" id="btn-logout">退出</button>
     `;

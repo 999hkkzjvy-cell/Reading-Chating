@@ -2,6 +2,7 @@ export const store = {
   _state: {
     user: null,
     profile: null,
+    member: null,
     isAdmin: false,
     books: [],
     events: [],

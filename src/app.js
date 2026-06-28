@@ -11,6 +11,7 @@ import {
 } from './data.js';
 import './events.js';
 import { bindLatamEvents, initLatamMap, renderLatamPage } from './latam.js';
+import { bindMemberCenterEvents, registerMemberCenterRoutes } from './memberCenter.js';
 import './newBooks.js';
 import { bindProfileEvents, registerProfileRoutes } from './profile.js';
 import { route, router, setAfterRouteRender } from './router.js';
@@ -68,6 +69,7 @@ import { safeMarked } from './utils.js';
     });
 
     registerAuthRoutes();
+    registerMemberCenterRoutes();
 
     // ===========================================
     // ROUTE: HOME
@@ -137,6 +139,7 @@ import { safeMarked } from './utils.js';
         bindProfileEvents();
         bindUploadHandlers();
         bindLatamEvents();
+        bindMemberCenterEvents();
         await initAuth();
       } catch (err) {
         console.error('Init error:', err);
