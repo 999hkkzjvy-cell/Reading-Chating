@@ -28,7 +28,8 @@ export async function loadMemberSummary(userId = store.get('user')?.id) {
       { data: currentLevel },
       { data: nextLevel },
       { data: badgeDisplayPreferences },
-      { data: weeklyRank }
+      { data: weeklyRank },
+      { data: accessGrants }
     ] = await Promise.all([
       sb
         .from('view_passes')
@@ -57,7 +58,13 @@ export async function loadMemberSummary(userId = store.get('user')?.id) {
         .select('badge_key, sort_order')
         .eq('user_id', userId)
         .order('sort_order', { ascending: true }),
-      sb.rpc('get_my_weekly_contribution_rank')
+      sb.rpc('get_my_weekly_contribution_rank'),
+      sb
+        .from('resource_access_grants')
+        .select('*, books(title, author)')
+        .eq('user_id', userId)
+        .is('revoked_at', null)
+        .order('created_at', { ascending: false })
     ]);
 
     const safeViewPasses = viewPasses || [];
@@ -73,6 +80,7 @@ export async function loadMemberSummary(userId = store.get('user')?.id) {
       availableRedemptionTickets: safeRedemptionTickets.filter(ticket => ticket.status === 'available').length,
       viewPasses: safeViewPasses,
       redemptionTickets: safeRedemptionTickets,
+      accessGrants: accessGrants || [],
       badges: badges || [],
       badgeDisplayPreferences: badgeDisplayPreferences || [],
       weeklyRank: Array.isArray(weeklyRank) ? (weeklyRank[0] || null) : (weeklyRank || null)

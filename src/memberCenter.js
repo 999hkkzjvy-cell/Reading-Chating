@@ -217,6 +217,42 @@ function renderTicketRows(type, tickets) {
   `;
 }
 
+function renderAccessGrants(member) {
+  const grants = member?.accessGrants || [];
+  if (!grants.length) {
+    return `
+      <div class="member-empty-inline compact">
+        <i data-lucide="lock-open"></i>
+        <p>你还没有永久解锁的共读资源。</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="member-ticket-detail-list">
+      ${grants.map(grant => `
+        <div class="member-ticket-detail-card">
+          <div class="member-ticket-detail-title">
+            <h4>${h(grant.books?.title || `书目 #${grant.book_id}`)}</h4>
+            <span class="ticket-status ticket-status-success">永久</span>
+          </div>
+          <p>${grant.books?.author ? `${h(grant.books.author)} · ` : ''}${h(grantTypeLabel(grant.grant_type))} · 解锁于 ${h(formatDateTime(grant.created_at))}</p>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function grantTypeLabel(type) {
+  const map = {
+    redeemed: '共读兑换券',
+    commemorative: '共读纪念券',
+    founder: '开创者权限',
+    admin: '管理员授予'
+  };
+  return map[type] || '资源权限';
+}
+
 function renderProgress(stats, currentLevel, nextLevel) {
   if (!stats || !currentLevel) {
     return '<div class="member-progress-bar"><span style="width:0%;"></span></div>';
@@ -579,11 +615,9 @@ export function registerMemberCenterRoutes() {
             <div class="card-body">
               <div class="member-panel-head">
                 <h3>已解锁资源</h3>
+                <span>${h(member?.accessGrants?.length || 0)} 项</span>
               </div>
-              <div class="member-empty-inline compact">
-                <i data-lucide="lock-open"></i>
-                <p>资源权限会在后续阶段接入，永久解锁和 72 小时临时解锁都会汇总到这里。</p>
-              </div>
+              ${renderAccessGrants(member)}
             </div>
           </section>
 

@@ -1,4 +1,5 @@
 import { bindNotificationEvents, initAuth } from './auth.js';
+import { bindAccessEvents } from './access.js';
 import './admin.js';
 import './books.js';
 import { bindAuthEvents, registerAuthRoutes } from './authPages.js';
@@ -150,6 +151,7 @@ import { safeMarked } from './utils.js';
         bindMemberCenterEvents();
         bindReadingPostEvents();
         bindNotificationEvents();
+        bindAccessEvents();
         await initAuth();
       } catch (err) {
         console.error('Init error:', err);

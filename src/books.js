@@ -1,10 +1,12 @@
 import { renderBookCard, statusTag } from './components.js';
+import { canViewResource, renderBookAccessPanel, renderProtectedGroup, renderProtectedLink, renderProtectedText, resourceKey } from './access.js';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 import { GENRES } from './constants.js';
 import { loadBooks } from './data.js';
 import { route } from './router.js';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
+import { loadBookAccessSummary } from './tickets.js';
 import { esc, formatDate, h, isDoubanBookUrl, parseHttpUrl, proxyImg, safeMarked, safeUrl } from './utils.js';
 
 // ===========================================
@@ -92,6 +94,7 @@ route('/books/:id', async (params) => {
     book = data;
   }
   if (!book) return '<div class="container section"><div class="empty-state"><i data-lucide="book"></i><p>书籍未找到</p></div></div>';
+  const accessSummary = await loadBookAccessSummary(book.id);
 
   // Tab 1: 简介 — description + author_bio + historical_context
   const descHtml = safeMarked(book.description || '暂无简介。');
@@ -177,7 +180,7 @@ route('/books/:id', async (params) => {
   const ACT_TYPE_CLASS = { '导读预热':'tag-act-导读预热','精读分析':'tag-act-精读分析','文艺放映':'tag-act-文艺放映','嘉宾分享':'tag-act-嘉宾分享','圆桌讨论':'tag-act-圆桌讨论','线下活动':'tag-act-线下活动','签售征订':'tag-act-签售征订','其他':'tag-act-其他' };
   const activitiesHtml = activities.length === 0 ? '<p style="color:var(--color-text-3);">暂无活动安排。</p>' : `
     <div style="display:flex;flex-direction:column;gap:var(--space-2);">
-      ${activities.map(a => `
+      ${activities.map((a, index) => `
         <div class="card" style="padding:var(--space-2) var(--space-3);">
           <div style="display:flex;align-items:center;gap:var(--space-1);flex-wrap:wrap;margin-bottom:6px;">
             <span class="tag ${ACT_TYPE_CLASS[a.type] || 'tag-genre'}">${h(a.type || '活动')}</span>
@@ -188,8 +191,20 @@ route('/books/:id', async (params) => {
           ${a.guests ? `<div style="font-size:0.85rem;color:var(--color-text-2);margin-bottom:4px;">👤 ${h(a.guests)}</div>` : ''}
           ${a.description ? `<div style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:6px;">${h(a.description)}</div>` : ''}
           <div style="display:flex;gap:var(--space-1);flex-wrap:wrap;align-items:center;">
-            ${a.meeting_link ? `<a href="${safeUrl(a.meeting_link)}" target="_blank" class="btn btn-outline btn-sm">活动链接</a>` : ''}
-            ${a.replay_link ? `<a href="${safeUrl(a.replay_link)}" target="_blank" class="btn btn-outline btn-sm">回放回顾</a>` : ''}
+            ${renderProtectedLink({
+              bookId: book.id,
+              key: resourceKey(book.id, 'activity', index, 'meeting_link'),
+              url: a.meeting_link,
+              label: '活动链接',
+              summary: accessSummary
+            })}
+            ${renderProtectedLink({
+              bookId: book.id,
+              key: resourceKey(book.id, 'activity', index, 'replay_link'),
+              url: a.replay_link,
+              label: '回放回顾',
+              summary: accessSummary
+            })}
             ${!a.meeting_link && !a.replay_link && a.status === '计划中' ? '<span style="font-size:0.82rem;color:var(--color-text-3);">积极筹备中，敬请期待</span>' : ''}
           </div>
         </div>
@@ -202,8 +217,10 @@ route('/books/:id', async (params) => {
 
   // Fetch Douban metadata for extended reading items with Douban URLs
   const extItems = resources.extended_reading || [];
+  const extReadingKey = resourceKey(book.id, 'resource_extended_reading', 'all', 'list');
+  const extReadingUnlocked = canViewResource(accessSummary, extReadingKey);
   const doubanCache = {};
-  const doubanUrls = extItems.filter(item => isDoubanBookUrl(item.url)).map(item => item.url);
+  const doubanUrls = extReadingUnlocked ? extItems.filter(item => isDoubanBookUrl(item.url)).map(item => item.url) : [];
   if (doubanUrls.length > 0) {
     // Check cache first
     try {
@@ -232,30 +249,39 @@ route('/books/:id', async (params) => {
   const extReadingHtml = extItems.length === 0 ? '' : `
     <div style="margin-bottom:var(--space-3);">
       <h4 style="margin-bottom:var(--space-1);">延伸读物</h4>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-2);">
-        ${extItems.map(item => {
+      ${extReadingUnlocked ? `
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-2);">
+          ${extItems.map((item) => {
           const db = doubanCache[item.url] || {};
           return `
           <div class="new-book-card">
-            <a href="${safeUrl(item.url)}" target="_blank" rel="noopener" class="nb-cover" style="width:100px;">
+            <div class="nb-cover" style="width:100px;">
               ${db.cover_url
                 ? `<img src="${esc(proxyImg(db.cover_url))}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">`
                 : ''}
               <i data-lucide="book" class="cover-fallback" style="${db.cover_url ? 'display:none;' : ''}"></i>
-            </a>
+            </div>
             <div class="nb-body">
-              <h3><a href="${safeUrl(item.url)}" target="_blank" rel="noopener">${h(db.title || item.title)}</a></h3>
+              <h3>${h(db.title || item.title)}</h3>
               ${db.author ? `<div class="nb-row"><span class="nb-label">作者</span>${h(db.author)}</div>` : ''}
               ${db.publisher ? `<div class="nb-row"><span class="nb-label">出版方</span>${h(db.publisher)}</div>` : ''}
               ${db.rating ? `<div class="nb-row rating">⭐${h(db.rating)} · ${db.review_count || 0}人评价</div>` : ''}
               ${item.description ? `<div class="nb-row" style="white-space:normal;margin-top:2px;">${h(item.description)}</div>` : ''}
               <div class="nb-actions" style="margin-top:4px;">
-                <a href="${safeUrl(item.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">豆瓣详情</a>
+                ${item.url ? `<a href="${safeUrl(item.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">查看详情</a>` : ''}
               </div>
             </div>
           </div>`;
-        }).join('')}
-      </div>
+          }).join('')}
+        </div>
+      ` : renderProtectedGroup({
+        bookId: book.id,
+        key: extReadingKey,
+        title: '延伸读物暂未解锁',
+        description: `本期共读列出了 ${extItems.length} 本延伸读物。解锁后可查看完整书单、作者、封面和详情链接。`,
+        summary: accessSummary,
+        unlockLabel: '解锁延伸读物'
+      })}
     </div>`;
 
   // Render other resource sections as simple lists
@@ -270,10 +296,19 @@ route('/books/:id', async (params) => {
     return `<div style="margin-bottom:var(--space-3);">
       <h4 style="margin-bottom:var(--space-1);">${sec.label}</h4>
       <div style="display:flex;flex-direction:column;gap:4px;">
-        ${items.map(item => `
+        ${items.map((item, index) => `
           <div style="padding:6px 0;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);">
-            <span>${h(item.title)}</span>
-            ${item.url ? `<a href="${safeUrl(item.url)}" target="_blank" style="font-size:0.85rem;flex-shrink:0;">查看</a>` : ''}
+            <div>
+              <span>${h(item.title)}</span>
+              ${item.description ? `<div style="font-size:0.84rem;color:var(--color-text-3);margin-top:2px;">${h(item.description)}</div>` : ''}
+            </div>
+            ${renderProtectedLink({
+              bookId: book.id,
+              key: resourceKey(book.id, `resource_${sec.key}`, index, 'url'),
+              url: item.url,
+              label: '查看',
+              summary: accessSummary
+            })}
           </div>
         `).join('')}
       </div>
@@ -285,11 +320,16 @@ route('/books/:id', async (params) => {
   try { chats = typeof book.chatsubstance === 'string' ? JSON.parse(book.chatsubstance||'[]') : (book.chatsubstance||[]); } catch(e){}
   const chatsHtml = chats.length === 0 ? '<p style="color:var(--color-text-3);">暂无聊天干货。</p>' : `
     <div style="display:flex;flex-direction:column;gap:var(--space-3);">
-      ${chats.map(c => `
+      ${chats.map((c, index) => `
         <div class="edition-card">
           <h3 style="margin-bottom:var(--space-1);">${c.topic || '干货主题'}</h3>
           <div style="font-size:0.88rem;color:var(--color-text-2);margin-bottom:var(--space-2);">主发言人：${c.speaker || '未知'}</div>
-          ${c.content ? `<div class="md-content" style="max-width:none;font-size:0.95rem;">${safeMarked(c.content)}</div>` : ''}
+          ${renderProtectedText({
+            bookId: book.id,
+            key: resourceKey(book.id, 'chat', index, 'content'),
+            markdown: c.content,
+            summary: accessSummary
+          })}
         </div>
       `).join('')}
     </div>`;
@@ -324,6 +364,8 @@ route('/books/:id', async (params) => {
         <button class="tab" data-tab="resources">资源材料</button>
         <button class="tab" data-tab="chats">聊天干货</button>
       </div>
+
+      ${renderBookAccessPanel(book, accessSummary)}
 
       <div id="tab-intro" class="tab-content">${introHtml}</div>
       <div id="tab-host" class="tab-content" style="display:none;">${hostTabHtml}</div>
