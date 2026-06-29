@@ -65,6 +65,7 @@ export const router = {
 
       if (matched) {
         document.getElementById('view').innerHTML = await matched.handler(matched.params);
+        window.scrollTo(0, 0);
       } else {
         document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="file-question"></i><p>页面未找到</p></div></div>';
       }
