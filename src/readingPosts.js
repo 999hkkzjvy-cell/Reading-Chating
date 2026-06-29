@@ -680,7 +680,7 @@ async function loadComments(postId) {
   if (!listEl) return;
 
   listEl.innerHTML = '<div class="comments-loading"><i data-lucide="loader"></i></div>';
-  lucide.createIcons();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 
   const { data, error } = await sb.rpc('list_comments', { p_post_id: Number(postId) });
   if (error) {
@@ -717,7 +717,7 @@ function renderComments(listEl, comments, postId) {
     </div>
   `).join('');
 
-  lucide.createIcons();
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 async function submitComment(form) {

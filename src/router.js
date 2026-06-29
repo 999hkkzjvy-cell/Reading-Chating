@@ -73,8 +73,8 @@ export const router = {
     } catch (err) {
       console.error('Router error:', err);
       const errText = String(err.message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="alert-triangle"></i><p>加载失败：' + errText + '</p><p style="font-size:0.85rem;color:var(--color-text-3);">请检查网络连接或刷新重试</p></div></div>';
-      lucide.createIcons();
+      document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><p>⚠️ 加载失败：' + errText + '</p><p style="font-size:0.85rem;color:var(--color-text-3);">请检查网络连接或刷新重试</p></div></div>';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
   },
 
