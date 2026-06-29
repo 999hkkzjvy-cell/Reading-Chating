@@ -105,7 +105,7 @@ function renderPostCard(post, scope) {
   postCache.set(Number(post.id), post);
 
   return `
-    <article class="card reading-post-card" ${moodStyle}>
+    <article class="card reading-post-card" id="post-${h(post.id)}" ${moodStyle}>
       <div class="card-body">
         <div class="reading-post-head">
           <div class="reading-post-user">
@@ -274,6 +274,15 @@ function renderPostComposer() {
 async function renderReadingCircle(scope = 'public') {
   const { posts, error } = await loadReadingPosts(scope);
   const user = store.get('user');
+
+  // 来自通知的定位跳转
+  const queryPostId = router.currentQuery().post;
+  if (queryPostId) {
+    setTimeout(() => {
+      const el = document.getElementById('post-' + queryPostId);
+      if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.boxShadow = '0 0 0 3px var(--color-accent)'; setTimeout(() => { el.style.boxShadow = ''; }, 2000); }
+    }, 200);
+  }
 
   return `
     <div class="container section reading-circle-page">

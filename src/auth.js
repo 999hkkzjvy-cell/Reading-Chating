@@ -2,6 +2,7 @@ import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { toast } from './ui.js';
 import { loadMemberSummary } from './members.js';
+import { esc, formatDateTime, h, safeUrl } from './utils.js';
 
 export async function initAuth() {
   const { data: { user } } = await sb.auth.getUser();
@@ -91,12 +92,117 @@ export function renderNavUser() {
   const container = document.getElementById('nav-user');
   if (user && profile) {
     container.innerHTML = `
+      <button class="btn-bell" id="btn-bell" title="消息通知">
+        <i data-lucide="bell"></i>
+        <span class="bell-dot" id="bell-dot" style="display:none;"></span>
+      </button>
       <a href="#/member" class="nav-user-link">个人中心</a>
       ${store.get('isAdmin') ? '<a href="#/admin" class="btn btn-outline btn-sm">管理</a>' : ''}
       <button class="btn btn-ghost btn-sm" id="btn-logout">退出</button>
     `;
     document.getElementById('btn-logout').onclick = signOut;
+    document.getElementById('btn-bell').onclick = toggleNotificationPanel;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    refreshUnreadBadge();
   } else {
     container.innerHTML = `<a href="#/login" class="btn btn-outline btn-sm">登录</a>`;
   }
+}
+
+// ---- 通知面板 ----
+
+async function refreshUnreadBadge() {
+  const dot = document.getElementById('bell-dot');
+  if (!dot) return;
+  const { data } = await sb.rpc('get_unread_notification_count');
+  if (data > 0) {
+    dot.style.display = '';
+  } else {
+    dot.style.display = 'none';
+  }
+}
+
+async function toggleNotificationPanel() {
+  let panel = document.getElementById('notification-panel');
+  if (panel) {
+    panel.remove();
+    return;
+  }
+
+  const { data: notifications } = await sb.rpc('get_notifications', { p_limit: 20 });
+
+  panel = document.createElement('div');
+  panel.id = 'notification-panel';
+  panel.className = 'notification-panel';
+
+  if (!notifications || !notifications.length) {
+    panel.innerHTML = '<div class="notification-empty"><i data-lucide="bell-off"></i><p>暂无消息</p></div>';
+  } else {
+    const unseenIds = notifications.filter(n => !n.is_read).map(n => n.id);
+
+    panel.innerHTML = `
+      <div class="notification-head">
+        <span>消息通知</span>
+        ${unseenIds.length > 0 ? `<button class="btn-read-all" data-action="mark-all-read">全部已读</button>` : ''}
+      </div>
+      <div class="notification-list">
+        ${notifications.map(n => `
+          <div class="notification-item ${n.is_read ? '' : 'unread'}">
+            <div class="notification-avatar">${n.actor_avatar ? `<img src="${safeUrl(n.actor_avatar)}" alt="">` : h((n.actor_name || '?')[0])}</div>
+            <div class="notification-body">
+              <p>
+                <strong>${h(n.actor_name)}</strong>
+                给您关于<em>《${h(n.book_title || '未知书目')}》</em>的书友圈${n.type === 'like' ? '点了赞' : '留了评论'}
+              </p>
+              <span>${h(formatDateTime(n.created_at))}</span>
+            </div>
+            <a href="#/reading-circle?post=${h(n.post_id)}" class="btn btn-sm btn-outline notification-detail-btn" data-action="close-notification">查看详情</a>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  document.body.appendChild(panel);
+
+  // 点击外部关闭
+  setTimeout(() => {
+    document.addEventListener('click', closePanelOnOutside, { once: true });
+  }, 0);
+
+  // 标记已读
+  if (unseenIds.length > 0) {
+    await sb.rpc('mark_notifications_read', { p_ids: unseenIds });
+    refreshUnreadBadge();
+  }
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function closePanelOnOutside(e) {
+  const panel = document.getElementById('notification-panel');
+  const bell = document.getElementById('btn-bell');
+  if (panel && !panel.contains(e.target) && e.target !== bell && !bell?.contains(e.target)) {
+    panel.remove();
+  } else {
+    document.addEventListener('click', closePanelOnOutside, { once: true });
+  }
+}
+
+export async function bindNotificationEvents() {
+  document.addEventListener('click', async e => {
+    const markAllBtn = e.target.closest('[data-action="mark-all-read"]');
+    if (markAllBtn) {
+      await sb.rpc('mark_all_notifications_read');
+      document.getElementById('notification-panel')?.remove();
+      refreshUnreadBadge();
+      return;
+    }
+
+    const closeBtn = e.target.closest('[data-action="close-notification"]');
+    if (closeBtn) {
+      document.getElementById('notification-panel')?.remove();
+      return;
+    }
+  });
 }

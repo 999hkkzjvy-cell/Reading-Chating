@@ -21,14 +21,25 @@ export const router = {
     return location.hash.slice(1) || '/';
   },
 
+  currentQuery() {
+    const raw = location.hash.slice(1) || '/';
+    const q = raw.indexOf('?');
+    if (q === -1) return {};
+    const params = {};
+    new URLSearchParams(raw.slice(q + 1)).forEach((v, k) => { params[k] = v; });
+    return params;
+  },
+
   match(path) {
+    // Strip query string for matching
+    const cleanPath = path.replace(/\?.*$/, '');
     for (const [pattern, def] of Object.entries(routes)) {
       const keys = [];
       const regexStr = pattern.replace(/:(\w+)/g, (_, k) => {
         keys.push(k);
         return '([^/]+)';
       });
-      const match = path.match(new RegExp('^' + regexStr + '$'));
+      const match = cleanPath.match(new RegExp('^' + regexStr + '$'));
       if (match) {
         const params = {};
         keys.forEach((k, i) => {

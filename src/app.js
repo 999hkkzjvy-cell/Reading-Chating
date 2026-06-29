@@ -1,4 +1,4 @@
-import { initAuth } from './auth.js';
+import { bindNotificationEvents, initAuth } from './auth.js';
 import './admin.js';
 import './books.js';
 import { bindAuthEvents, registerAuthRoutes } from './authPages.js';
@@ -149,6 +149,7 @@ import { safeMarked } from './utils.js';
         bindLatamEvents();
         bindMemberCenterEvents();
         bindReadingPostEvents();
+        bindNotificationEvents();
         await initAuth();
       } catch (err) {
         console.error('Init error:', err);
