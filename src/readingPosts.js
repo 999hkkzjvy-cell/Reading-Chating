@@ -10,10 +10,7 @@ import { esc, formatDateTime, h, isDoubanBookUrl, proxyImg, safeColor, safeUrl }
 const POST_TYPE_LABELS = {
   want: '想读',
   reading: '在读',
-  finished: '已读',
-  excerpt: '摘抄',
-  reflection: '感想',
-  review: '书评'
+  finished: '已读'
 };
 
 const VISIBILITY_LABELS = {
@@ -58,8 +55,17 @@ function formatBookTitle(title) {
 }
 
 function contentLabel(postType) {
-  if (postType === 'review') return '书评';
+  if (postType === 'finished') return '书评';
   return '感想';
+}
+
+function ratingEmoji(score) {
+  const n = Number(score);
+  if (isNaN(n)) return '';
+  if (n < 0) return '💩';
+  if (n < 6) return '🤢';
+  if (n < 8) return '🙂';
+  return '👏🏻';
 }
 
 function renderTextBlock(label, text, cls = '') {
@@ -76,6 +82,9 @@ function renderPostCard(post, scope) {
   const isMine = store.get('user')?.id === post.user_id;
   const excerpt = renderTextBlock('摘抄', post.excerpt, 'quote');
   const content = renderTextBlock(contentLabel(post.post_type), post.content);
+  const rating = post.post_type === 'finished' && post.rating != null
+    ? `<div class="reading-post-rating"><span>评分</span><strong>${ratingEmoji(post.rating)} ${h(post.rating)}</strong></div>`
+    : '';
   const moodColor = safeColor(post.mood_color, '');
   const moodStyle = moodColor ? `style="--reading-mood-border:${moodColor};"` : '';
   const cover = post.cover_url ? `
@@ -109,7 +118,10 @@ function renderPostCard(post, scope) {
         <div class="reading-post-main">
           ${cover}
           <div class="reading-post-body">
-            <h3>${bookLine}</h3>
+            <div class="reading-post-title-row">
+              <h3>${bookLine}</h3>
+              ${rating}
+            </div>
             ${excerpt}
             ${content}
           </div>
@@ -291,7 +303,7 @@ function showReadingPostComposer() {
       <div class="grid-2">
         <div class="form-group">
           <label>动态类型</label>
-          <select name="post_type" required>${postTypeOptions()}</select>
+          <select name="post_type" required data-action="toggle-reading-rating">${postTypeOptions()}</select>
         </div>
         <div class="form-group">
           <label>可见范围</label>
@@ -314,6 +326,11 @@ function showReadingPostComposer() {
       <div class="reading-douban-preview" data-role="douban-preview">
         <i data-lucide="book-open"></i>
         <p>输入豆瓣链接后抓取书名、作者和封面。</p>
+      </div>
+      <div class="form-group reading-rating-group" style="display:none;">
+        <label>读书评分</label>
+        <input type="number" name="rating" min="-10" max="10" step="0.01" placeholder="-10 ~ 10，可精确到2位小数">
+        <span class="form-hint">-10 ~ 10分制，可精确到2位小数。💩负分 &nbsp;🤢0~6 &nbsp;🙂6~8 &nbsp;👏🏻8~10</span>
       </div>
       <div class="form-group">
         <label>摘抄</label>
@@ -427,7 +444,8 @@ async function submitReadingPost(form) {
     p_visibility: refreshedFd.get('visibility'),
     p_linked_book_id: null,
     p_excerpt: refreshedFd.get('excerpt') || null,
-    p_mood_color: refreshedFd.get('mood_color') || null
+    p_mood_color: refreshedFd.get('mood_color') || null,
+    p_rating: refreshedFd.get('rating') ? Number(refreshedFd.get('rating')) : null
   };
 
   const submitBtn = form.querySelector('button[type="submit"]');
@@ -519,6 +537,19 @@ export function bindReadingPostEvents() {
     const doubanInput = e.target.closest('#reading-post-form input[name="douban_url"]');
     if (doubanInput && doubanInput.value) {
       await fetchDoubanBookMeta(doubanInput.closest('#reading-post-form'));
+    }
+
+    const ratingToggle = e.target.closest('[data-action="toggle-reading-rating"]');
+    if (ratingToggle) {
+      const form = ratingToggle.closest('#reading-post-form');
+      const ratingGroup = form.querySelector('.reading-rating-group');
+      const ratingInput = ratingGroup?.querySelector('input[name="rating"]');
+      if (ratingToggle.value === 'finished') {
+        if (ratingGroup) ratingGroup.style.display = '';
+      } else {
+        if (ratingGroup) ratingGroup.style.display = 'none';
+        if (ratingInput) ratingInput.value = '';
+      }
     }
   });
 
