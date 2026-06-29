@@ -20,6 +20,8 @@ const VISIBILITY_LABELS = {
 
 const CALENDAR_DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 
+const postCache = new Map();
+
 async function loadReadingPosts(scope = 'public') {
   const { data, error } = await sb.rpc('list_reading_posts', { p_scope: scope });
   if (error) {
@@ -99,6 +101,8 @@ function renderPostCard(post, scope) {
     ? `${titleLink}<span class="reading-post-title-author"> - ${h(post.author)}</span>`
     : titleLink;
 
+  postCache.set(Number(post.id), post);
+
   return `
     <article class="card reading-post-card" ${moodStyle}>
       <div class="card-body">
@@ -131,6 +135,7 @@ function renderPostCard(post, scope) {
           <span><i data-lucide="message-circle"></i> ${h(post.comment_count || 0)}</span>
           ${isMine ? `
             <div class="reading-post-actions">
+              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-reading-post" data-id="${h(post.id)}">编辑</button>
               <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-post-visibility" data-id="${h(post.id)}" data-next="${post.visibility === 'public' ? 'private' : 'public'}">
                 ${post.visibility === 'public' ? '设为私密' : '设为公开'}
               </button>
@@ -361,6 +366,81 @@ function showReadingPostComposer() {
   `);
 }
 
+function showReadingPostEditor(post) {
+  if (!store.get('user')) {
+    toast('请先登录', 'error');
+    return;
+  }
+
+  const isFinished = post.post_type === 'finished';
+  const isFinishedStyle = isFinished ? '' : 'style="display:none;"';
+
+  const previewHtml = post.cover_url
+    ? `<img src="${safeUrl(proxyImg(post.cover_url))}" alt="${esc(post.book_title)}">`
+    : '<i data-lucide="book-open"></i>';
+
+  const previewText = post.author
+    ? `<strong>${h(formatBookTitle(post.book_title))}</strong><span>${h(post.author)}</span>`
+    : `<strong>${h(formatBookTitle(post.book_title))}</strong>`;
+
+  showModal('编辑书友圈动态', `
+    <form id="reading-post-edit-form" novalidate>
+      <input type="hidden" name="post_id" value="${h(post.id)}">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>动态类型</label>
+          <select name="post_type" required data-action="toggle-reading-rating">${postTypeOptions(post.post_type)}</select>
+        </div>
+        <div class="form-group">
+          <label>可见范围</label>
+          <select name="visibility" required>${visibilityOptions(post.visibility)}</select>
+        </div>
+      </div>
+      <div class="reading-douban-preview" data-role="douban-preview">
+        ${previewHtml}
+        <div>${previewText}</div>
+      </div>
+      <div class="form-group">
+        <label>书名</label>
+        <input type="text" value="${esc(post.book_title)}" readonly>
+      </div>
+      <div class="form-group reading-rating-group" ${isFinishedStyle}>
+        <label>读书评分</label>
+        <input type="number" name="rating" min="-10" max="10" step="0.01"
+          value="${post.rating != null ? h(post.rating) : ''}"
+          placeholder="-10 ~ 10，可精确到2位小数">
+        <span class="form-hint">-10 ~ 10分制，可精确到2位小数。💩负分 &nbsp;🤢0~6 &nbsp;🙂6~8 &nbsp;👏🏻8~10</span>
+      </div>
+      <div class="form-group">
+        <label>摘抄</label>
+        <textarea name="excerpt" placeholder="可以单独记录触动你的原文句子。">${h(post.excerpt || '')}</textarea>
+      </div>
+      <div class="form-group">
+        <label>感想或书评</label>
+        <textarea name="content" placeholder="写下你的阅读感想或书评。">${h(post.content || '')}</textarea>
+      </div>
+      <div class="form-group">
+        <label>阅读心情</label>
+        <div class="mood-swatches reading-mood-swatches">
+          ${MOODS.map(m => {
+            const selected = m.value === (post.mood_color || '');
+            const selectedClass = selected ? ' selected' : '';
+            const style = m.value ? `background:${m.value};` : '';
+            return `<button type="button" class="mood-swatch ${m.cls || ''}${selectedClass}"
+              data-action="select-reading-mood"
+              data-color="${m.value}" style="${style}"
+              title="${m.label}" aria-label="${m.label}"></button>`;
+          }).join('')}
+        </div>
+        <input type="hidden" name="mood_color" value="${esc(post.mood_color || '')}" id="reading-mood-color-input">
+      </div>
+      <div class="reading-post-form-actions">
+        <button type="submit" class="btn btn-primary">保存修改</button>
+      </div>
+    </form>
+  `);
+}
+
 async function fetchDoubanBookMeta(form) {
   const urlInput = form.querySelector('input[name="douban_url"]');
   const titleInput = form.querySelector('input[name="book_title"]');
@@ -493,6 +573,41 @@ async function deletePost(button) {
   router.render();
 }
 
+async function editReadingPost(form) {
+  const fd = new FormData(form);
+  const postId = Number(fd.get('post_id'));
+  if (!postId) {
+    toast('缺少动态ID', 'error');
+    return;
+  }
+
+  const payload = {
+    p_post_id: postId,
+    p_post_type: fd.get('post_type'),
+    p_visibility: fd.get('visibility'),
+    p_excerpt: fd.get('excerpt') || '',
+    p_content: fd.get('content') || '',
+    p_mood_color: fd.get('mood_color') || '',
+    p_rating: fd.get('rating') ? Number(fd.get('rating')) : null
+  };
+
+  const submitBtn = form.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+
+  const { error } = await sb.rpc('update_reading_post', payload);
+  if (error) {
+    toast('保存失败：' + error.message, 'error');
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+
+  document.querySelector('#modal-container .modal-overlay')?.remove();
+  postCache.delete(postId);
+  await loadMemberSummary(store.get('user')?.id);
+  toast('动态已更新');
+  router.render();
+}
+
 export function registerReadingPostRoutes() {
   route('/reading-circle', () => renderReadingCircle('public'));
   route('/reading-circle/mine', () => renderReadingCircle('mine'));
@@ -503,6 +618,17 @@ export function bindReadingPostEvents() {
     const composer = e.target.closest('[data-action="open-reading-post-composer"]');
     if (composer) {
       showReadingPostComposer();
+      return;
+    }
+
+    const editBtn = e.target.closest('[data-action="edit-reading-post"]');
+    if (editBtn) {
+      const post = postCache.get(Number(editBtn.dataset.id));
+      if (post) {
+        showReadingPostEditor(post);
+      } else {
+        toast('动态数据加载失败，请刷新页面', 'error');
+      }
       return;
     }
 
@@ -526,22 +652,25 @@ export function bindReadingPostEvents() {
 
     const moodBtn = e.target.closest('[data-action="select-reading-mood"]');
     if (moodBtn) {
-      const form = moodBtn.closest('#reading-post-form');
+      const form = moodBtn.closest('form');
+      if (!form) return;
       form.querySelectorAll('.reading-mood-swatches .mood-swatch').forEach(btn => btn.classList.remove('selected'));
       moodBtn.classList.add('selected');
-      form.querySelector('#reading-mood-color-input').value = moodBtn.dataset.color || '';
+      const colorInput = form.querySelector('input[name="mood_color"]');
+      if (colorInput) colorInput.value = moodBtn.dataset.color || '';
     }
   });
 
   document.addEventListener('change', async e => {
-    const doubanInput = e.target.closest('#reading-post-form input[name="douban_url"]');
+    const doubanInput = e.target.closest('form input[name="douban_url"]');
     if (doubanInput && doubanInput.value) {
-      await fetchDoubanBookMeta(doubanInput.closest('#reading-post-form'));
+      await fetchDoubanBookMeta(doubanInput.closest('form'));
     }
 
     const ratingToggle = e.target.closest('[data-action="toggle-reading-rating"]');
     if (ratingToggle) {
-      const form = ratingToggle.closest('#reading-post-form');
+      const form = ratingToggle.closest('form');
+      if (!form) return;
       const ratingGroup = form.querySelector('.reading-rating-group');
       const ratingInput = ratingGroup?.querySelector('input[name="rating"]');
       if (ratingToggle.value === 'finished') {
@@ -557,6 +686,10 @@ export function bindReadingPostEvents() {
     if (e.target.id === 'reading-post-form') {
       e.preventDefault();
       await submitReadingPost(e.target);
+    }
+    if (e.target.id === 'reading-post-edit-form') {
+      e.preventDefault();
+      await editReadingPost(e.target);
     }
   });
 }
