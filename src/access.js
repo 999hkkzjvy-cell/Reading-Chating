@@ -2,7 +2,7 @@ import { loadMemberSummary } from './members.js';
 import { router } from './router.js';
 import { store } from './store.js';
 import { toast } from './ui.js';
-import { consumeViewPass, redeemBookAccess } from './tickets.js';
+import { claimCoReadingPassword, consumeViewPass, redeemBookAccess } from './tickets.js';
 import { h, safeMarked, safeUrl } from './utils.js';
 
 export function resourceKey(bookId, section, index, field = 'url') {
@@ -148,6 +148,47 @@ export function bindAccessEvents() {
       toast('已永久解锁本书资源');
       await loadMemberSummary(store.get('user')?.id);
       router.render();
+      return;
     }
+
+    const claimForm = e.target.closest('[data-action="claim-co-reading-password"]');
+    if (claimForm) {
+      // Handled by the submit listener below.
+      return;
+    }
+  });
+
+  document.addEventListener('submit', async e => {
+    if (e.target.dataset.action !== 'claim-co-reading-password') return;
+    e.preventDefault();
+    if (!store.get('user')) {
+      router.navigate('/login?redirect=' + encodeURIComponent(router.currentPath()));
+      return;
+    }
+
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    const fd = new FormData(form);
+    const { error } = await claimCoReadingPassword(
+      fd.get('book_id'),
+      fd.get('password')?.trim(),
+      fd.get('group_member_id')?.trim()
+    );
+
+    if (error) {
+      const map = {
+        'Invalid co-reading password': '共读密码不正确或已过期',
+        'Group member id is required': '请填写群内 ID / 昵称'
+      };
+      toast('核销失败：' + (map[error.message] || error.message), 'error');
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+
+    toast('核销成功，已解锁本期共读资源');
+    await loadMemberSummary(store.get('user')?.id);
+    router.render();
   });
 }

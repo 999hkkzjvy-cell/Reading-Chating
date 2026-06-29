@@ -82,19 +82,36 @@ async function renderReadingCircle(scope = 'public') {
   `;
 }
 
-function showReadingPostComposer() {
+export function showReadingPostComposer(defaults = {}) {
   if (!store.get('user')) {
     toast('请先登录', 'error');
     router.navigate('/login?redirect=/reading-circle');
     return;
   }
 
+  const defaultPostType = defaults.postType || 'reading';
+  const defaultTitle = defaults.bookTitle || '';
+  const defaultAuthor = defaults.author || '';
+  const defaultCover = defaults.coverUrl || '';
+  const defaultLinkedBookId = defaults.linkedBookId || '';
+  const defaultPreview = defaultTitle
+    ? `
+      ${defaultCover ? `<img src="${safeUrl(defaultCover)}" alt="${esc(defaultTitle)}">` : '<i data-lucide="book-open"></i>'}
+      <div>
+        <strong>${h(formatBookTitle(defaultTitle))}</strong>
+        ${defaultAuthor ? `<span>${h(defaultAuthor)}</span>` : '<span>请补充豆瓣链接以完成发布</span>'}
+      </div>
+    `
+    : '<i data-lucide="book-open"></i><p>输入豆瓣链接后抓取书名、作者和封面。</p>';
+  const ratingDisplay = defaultPostType === 'finished' ? '' : 'display:none;';
+
   showModal('发布书友圈动态', `
     <form id="reading-post-form" novalidate>
+      <input type="hidden" name="linked_book_id" value="${esc(defaultLinkedBookId)}">
       <div class="grid-2">
         <div class="form-group">
           <label>动态类型</label>
-          <select name="post_type" required data-action="toggle-reading-rating">${postTypeOptions()}</select>
+          <select name="post_type" required data-action="toggle-reading-rating">${postTypeOptions(defaultPostType)}</select>
         </div>
         <div class="form-group">
           <label>可见范围</label>
@@ -110,15 +127,14 @@ function showReadingPostComposer() {
       </div>
       <div class="form-group">
         <label>书名</label>
-        <input type="text" name="book_title" required readonly placeholder="从豆瓣链接自动抓取">
-        <input type="hidden" name="author">
-        <input type="hidden" name="cover_url">
+        <input type="text" name="book_title" required readonly placeholder="从豆瓣链接自动抓取" value="${esc(defaultTitle)}">
+        <input type="hidden" name="author" value="${esc(defaultAuthor)}">
+        <input type="hidden" name="cover_url" value="${esc(defaultCover)}">
       </div>
       <div class="reading-douban-preview" data-role="douban-preview">
-        <i data-lucide="book-open"></i>
-        <p>输入豆瓣链接后抓取书名、作者和封面。</p>
+        ${defaultPreview}
       </div>
-      <div class="form-group reading-rating-group" style="display:none;">
+      <div class="form-group reading-rating-group" style="${ratingDisplay}">
         <label>读书评分</label>
         <input type="number" name="rating" min="-10" max="10" step="0.01" placeholder="-10 ~ 10，可精确到2位小数">
         <span class="form-hint">-10 ~ 10分制，可精确到2位小数。💩负分 &nbsp;🤢0~6 &nbsp;🙂6~8 &nbsp;👏🏻8~10</span>
@@ -294,7 +310,7 @@ async function submitReadingPost(form) {
     p_cover_url: refreshedFd.get('cover_url') || null,
     p_content: refreshedFd.get('content') || null,
     p_visibility: refreshedFd.get('visibility'),
-    p_linked_book_id: null,
+    p_linked_book_id: refreshedFd.get('linked_book_id') ? Number(refreshedFd.get('linked_book_id')) : null,
     p_excerpt: refreshedFd.get('excerpt') || null,
     p_mood_color: refreshedFd.get('mood_color') || null,
     p_rating: refreshedFd.get('rating') ? Number(refreshedFd.get('rating')) : null
@@ -715,7 +731,13 @@ export function bindReadingPostEvents() {
   document.addEventListener('click', async e => {
     const composer = e.target.closest('[data-action="open-reading-post-composer"]');
     if (composer) {
-      showReadingPostComposer();
+      showReadingPostComposer({
+        linkedBookId: composer.dataset.linkedBookId || '',
+        bookTitle: composer.dataset.bookTitle || '',
+        author: composer.dataset.author || '',
+        coverUrl: composer.dataset.coverUrl || '',
+        postType: composer.dataset.postType || 'reading'
+      });
       return;
     }
 

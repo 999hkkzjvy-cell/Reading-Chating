@@ -1305,6 +1305,70 @@
       margin-bottom: 8px;
     }
 
+    .book-join-flow {
+      display: flex; flex-direction: column; gap: var(--space-3);
+      max-width: 940px;
+    }
+    .book-join-step {
+      display: grid; grid-template-columns: minmax(0, 1fr) 280px;
+      gap: var(--space-4); align-items: center;
+      padding: var(--space-3);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      background: var(--color-bg);
+    }
+    .book-join-step-copy {
+      display: grid; grid-template-columns: 44px minmax(0, 1fr);
+      gap: var(--space-2); align-items: start;
+      min-width: 0;
+    }
+    .book-join-step-copy span {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--color-border);
+      color: var(--color-accent); font-weight: 800; font-size: 0.86rem;
+      background: var(--color-bg-alt);
+    }
+    .book-join-step-copy p {
+      margin: 0; color: var(--color-text); line-height: 1.85;
+      font-size: 0.98rem;
+    }
+    .book-join-step-action {
+      width: 100%; display: flex; justify-content: stretch;
+    }
+    .book-join-qr {
+      width: 100%; padding: 12px; border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); background: var(--color-bg-alt);
+      text-align: center;
+    }
+    .book-join-qr img {
+      width: 100%; aspect-ratio: 1; object-fit: contain;
+      border-radius: var(--radius-sm); background: #fff;
+    }
+    .book-join-qr p {
+      margin-top: 8px; color: var(--color-text-2); font-size: 0.86rem;
+    }
+    .book-join-placeholder {
+      width: 100%; min-height: 180px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 6px; padding: 16px;
+      border: 1px dashed var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-bg-alt); text-align: center;
+      color: var(--color-text-2);
+    }
+    .book-join-placeholder i { width: 34px; height: 34px; color: var(--color-text-3); }
+    .book-join-placeholder strong { color: var(--color-text); }
+    .book-join-placeholder p { margin: 0; font-size: 0.86rem; }
+    .book-claim-form {
+      width: 100%;
+      padding: 12px; border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); background: var(--color-bg-alt);
+    }
+    .book-claim-form .btn { width: 100%; justify-content: center; }
+    .book-join-finished-btn {
+      width: 100%; min-height: 46px; justify-content: center;
+    }
+
     /* Activity status tags */
     .tag-status-planning { background: #e8efe5; color: var(--color-success); }
     .tag-status-ongoing  { background: #fdf3dc; color: var(--color-tag-active); }
@@ -1615,6 +1679,9 @@
       #book-tabs .tab { font-size: 0.8rem; padding: 8px 12px; }
       .leaderboard-grid { grid-template-columns: 1fr; gap: var(--space-3); }
       .notification-panel { width: calc(100vw - 16px); right: 8px; top: 50px; }
+      .book-join-step { grid-template-columns: 1fr; align-items: stretch; }
+      .book-join-step-copy { grid-template-columns: 38px minmax(0, 1fr); }
+      .book-join-step-copy span { width: 38px; height: 38px; }
     }
 
     @media (max-width: 375px) {

@@ -37,6 +37,24 @@ function updatePosterPreview(url) {
   }
 }
 
+function updateJoinQrPreview(url) {
+  const preview = document.getElementById('join-qr-preview');
+  if (!preview) return;
+  preview.innerHTML = '';
+  if (url) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    img.onerror = () => {
+      preview.textContent = '?';
+    };
+    preview.appendChild(img);
+  } else {
+    preview.innerHTML = '<i data-lucide="qr-code" style="width:28px;height:28px;color:var(--color-text-3);"></i>';
+    lucide.createIcons();
+  }
+}
+
 function safeUploadName(fileName, fallback) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, '').replace(/\.+/g, '.') || fallback;
 }
@@ -45,6 +63,7 @@ export function bindUploadHandlers() {
   document.addEventListener('input', (e) => {
     if (e.target.id === 'cover-url-input') updateCoverPreview(e.target.value);
     if (e.target.id === 'poster-url-input') updatePosterPreview(e.target.value);
+    if (e.target.id === 'join-qr-url-input') updateJoinQrPreview(e.target.value);
   });
 
   document.addEventListener('change', async (e) => {
@@ -103,5 +122,24 @@ export function bindUploadHandlers() {
     if (urlInput) urlInput.value = publicUrl;
     if (nameEl) nameEl.textContent = '已上传：' + file.name;
     toast('PDF 上传成功');
+  });
+
+  document.addEventListener('change', async (e) => {
+    if (e.target.id !== 'join-qr-file-input') return;
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop();
+    const safeName = safeUploadName(file.name, 'join-qr');
+    const path = `join_qr/${Date.now()}_${safeName}.${ext}`;
+    const { error } = await sb.storage.from('covers').upload(path, file);
+    if (error) {
+      toast('二维码上传失败：' + error.message, 'error');
+      return;
+    }
+    const { data: { publicUrl } } = sb.storage.from('covers').getPublicUrl(path);
+    const urlInput = document.getElementById('join-qr-url-input');
+    if (urlInput) urlInput.value = publicUrl;
+    updateJoinQrPreview(publicUrl);
+    toast('二维码上传成功');
   });
 }

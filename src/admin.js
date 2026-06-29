@@ -4,8 +4,16 @@ import { aiFillBookInfo, loadBooks, loadConfig, loadEvents } from './data.js';
 import { route, router } from './router.js';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
+import { createCoReadingPassword, issueWeeklyViewPasses, setCoReadingPasswordActive } from './tickets.js';
 import { showModal, toast } from './ui.js';
 import { esc, formatDateTime, h, safeUrl } from './utils.js';
+
+function generateReadablePassword(length = 18) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, byte => alphabet[byte % alphabet.length]).join('');
+}
 
 // ===========================================
 // ROUTE: ADMIN
@@ -14,6 +22,11 @@ route('/admin', async () => {
   const config = await loadConfig();
   const books = await loadBooks();
   const events = await loadEvents();
+  const { data: coReadingPasswords } = await sb
+    .from('co_reading_passwords')
+    .select('*, books(title)')
+    .order('created_at', { ascending: false })
+    .limit(30);
 
   return `
     <div class="container section">
@@ -22,6 +35,7 @@ route('/admin', async () => {
         <button class="tab active" data-tab="rules">群规编辑</button>
         <button class="tab" data-tab="books">书籍管理</button>
         <button class="tab" data-tab="events">活动管理</button>
+        <button class="tab" data-tab="members">会员运营</button>
       </div>
       <div id="admin-tab-rules">
         <h3 style="margin-bottom:var(--space-2);">群规</h3>
@@ -77,6 +91,67 @@ route('/admin', async () => {
           `).join('')}
         </div>
       </div>
+      <div id="admin-tab-members" style="display:none;">
+        <div class="card" style="margin-bottom:var(--space-3);">
+          <div class="card-body">
+            <h3 style="margin-bottom:var(--space-1);">本周资源浏览券</h3>
+            <p style="color:var(--color-text-2);font-size:0.9rem;margin-bottom:var(--space-2);">按当前会员等级发放本周资源浏览券，当前周贡献榜前 5 名发放数量翻倍。同一周重复点击不会重复发券。</p>
+            <button type="button" class="btn btn-primary" data-action="admin-issue-weekly-passes">一键发放本周浏览券</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:var(--space-3);">
+          <div class="card-body">
+            <h3 style="margin-bottom:var(--space-2);">创建共读密码</h3>
+            <form id="admin-co-reading-password-form">
+              <div class="grid-2">
+                <div class="form-group">
+                  <label>共读书目</label>
+                  <select name="book_id" required>
+                    <option value="">请选择</option>
+                    ${books.map(book => `<option value="${h(book.id)}">${h(book.title)}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>名称</label>
+                  <input type="text" name="label" value="共读密码">
+                </div>
+                <div class="form-group">
+                  <label>开始时间</label>
+                  <input type="datetime-local" name="starts_at">
+                </div>
+                <div class="form-group">
+                  <label>过期时间</label>
+                  <input type="datetime-local" name="expires_at">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary">自动生成并创建密码</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h3 style="margin-bottom:var(--space-2);">现有共读密码</h3>
+            ${(coReadingPasswords || []).length ? `
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                ${(coReadingPasswords || []).map(row => `
+                  <div style="display:flex;justify-content:space-between;gap:var(--space-2);align-items:center;border-bottom:1px solid var(--color-border);padding:8px 0;">
+                    <div>
+                      <strong>${h(row.books?.title || `书目 #${row.book_id}`)}</strong>
+                      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px;">
+                        <code style="padding:3px 7px;border-radius:var(--radius-sm);background:var(--color-bg-alt);border:1px solid var(--color-border);font-size:0.85rem;">${h(row.password_plain || '历史密码不可显示')}</code>
+                      </div>
+                      <div style="font-size:0.82rem;color:var(--color-text-3);">${h(row.label || '共读密码')} · ${row.is_active ? '启用中' : '已停用'}${row.expires_at ? ' · 过期：' + h(formatDateTime(row.expires_at)) : ''}</div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" data-action="admin-toggle-co-reading-password" data-id="${h(row.id)}" data-active="${row.is_active ? 'false' : 'true'}">${row.is_active ? '停用' : '启用'}</button>
+                  </div>
+                `).join('')}
+              </div>
+            ` : '<p style="color:var(--color-text-3);">暂无共读密码。部署 v26 后可在这里创建。</p>'}
+          </div>
+        </div>
+      </div>
     </div>
   `;
 });
@@ -87,7 +162,7 @@ document.addEventListener('click', (e) => {
   if (!tab) return;
   document.querySelectorAll('#admin-tabs .tab').forEach(t => t.classList.remove('active'));
   tab.classList.add('active');
-  ['rules','books','events'].forEach(t => {
+  ['rules','books','events','members'].forEach(t => {
     const el = document.getElementById('admin-tab-' + t);
     if (el) el.style.display = tab.dataset.tab === t ? '' : 'none';
   });
@@ -103,6 +178,27 @@ document.addEventListener('submit', async (e) => {
     }
     await loadConfig(); // refresh cached config
     toast('设置已保存');
+  }
+
+  if (e.target.id === 'admin-co-reading-password-form') {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+    const { error } = await createCoReadingPassword({
+      bookId: fd.get('book_id'),
+      password: generateReadablePassword(),
+      label: fd.get('label')?.trim() || '共读密码',
+      startsAt: fd.get('starts_at') || null,
+      expiresAt: fd.get('expires_at') || null
+    });
+    if (error) {
+      toast('创建失败：' + error.message, 'error');
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+    toast('共读密码已创建');
+    router.render();
   }
 });
 
@@ -180,7 +276,7 @@ function resItem(r) { r=r||{}; return `
 // Admin: add/edit book form
 function showBookForm(bookData = null) {
   const isEdit = !!bookData;
-  const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', edition_notes:'', reading_schedule:'{"summary":"","pdf_url":""}', host:'', host_intro:'', host_notes:'', activities:'[]', chatsubstance:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[],"other":[]}', start_date:'', end_date:'' };
+  const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', edition_notes:'', reading_schedule:'{"summary":"","pdf_url":""}', host:'', host_intro:'', host_notes:'', activities:'[]', chatsubstance:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[],"other":[]}', start_date:'', end_date:'', join_enabled:false, join_intro:'', join_qr_url:'' };
   const genres = ['文学','历史','哲学','科幻','社科','心理','传记','商业','科普','其他'];
   // Parse JSONB data for visual builders
   let acts=[], edns=[], chats=[], extR=[], txtM=[], filmR=[], otherR=[];
@@ -219,6 +315,28 @@ function showBookForm(bookData = null) {
         </select></div>
         <div class="form-group"><label>开始日期 *</label><input type="date" name="start_date" value="${esc(book.start_date || '')}" required></div>
         <div class="form-group"><label>结束日期 *</label><input type="date" name="end_date" value="${esc(book.end_date || '')}" required></div>
+      </div>
+
+      <div class="builder-section">
+        <label>加入我们分页</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.9rem;margin-bottom:var(--space-2);">
+          <input type="checkbox" name="join_enabled" ${book.join_enabled ? 'checked' : ''}>
+          开启书籍详情页“加入我们”分页
+        </label>
+        <p style="font-size:0.84rem;color:var(--color-text-3);margin-bottom:var(--space-2);">页面说明文字已固定，只需要上传入群二维码并在会员运营中创建本期共读密码。</p>
+        <div class="form-group">
+          <label>入群二维码</label>
+          <div class="cover-upload">
+            <div class="cover-preview" id="join-qr-preview">
+              ${book.join_qr_url ? `<img src="${safeUrl(book.join_qr_url)}" alt="">` : '<i data-lucide="qr-code" style="width:28px;height:28px;color:var(--color-text-3);"></i>'}
+            </div>
+            <div class="cover-inputs">
+              <input type="url" name="join_qr_url" value="${esc(book.join_qr_url || '')}" placeholder="粘贴二维码图片 URL" id="join-qr-url-input">
+              <div class="divider-text">或</div>
+              <input type="file" accept="image/*" id="join-qr-file-input" style="font-size:0.85rem;">
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Cover image: URL + upload -->
@@ -316,6 +434,7 @@ function showBookForm(bookData = null) {
     e.preventDefault();
     const fd = new FormData(e.target);
     const data = Object.fromEntries(fd.entries());
+    data.join_enabled = fd.get('join_enabled') === 'on';
 
     // Collect from visual builders
     function collectItems(containerId, fields) {
@@ -481,6 +600,36 @@ async function deleteEvent(id) {
 // Admin button handlers
 document.addEventListener('click', async (e) => {
   // This handler is async because of AI fill button
+  const weeklyPassBtn = e.target.closest('[data-action="admin-issue-weekly-passes"]');
+  if (weeklyPassBtn) {
+    if (!confirm('确定按当前会员等级和本周贡献榜发放本周资源浏览券吗？同一周不会重复发放。')) return;
+    weeklyPassBtn.disabled = true;
+    const { data, error } = await issueWeeklyViewPasses();
+    if (error) {
+      toast('发放失败：' + error.message, 'error');
+      weeklyPassBtn.disabled = false;
+      return;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    toast(`已发放 ${row?.issued_passes || 0} 张浏览券，覆盖 ${row?.issued_users || 0} 位会员`);
+    router.render();
+    return;
+  }
+
+  const togglePasswordBtn = e.target.closest('[data-action="admin-toggle-co-reading-password"]');
+  if (togglePasswordBtn) {
+    togglePasswordBtn.disabled = true;
+    const { error } = await setCoReadingPasswordActive(togglePasswordBtn.dataset.id, togglePasswordBtn.dataset.active === 'true');
+    if (error) {
+      toast('操作失败：' + error.message, 'error');
+      togglePasswordBtn.disabled = false;
+      return;
+    }
+    toast(togglePasswordBtn.dataset.active === 'true' ? '密码已启用' : '密码已停用');
+    router.render();
+    return;
+  }
+
   const addBookBtn = e.target.closest('#btn-add-book, #btn-add-book2');
   if (addBookBtn) { showBookForm(); return; }
   const addEventBtn = e.target.closest('#btn-add-event');
@@ -553,4 +702,3 @@ document.addEventListener('click', async (e) => {
     return;
   }
 });
-

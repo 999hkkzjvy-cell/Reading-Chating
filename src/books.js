@@ -334,6 +334,70 @@ route('/books/:id', async (params) => {
       `).join('')}
     </div>`;
 
+  const joinEnabled = !!book.join_enabled || !!book.join_qr_url;
+  const joinHtml = `
+    <div class="book-join-flow">
+      <section class="book-join-step">
+        <div class="book-join-step-copy">
+          <span>01</span>
+          <p>欢迎加入本期共读，请在二维码有效期内扫码入群，逾期将无法加入。</p>
+        </div>
+        <div class="book-join-step-action">
+          ${book.join_qr_url ? `
+            <div class="book-join-qr">
+              <img src="${safeUrl(book.join_qr_url)}" alt="共读群二维码">
+              <p>扫码加入本期共读群</p>
+            </div>
+          ` : '<div class="book-join-placeholder"><i data-lucide="qr-code"></i><strong>二维码暂未上传</strong><p>请等待管理员补充入群二维码。</p></div>'}
+        </div>
+      </section>
+
+      <section class="book-join-step">
+        <div class="book-join-step-copy">
+          <span>02</span>
+          <p>入群后在群公告中获取共读密码，并在此页核销以解锁共读权益（本期共读全部资源），系统将同步发放纪念徽章。</p>
+        </div>
+        <div class="book-join-step-action">
+          <form class="book-claim-form" data-action="claim-co-reading-password">
+            <input type="hidden" name="book_id" value="${h(book.id)}">
+            <div class="form-group">
+              <label>群内 ID / 昵称</label>
+              <input type="text" name="group_member_id" required placeholder="用于管理员核对入群身份">
+            </div>
+            <div class="form-group">
+              <label>共读密码</label>
+              <input type="password" name="password" required placeholder="请输入群内提供的密码">
+            </div>
+            ${store.get('user')
+              ? '<button type="submit" class="btn btn-primary">核销共读密码</button>'
+              : `<a href="#/login?redirect=/books/${h(book.id)}" class="btn btn-primary">登录后核销</a>`}
+          </form>
+        </div>
+      </section>
+
+      <section class="book-join-step">
+        <div class="book-join-step-copy">
+          <span>03</span>
+          <p>当您完成本期阅读后，点击以下按钮发布已读书友圈，纪念徽章将升级为已读版。发布时间不做限制，你可以在任何时间完成，读完就好。</p>
+        </div>
+        <div class="book-join-step-action">
+          <button
+            type="button"
+            class="btn btn-outline book-join-finished-btn"
+            data-action="open-reading-post-composer"
+            data-linked-book-id="${h(book.id)}"
+            data-book-title="${esc(book.title)}"
+            data-author="${esc(book.author || '')}"
+            data-cover-url="${esc(book.cover_url || '')}"
+            data-post-type="finished"
+          >
+            <i data-lucide="square-pen"></i> 发布已读动态
+          </button>
+        </div>
+      </section>
+    </div>
+  `;
+
   return `
     <div class="container section">
       <a href="#/books" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回共读书库</a>
@@ -360,6 +424,7 @@ route('/books/:id', async (params) => {
         ${hostNotesTabBtn}
         <button class="tab" data-tab="edition">版本建议</button>
         <button class="tab" data-tab="schedule">时间计划</button>
+        ${joinEnabled ? '<button class="tab" data-tab="join">加入我们</button>' : ''}
         <button class="tab" data-tab="activities">活动安排</button>
         <button class="tab" data-tab="resources">资源材料</button>
         <button class="tab" data-tab="chats">聊天干货</button>
@@ -372,6 +437,7 @@ route('/books/:id', async (params) => {
       ${hostNotesTabContent}
       <div id="tab-edition" class="tab-content" style="display:none;">${editionsHtml}</div>
       <div id="tab-schedule" class="tab-content" style="display:none;">${scheduleHtml}</div>
+      ${joinEnabled ? `<div id="tab-join" class="tab-content" style="display:none;">${joinHtml}</div>` : ''}
       <div id="tab-activities" class="tab-content" style="display:none;">${activitiesHtml}</div>
       <div id="tab-resources" class="tab-content" style="display:none;">
         ${resourcesHtml || '<p style="color:var(--color-text-3);">暂无资源材料。</p>'}

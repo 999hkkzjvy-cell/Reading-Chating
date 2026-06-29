@@ -35,3 +35,32 @@ export function redeemBookAccess(bookId) {
     p_book_id: Number(bookId)
   });
 }
+
+export function claimCoReadingPassword(bookId, password, groupMemberId) {
+  return sb.rpc('claim_co_reading_password', {
+    p_book_id: Number(bookId),
+    p_password: password,
+    p_group_member_id: groupMemberId
+  });
+}
+
+export function createCoReadingPassword({ bookId, password, label, startsAt, expiresAt }) {
+  return sb.rpc('admin_create_co_reading_password', {
+    p_book_id: Number(bookId),
+    p_password: password,
+    p_label: label || '共读密码',
+    p_starts_at: startsAt || null,
+    p_expires_at: expiresAt || null
+  });
+}
+
+export function setCoReadingPasswordActive(passwordId, isActive) {
+  return sb.rpc('admin_set_co_reading_password_active', {
+    p_password_id: Number(passwordId),
+    p_is_active: !!isActive
+  });
+}
+
+export function issueWeeklyViewPasses() {
+  return sb.rpc('admin_issue_weekly_view_passes');
+}
