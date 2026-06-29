@@ -291,6 +291,7 @@ async function renderReadingCircle(scope = 'public') {
       <div class="tabs reading-circle-tabs">
         <a href="#/reading-circle" class="tab ${scope === 'public' ? 'active' : ''}">广场</a>
         <a href="#/reading-circle/mine" class="tab ${scope === 'mine' ? 'active' : ''}">我的动态</a>
+        <a href="#/reading-circle/leaderboard" class="tab">贡献榜单</a>
       </div>
 
       ${!user ? '<div class="card reading-login-tip"><div class="card-body"><p>登录后可以发布阅读动态，并通过公开动态获得贡献值。</p><a href="#/login" class="btn btn-outline btn-sm">登录</a></div></div>' : ''}
@@ -883,9 +884,73 @@ async function renderUserProfile(userId) {
   `;
 }
 
+async function renderLeaderboard() {
+  const [totalRes, monthRes, weekRes] = await Promise.all([
+    sb.rpc('get_contribution_leaderboard', { p_type: 'total' }),
+    sb.rpc('get_contribution_leaderboard', { p_type: 'month' }),
+    sb.rpc('get_contribution_leaderboard', { p_type: 'week' })
+  ]);
+
+  const tabs = [
+    { key: 'total', label: '总贡献榜', data: totalRes.data || [] },
+    { key: 'month', label: '月贡献榜', data: monthRes.data || [] },
+    { key: 'week',  label: '周贡献榜', data: weekRes.data  || [] }
+  ];
+
+  function renderRow(item) {
+    const avatarHtml = item.avatar_url
+      ? `<img src="${safeUrl(item.avatar_url)}" alt="">`
+      : h((item.display_name || '?')[0]);
+    const rankMedal = item.rank <= 3
+      ? ['', '🥇', '🥈', '🥉'][Number(item.rank)]
+      : `<span class="leaderboard-rank-num">${h(item.rank)}</span>`;
+
+    return `
+      <a href="#/user/${h(item.user_id)}" class="leaderboard-row">
+        <div class="leaderboard-rank">${rankMedal}</div>
+        <div class="leaderboard-avatar">${avatarHtml}</div>
+        <div class="leaderboard-info">
+          <strong>${h(item.display_name)}</strong>
+          ${item.level > 0 ? `<span class="member-level-badge">Lv.${h(item.level)} ${h(item.title)}</span>` : ''}
+        </div>
+        <div class="leaderboard-score">${h(item.contribution)}<span>贡献</span></div>
+      </a>`;
+  }
+
+  return `
+    <div class="container section leaderboard-page">
+      <div class="member-heading">
+        <div>
+          <p class="member-eyebrow">书友圈</p>
+          <h1>贡献榜单</h1>
+          <p>总贡献、月贡献、周贡献前10名。同分按注册时间先后排序。</p>
+        </div>
+      </div>
+
+      <div class="tabs reading-circle-tabs">
+        <a href="#/reading-circle" class="tab">广场</a>
+        <a href="#/reading-circle/mine" class="tab">我的动态</a>
+        <a href="#/reading-circle/leaderboard" class="tab active">贡献榜单</a>
+      </div>
+
+      <div class="leaderboard-grid">
+        ${tabs.map(t => `
+          <div class="leaderboard-column">
+            <h3 class="leaderboard-col-title">${t.label}</h3>
+            ${t.data.length
+              ? t.data.map(renderRow).join('')
+              : '<div class="empty-state"><i data-lucide="users"></i><p>暂无数据</p></div>'}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
 export function registerReadingPostRoutes() {
   route('/reading-circle', () => renderReadingCircle('public'));
   route('/reading-circle/mine', () => renderReadingCircle('mine'));
+  route('/reading-circle/leaderboard', () => renderLeaderboard());
   route('/user/:userId', (params) => renderUserProfile(params.userId));
 }
 
@@ -953,6 +1018,7 @@ export function bindReadingPostEvents() {
       await deleteComment(deleteCommentBtn);
       return;
     }
+
   });
 
   document.addEventListener('change', async e => {
