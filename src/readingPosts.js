@@ -113,7 +113,7 @@ function renderPostCard(post, scope) {
             <div>
               <a href="#/user/${h(post.user_id)}" class="reading-post-username">${h(post.display_name || '书友')}</a>
               ${post.member_level > 0 ? `<span class="member-level-badge">Lv.${h(post.member_level)} ${h(post.member_title)}</span>` : ''}
-              <span>${h(formatDateTime(post.created_at))}</span>
+              <span class="reading-post-time">${h(formatDateTime(post.created_at))}</span>
             </div>
           </div>
           <div class="reading-post-tags">
@@ -807,6 +807,15 @@ async function renderUserProfile(userId) {
   const avatarHtml = profile.avatar_url
     ? `<img src="${safeUrl(profile.avatar_url)}" alt="">`
     : h((profile.display_name || '书')[0].toUpperCase());
+
+  // 开创者徽章排最前，其余按获取时间倒序
+  badges.sort((a, b) => {
+    const aFounder = (a.badge_catalog || a).badge_type === 'founder';
+    const bFounder = (b.badge_catalog || b).badge_type === 'founder';
+    if (aFounder && !bFounder) return -1;
+    if (!aFounder && bFounder) return 1;
+    return new Date(b.awarded_at || 0) - new Date(a.awarded_at || 0);
+  });
 
   const badgeItems = badges.length
     ? badges.map(b => {

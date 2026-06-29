@@ -571,17 +571,19 @@
       gap: var(--space-2); margin-bottom: var(--space-2);
     }
     .reading-post-user { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
-    .reading-post-user span { display: block; color: var(--color-text-3); font-size: 0.78rem; }
     .reading-post-username {
       display: block; color: var(--color-text); text-decoration: none;
       font-weight: 600; line-height: 1.35;
     }
     .reading-post-username:hover { color: var(--color-accent); text-decoration: underline; }
+    .reading-post-user .reading-post-time {
+      display: block; color: var(--color-text-3); font-size: 0.78rem;
+    }
     .member-level-badge {
       display: inline-block; font-size: 0.64rem; font-weight: 600; white-space: nowrap;
-      padding: 0 6px; margin-top: 1px; border-radius: 5px;
+      padding: 1px 4px; margin-top: 1px; border-radius: 5px;
       background: linear-gradient(135deg, #c17d4b18, #c17d4b08);
-      color: #b0703e; border: 1px solid #c17d4b28; line-height: 1.4;
+      color: #b0703e; border: 1px solid #c17d4b28; line-height: 1.35;
     }
 
     /* 用户主页 */
@@ -625,10 +627,10 @@
     .user-no-badges { color: var(--color-text-3); font-size: 0.85rem; }
 
     .reading-post-avatar {
-      width: 52px; height: 52px; border-radius: 50%; flex: 0 0 auto;
+      width: 56px; height: 56px; border-radius: 50%; flex: 0 0 auto;
       display: flex; align-items: center; justify-content: center;
       background: var(--color-accent-bg); color: var(--color-accent);
-      font-weight: 700; font-size: 1.2rem; overflow: hidden;
+      font-weight: 700; font-size: 1.35rem; overflow: hidden;
     }
     .reading-post-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .reading-post-tags { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
