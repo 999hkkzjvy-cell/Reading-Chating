@@ -131,8 +131,12 @@ function renderPostCard(post, scope) {
           </div>
         </div>
         <div class="reading-post-foot">
-          <span><i data-lucide="heart"></i> ${h(post.like_count || 0)}</span>
-          <span><i data-lucide="message-circle"></i> ${h(post.comment_count || 0)}</span>
+          <button type="button" class="btn-like ${post.has_liked ? 'liked' : ''}" data-action="toggle-post-like" data-id="${h(post.id)}" title="${post.has_liked ? '取消点赞' : '点赞'}">
+            <i data-lucide="heart"></i><span>${h(post.like_count || 0)}</span>
+          </button>
+          <button type="button" class="btn-comment-toggle" data-action="toggle-post-comments" data-id="${h(post.id)}" title="查看评论">
+            <i data-lucide="message-circle"></i><span>${h(post.comment_count || 0)}</span>
+          </button>
           ${isMine ? `
             <div class="reading-post-actions">
               <button type="button" class="btn btn-ghost btn-sm" data-action="edit-reading-post" data-id="${h(post.id)}">编辑</button>
@@ -142,6 +146,13 @@ function renderPostCard(post, scope) {
               <button type="button" class="btn btn-danger btn-sm" data-action="delete-reading-post" data-id="${h(post.id)}">删除</button>
             </div>
           ` : ''}
+        </div>
+        <div class="reading-post-comments" data-post-comments="${h(post.id)}" style="display:none;">
+          <div class="comments-list" data-comments-list="${h(post.id)}"></div>
+          <form class="comment-form" data-comment-form="${h(post.id)}" novalidate>
+            <textarea name="content" placeholder="写下你的评论..." required rows="2"></textarea>
+            <button type="submit" class="btn btn-sm btn-primary">发送</button>
+          </form>
         </div>
       </div>
     </article>
@@ -608,6 +619,169 @@ async function editReadingPost(form) {
   router.render();
 }
 
+// ---- 点赞 ----
+
+async function toggleLike(button) {
+  const user = store.get('user');
+  if (!user) {
+    toast('请先登录', 'error');
+    router.navigate('/login?redirect=/reading-circle');
+    return;
+  }
+
+  const postId = Number(button.dataset.id);
+  button.disabled = true;
+
+  const { data, error } = await sb.rpc('toggle_post_like', { p_post_id: postId });
+  if (error) {
+    toast(error.message, 'error');
+    button.disabled = false;
+    return;
+  }
+
+  const wasLiked = button.classList.contains('liked');
+  const countSpan = button.querySelector('span');
+  const currentCount = parseInt(countSpan?.textContent) || 0;
+
+  if (data === 'liked') {
+    button.classList.add('liked');
+    if (countSpan) countSpan.textContent = currentCount + 1;
+    button.title = '取消点赞';
+  } else {
+    button.classList.remove('liked');
+    if (countSpan) countSpan.textContent = Math.max(currentCount - 1, 0);
+    button.title = '点赞';
+  }
+
+  button.disabled = false;
+}
+
+// ---- 评论 ----
+
+async function toggleComments(button) {
+  const postId = button.dataset.id;
+  const commentsSection = document.querySelector(`[data-post-comments="${postId}"]`);
+  if (!commentsSection) return;
+
+  const isHidden = commentsSection.style.display === 'none';
+  if (isHidden) {
+    commentsSection.style.display = '';
+    await loadComments(postId);
+    // 聚焦输入框
+    const form = commentsSection.querySelector('form');
+    form?.querySelector('textarea')?.focus();
+  } else {
+    commentsSection.style.display = 'none';
+  }
+}
+
+async function loadComments(postId) {
+  const listEl = document.querySelector(`[data-comments-list="${postId}"]`);
+  if (!listEl) return;
+
+  listEl.innerHTML = '<div class="comments-loading"><i data-lucide="loader"></i></div>';
+  lucide.createIcons();
+
+  const { data, error } = await sb.rpc('list_comments', { p_post_id: Number(postId) });
+  if (error) {
+    listEl.innerHTML = `<div class="comments-error">加载失败：${error.message}</div>`;
+    return;
+  }
+
+  renderComments(listEl, data || [], postId);
+}
+
+function renderComments(listEl, comments, postId) {
+  if (!comments.length) {
+    listEl.innerHTML = '<div class="comments-empty">暂无评论，来写第一条吧</div>';
+    return;
+  }
+
+  const currentUserId = store.get('user')?.id;
+
+  listEl.innerHTML = comments.map(c => `
+    <div class="comment-item">
+      <div class="comment-avatar">${c.avatar_url ? `<img src="${safeUrl(c.avatar_url)}" alt="">` : h((c.display_name || '书')[0].toUpperCase())}</div>
+      <div class="comment-body">
+        <div class="comment-head">
+          <strong>${h(c.display_name || '书友')}</strong>
+          <span>${h(formatDateTime(c.created_at))}</span>
+        </div>
+        <p class="comment-text">${h(c.content)}</p>
+        ${c.user_id === currentUserId ? `
+          <button type="button" class="btn-comment-delete" data-action="delete-comment" data-id="${h(c.id)}" data-post="${h(postId)}" title="删除评论">
+            <i data-lucide="trash-2"></i>
+          </button>
+        ` : ''}
+      </div>
+    </div>
+  `).join('');
+
+  lucide.createIcons();
+}
+
+async function submitComment(form) {
+  const user = store.get('user');
+  if (!user) {
+    toast('请先登录', 'error');
+    router.navigate('/login?redirect=/reading-circle');
+    return;
+  }
+
+  const postId = Number(form.dataset.commentForm);
+  const textarea = form.querySelector('textarea');
+  const content = textarea?.value?.trim();
+  if (!content) return;
+
+  const submitBtn = form.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+
+  const { data: commentId, error } = await sb.rpc('create_comment', {
+    p_post_id: postId,
+    p_content: content
+  });
+
+  if (error) {
+    toast(error.message, 'error');
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+
+  textarea.value = '';
+  if (submitBtn) submitBtn.disabled = false;
+
+  // 更新评论计数
+  const toggleBtn = document.querySelector(`[data-action="toggle-post-comments"][data-id="${postId}"]`);
+  const countSpan = toggleBtn?.querySelector('span');
+  if (countSpan) {
+    countSpan.textContent = (parseInt(countSpan.textContent) || 0) + 1;
+  }
+
+  await loadComments(postId);
+}
+
+async function deleteComment(button) {
+  if (!confirm('确定删除这条评论吗？')) return;
+
+  const commentId = Number(button.dataset.id);
+  const postId = button.dataset.post;
+
+  const { error } = await sb.rpc('delete_comment', { p_comment_id: commentId });
+  if (error) {
+    toast('删除失败：' + error.message, 'error');
+    return;
+  }
+
+  // 更新评论计数
+  const toggleBtn = document.querySelector(`[data-action="toggle-post-comments"][data-id="${postId}"]`);
+  const countSpan = toggleBtn?.querySelector('span');
+  if (countSpan) {
+    countSpan.textContent = Math.max((parseInt(countSpan.textContent) || 1) - 1, 0);
+  }
+
+  await loadComments(postId);
+}
+
 export function registerReadingPostRoutes() {
   route('/reading-circle', () => renderReadingCircle('public'));
   route('/reading-circle/mine', () => renderReadingCircle('mine'));
@@ -659,6 +833,24 @@ export function bindReadingPostEvents() {
       const colorInput = form.querySelector('input[name="mood_color"]');
       if (colorInput) colorInput.value = moodBtn.dataset.color || '';
     }
+
+    const likeBtn = e.target.closest('[data-action="toggle-post-like"]');
+    if (likeBtn) {
+      await toggleLike(likeBtn);
+      return;
+    }
+
+    const commentToggleBtn = e.target.closest('[data-action="toggle-post-comments"]');
+    if (commentToggleBtn) {
+      await toggleComments(commentToggleBtn);
+      return;
+    }
+
+    const deleteCommentBtn = e.target.closest('[data-action="delete-comment"]');
+    if (deleteCommentBtn) {
+      await deleteComment(deleteCommentBtn);
+      return;
+    }
   });
 
   document.addEventListener('change', async e => {
@@ -690,6 +882,10 @@ export function bindReadingPostEvents() {
     if (e.target.id === 'reading-post-edit-form') {
       e.preventDefault();
       await editReadingPost(e.target);
+    }
+    if (e.target.classList.contains('comment-form')) {
+      e.preventDefault();
+      await submitComment(e.target);
     }
   });
 }
