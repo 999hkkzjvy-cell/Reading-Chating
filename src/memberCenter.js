@@ -437,7 +437,7 @@ async function saveBadgeDisplayPreferences(form) {
   if (submitBtn) submitBtn.disabled = false;
 }
 
-function openBadgePreview(button) {
+export function openBadgePreview(button) {
   const title = button.dataset.badgeTitle || '徽章';
   const date = button.dataset.badgeDate || '';
   const imageUrl = button.dataset.badgeImage || '';

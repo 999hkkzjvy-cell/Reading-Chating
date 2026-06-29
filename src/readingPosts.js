@@ -1,6 +1,7 @@
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 import { MOODS } from './constants.js';
 import { loadMemberSummary } from './members.js';
+import { openBadgePreview } from './memberCenter.js';
 import { route, router } from './router.js';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
@@ -110,7 +111,8 @@ function renderPostCard(post, scope) {
           <div class="reading-post-user">
             <div class="reading-post-avatar">${renderAuthorAvatar(post)}</div>
             <div>
-              <strong>${h(post.display_name || '书友')}</strong>
+              <a href="#/user/${h(post.user_id)}" class="reading-post-username">${h(post.display_name || '书友')}</a>
+              ${post.member_level > 0 ? `<span class="member-level-badge">Lv.${h(post.member_level)} ${h(post.member_title)}</span>` : ''}
               <span>${h(formatDateTime(post.created_at))}</span>
             </div>
           </div>
@@ -782,9 +784,100 @@ async function deleteComment(button) {
   await loadComments(postId);
 }
 
+async function renderUserProfile(userId) {
+  const [profileRes, postsRes, badgesRes] = await Promise.all([
+    sb.rpc('get_public_member_profile', { p_user_id: userId }),
+    sb.rpc('list_user_public_posts', { p_user_id: userId }),
+    sb.from('user_badges')
+      .select('*, badge_catalog(*)')
+      .eq('user_id', userId)
+      .is('revoked_at', null)
+      .order('awarded_at', { ascending: false })
+      .limit(6)
+  ]);
+
+  const profile = profileRes.data?.[0];
+  const posts = postsRes.data || [];
+  const badges = badgesRes.data || [];
+
+  if (!profile) {
+    return '<div class="container section"><div class="empty-state"><i data-lucide="user-x"></i><p>用户不存在</p></div></div>';
+  }
+
+  const avatarHtml = profile.avatar_url
+    ? `<img src="${safeUrl(profile.avatar_url)}" alt="">`
+    : h((profile.display_name || '书')[0].toUpperCase());
+
+  const badgeItems = badges.length
+    ? badges.map(b => {
+        const badge = b.badge_catalog || {};
+        const bucket = badge.image_bucket;
+        const path = badge.image_path;
+        let imageUrl = '';
+        if (bucket && path) {
+          const { data: publicUrl } = sb.storage.from(bucket).getPublicUrl(path);
+          imageUrl = publicUrl?.publicUrl || '';
+        }
+        const title = badge.level && badge.title ? `Lv.${badge.level} ${badge.title}` : (badge.title || '徽章');
+        const awardedAt = b.awarded_at ? formatDateTime(b.awarded_at) : '';
+        const imgHtml = imageUrl
+          ? `<img src="${safeUrl(imageUrl)}" alt="${esc(title)}">`
+          : '<i data-lucide="shield"></i>';
+        return `
+          <button type="button" class="user-badge-item"
+            data-action="member-badge-preview"
+            data-badge-title="${esc(title)}"
+            data-badge-date="${esc(awardedAt)}"
+            data-badge-image="${esc(imageUrl)}"
+            title="${esc(title)}">
+            ${imgHtml}
+          </button>`;
+      }).join('')
+    : '<div class="user-no-badges">暂无徽章</div>';
+
+  const statsHtml = `
+    <div class="user-stats">
+      <div class="user-stat"><span>总贡献</span><strong>${h(profile.contribution_total)}</strong></div>
+      <div class="user-stat"><span>本月</span><strong>${h(profile.contribution_month)}</strong></div>
+      <div class="user-stat"><span>本周</span><strong>${h(profile.contribution_week)}</strong></div>
+    </div>`;
+
+  return `
+    <div class="container section user-profile-page">
+      <a href="#/reading-circle" class="user-profile-back"><i data-lucide="arrow-left"></i> 返回书友圈</a>
+
+      <div class="card user-profile-card">
+        <div class="card-body">
+          <div class="user-profile-head">
+            <div class="user-profile-avatar">${avatarHtml}</div>
+            <div class="user-profile-info">
+              <h2>${h(profile.display_name || '书友')}</h2>
+              ${profile.level > 0 ? `<div class="user-profile-level"><span class="member-level-badge">Lv.${h(profile.level)} ${h(profile.title)}</span><span class="user-tier">${h(profile.tier)}</span></div>` : `<div class="user-profile-level"><span class="user-tier">${h(profile.tier)}</span></div>`}
+              ${statsHtml}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card user-badges-card">
+        <div class="card-body">
+          <h3>徽章</h3>
+          <div class="user-badges-grid">${badgeItems}</div>
+        </div>
+      </div>
+
+      <section>
+        <h3 style="margin-bottom:var(--space-3);">${h(profile.display_name || '书友')} 的书友圈</h3>
+        ${posts.length ? renderPosts(posts, 'public') : '<div class="empty-state"><i data-lucide="messages-square"></i><p>还没有公开发布的书友圈动态。</p></div>'}
+      </section>
+    </div>
+  `;
+}
+
 export function registerReadingPostRoutes() {
   route('/reading-circle', () => renderReadingCircle('public'));
   route('/reading-circle/mine', () => renderReadingCircle('mine'));
+  route('/user/:userId', (params) => renderUserProfile(params.userId));
 }
 
 export function bindReadingPostEvents() {
