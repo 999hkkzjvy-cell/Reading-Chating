@@ -135,10 +135,12 @@ async function toggleNotificationPanel() {
   panel.id = 'notification-panel';
   panel.className = 'notification-panel';
 
+  let unseenIds = [];
+
   if (!notifications || !notifications.length) {
     panel.innerHTML = '<div class="notification-empty"><i data-lucide="bell-off"></i><p>暂无消息</p></div>';
   } else {
-    const unseenIds = notifications.filter(n => !n.is_read).map(n => n.id);
+    unseenIds = notifications.filter(n => !n.is_read).map(n => n.id);
 
     panel.innerHTML = `
       <div class="notification-head">
@@ -147,7 +149,7 @@ async function toggleNotificationPanel() {
       </div>
       <div class="notification-list">
         ${notifications.map(n => `
-          <div class="notification-item ${n.is_read ? '' : 'unread'}">
+          <div class="notification-item ${n.is_read ? 'read' : 'unread'}">
             <div class="notification-avatar">${n.actor_avatar ? `<img src="${safeUrl(n.actor_avatar)}" alt="">` : h((n.actor_name || '?')[0])}</div>
             <div class="notification-body">
               <p>
@@ -173,6 +175,11 @@ async function toggleNotificationPanel() {
   // 标记已读
   if (unseenIds.length > 0) {
     await sb.rpc('mark_notifications_read', { p_ids: unseenIds });
+    panel.querySelectorAll('.notification-item.unread').forEach(item => {
+      item.classList.remove('unread');
+      item.classList.add('read');
+    });
+    panel.querySelector('[data-action="mark-all-read"]')?.remove();
     refreshUnreadBadge();
   }
 

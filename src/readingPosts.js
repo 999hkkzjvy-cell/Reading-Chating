@@ -1,266 +1,29 @@
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 import { MOODS } from './constants.js';
 import { loadMemberSummary } from './members.js';
 import { openBadgePreview } from './memberCenter.js';
+import {
+  createComment,
+  createReadingPost,
+  deleteCommentById,
+  deleteReadingPost,
+  fetchDoubanBook,
+  getContributionLeaderboard,
+  getPublicMemberProfile,
+  listComments,
+  listUserPublicPosts,
+  loadReadingPosts,
+  togglePostLike,
+  updateReadingPost,
+  updateReadingPostVisibility
+} from './readingPostApi.js';
+import { clearCachedPost, getCachedPost, renderPosts } from './readingPostCards.js';
+import { renderReadingActivityCalendar } from './readingPostCalendar.js';
+import { formatBookTitle, postTypeOptions, visibilityOptions } from './readingPostUtils.js';
 import { route, router } from './router.js';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { showModal, toast } from './ui.js';
-import { esc, formatDateTime, h, isDoubanBookUrl, proxyImg, safeColor, safeUrl } from './utils.js';
-
-const POST_TYPE_LABELS = {
-  want: '想读',
-  reading: '在读',
-  finished: '已读'
-};
-
-const VISIBILITY_LABELS = {
-  public: '公开',
-  private: '仅自己可见'
-};
-
-const CALENDAR_DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
-
-const postCache = new Map();
-
-async function loadReadingPosts(scope = 'public') {
-  const { data, error } = await sb.rpc('list_reading_posts', { p_scope: scope });
-  if (error) {
-    console.warn('Reading posts unavailable:', error.message);
-    return { posts: [], error };
-  }
-  return { posts: data || [], error: null };
-}
-
-function postTypeOptions(selected = 'reading') {
-  return Object.entries(POST_TYPE_LABELS).map(([value, label]) => (
-    `<option value="${esc(value)}" ${value === selected ? 'selected' : ''}>${h(label)}</option>`
-  )).join('');
-}
-
-function visibilityOptions(selected = 'public') {
-  return Object.entries(VISIBILITY_LABELS).map(([value, label]) => (
-    `<option value="${esc(value)}" ${value === selected ? 'selected' : ''}>${h(label)}</option>`
-  )).join('');
-}
-
-function renderAuthorAvatar(post) {
-  if (post.avatar_url) {
-    return `<img src="${safeUrl(post.avatar_url)}" alt="">`;
-  }
-  return h((post.display_name || '书')[0].toUpperCase());
-}
-
-function formatBookTitle(title) {
-  const clean = String(title || '').trim();
-  if (!clean) return '';
-  return /^《.*》$/.test(clean) ? clean : `《${clean.replace(/^《|》$/g, '')}》`;
-}
-
-function contentLabel(postType) {
-  if (postType === 'finished') return '书评';
-  return '感想';
-}
-
-function ratingEmoji(score) {
-  const n = Number(score);
-  if (isNaN(n)) return '';
-  if (n < 0) return '💩';
-  if (n < 6) return '🤢';
-  if (n < 8) return '🙂';
-  return '👏🏻';
-}
-
-function renderTextBlock(label, text, cls = '') {
-  if (!text) return '';
-  return `
-    <div class="reading-post-content-block ${cls}">
-      <span>${h(label)}</span>
-      <p class="reading-post-content">${h(text)}</p>
-    </div>
-  `;
-}
-
-function renderPostCard(post, scope) {
-  const isMine = store.get('user')?.id === post.user_id;
-  const excerpt = renderTextBlock('摘抄', post.excerpt, 'quote');
-  const content = renderTextBlock(contentLabel(post.post_type), post.content);
-  const rating = post.post_type === 'finished' && post.rating != null
-    ? `<div class="reading-post-rating"><span>评分</span><strong>${ratingEmoji(post.rating)} ${h(post.rating)}</strong></div>`
-    : '';
-  const moodColor = safeColor(post.mood_color, '');
-  const moodStyle = moodColor ? `style="--reading-mood-border:${moodColor};"` : '';
-  const cover = post.cover_url ? `
-    <div class="reading-post-cover">
-      <img src="${safeUrl(proxyImg(post.cover_url))}" alt="${esc(post.book_title)}">
-    </div>
-  ` : '';
-  const titleLink = post.douban_url
-    ? `<a href="${safeUrl(post.douban_url)}" target="_blank" rel="noopener">${h(formatBookTitle(post.book_title))}</a>`
-    : h(formatBookTitle(post.book_title));
-  const bookLine = post.author
-    ? `${titleLink}<span class="reading-post-title-author"> - ${h(post.author)}</span>`
-    : titleLink;
-
-  postCache.set(Number(post.id), post);
-
-  return `
-    <article class="card reading-post-card" id="post-${h(post.id)}" ${moodStyle}>
-      <div class="card-body">
-        <div class="reading-post-head">
-          <div class="reading-post-user">
-            <div class="reading-post-avatar">${renderAuthorAvatar(post)}</div>
-            <div>
-              <a href="#/user/${h(post.user_id)}" class="reading-post-username">${h(post.display_name || '书友')}</a>
-              ${post.member_level > 0 ? `<span class="member-level-badge">Lv.${h(post.member_level)} ${h(post.member_title)}</span>` : ''}
-              <span class="reading-post-time">${h(formatDateTime(post.created_at))}</span>
-            </div>
-          </div>
-          <div class="reading-post-tags">
-            <span class="tag tag-genre">${h(POST_TYPE_LABELS[post.post_type] || post.post_type)}</span>
-            ${scope === 'mine' ? `<span class="tag tag-completed">${h(VISIBILITY_LABELS[post.visibility] || post.visibility)}</span>` : ''}
-          </div>
-        </div>
-        <div class="reading-post-main">
-          ${cover}
-          <div class="reading-post-body">
-            <div class="reading-post-title-row">
-              <h3>${bookLine}</h3>
-              ${rating}
-            </div>
-            ${excerpt}
-            ${content}
-          </div>
-        </div>
-        <div class="reading-post-foot">
-          <button type="button" class="btn-like ${post.has_liked ? 'liked' : ''}" data-action="toggle-post-like" data-id="${h(post.id)}" title="${post.has_liked ? '取消点赞' : '点赞'}">
-            <i data-lucide="heart"></i><span>${h(post.like_count || 0)}</span>
-          </button>
-          <button type="button" class="btn-comment-toggle" data-action="toggle-post-comments" data-id="${h(post.id)}" title="查看评论">
-            <i data-lucide="message-circle"></i><span>${h(post.comment_count || 0)}</span>
-          </button>
-          ${isMine ? `
-            <div class="reading-post-actions">
-              <button type="button" class="btn btn-ghost btn-sm" data-action="edit-reading-post" data-id="${h(post.id)}">编辑</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-post-visibility" data-id="${h(post.id)}" data-next="${post.visibility === 'public' ? 'private' : 'public'}">
-                ${post.visibility === 'public' ? '设为私密' : '设为公开'}
-              </button>
-              <button type="button" class="btn btn-danger btn-sm" data-action="delete-reading-post" data-id="${h(post.id)}">删除</button>
-            </div>
-          ` : ''}
-        </div>
-        <div class="reading-post-comments" data-post-comments="${h(post.id)}" style="display:none;">
-          <div class="comments-list" data-comments-list="${h(post.id)}"></div>
-          <form class="comment-form" data-comment-form="${h(post.id)}" novalidate>
-            <textarea name="content" placeholder="写下你的评论..." required rows="2"></textarea>
-            <button type="submit" class="btn btn-sm btn-primary">发送</button>
-          </form>
-        </div>
-      </div>
-    </article>
-  `;
-}
-
-function renderPosts(posts, scope) {
-  if (!posts.length) {
-    return `
-      <div class="empty-state">
-        <i data-lucide="messages-square"></i>
-        <p>${scope === 'mine' ? '你还没有发布书友圈动态。' : '还没有公开书友圈动态。'}</p>
-      </div>
-    `;
-  }
-
-  return `<div class="reading-post-list">${posts.map(post => renderPostCard(post, scope)).join('')}</div>`;
-}
-
-function buildDailyActivity(posts) {
-  const map = new Map();
-  posts.forEach(post => {
-    const dateKey = dayjs(post.created_at).format('YYYY-MM-DD');
-    const current = map.get(dateKey) || { count: 0, latestAt: 0, moodColor: '' };
-    const createdAt = new Date(post.created_at).getTime();
-    current.count += 1;
-    if (!current.latestAt || createdAt >= current.latestAt) {
-      current.latestAt = createdAt;
-      current.moodColor = safeColor(post.mood_color, '');
-    }
-    map.set(dateKey, current);
-  });
-  return map;
-}
-
-function renderReadingActivityCalendar(posts, scope) {
-  const now = dayjs();
-  const todayStr = now.format('YYYY-MM-DD');
-  const firstDay = now.startOf('month');
-  const daysInMonth = firstDay.daysInMonth();
-  const startDayOfWeek = firstDay.day();
-  const prevMonthDays = firstDay.subtract(1, 'day').daysInMonth();
-  const activity = buildDailyActivity(posts);
-  const monthPrefix = now.format('YYYY-MM');
-  const monthTotal = Array.from(activity.entries())
-    .filter(([dateKey]) => dateKey.startsWith(monthPrefix))
-    .reduce((sum, [, item]) => sum + item.count, 0);
-  const todayCount = activity.get(todayStr)?.count || 0;
-
-  let cells = CALENDAR_DAY_NAMES.map(d => `<div class="day-name">${d}</div>`).join('');
-  for (let i = startDayOfWeek - 1; i >= 0; i--) {
-    cells += `<div class="day other-month"><span>${prevMonthDays - i}</span></div>`;
-  }
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateKey = firstDay.date(d).format('YYYY-MM-DD');
-    const dayActivity = activity.get(dateKey);
-    let cls = 'day';
-    if (dayActivity) {
-      cls += ' checked';
-    } else if (dateKey === todayStr) {
-      cls += ' today';
-    } else if (dayjs(dateKey).isAfter(now, 'day')) {
-      cls += ' future';
-    }
-    const moodColor = safeColor(dayActivity?.moodColor, '#c17d4b');
-    const style = dayActivity ? `style="--mood-dot:${moodColor}"` : '';
-    const title = dayActivity ? `title="${dateKey} · ${dayActivity.count} 条动态"` : '';
-    cells += `<div class="${cls}" ${style} ${title}><span>${d}</span></div>`;
-  }
-
-  const totalCells = startDayOfWeek + daysInMonth;
-  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
-  for (let d = 1; d <= remaining; d++) {
-    cells += `<div class="day other-month"><span>${d}</span></div>`;
-  }
-
-  return `
-    <section class="card reading-circle-calendar-card">
-      <div class="card-body">
-        <div class="member-panel-head">
-          <div>
-            <h3>本月书友圈</h3>
-            <span>${scope === 'mine' ? '我的编写情况' : '广场编写情况'}</span>
-          </div>
-        </div>
-        <div class="reading-circle-calendar-stats">
-          <div>
-            <span>今日</span>
-            <strong>${h(todayCount)} 条</strong>
-          </div>
-          <div>
-            <span>${now.format('M月')}</span>
-            <strong>${h(monthTotal)} 条</strong>
-          </div>
-        </div>
-        <div class="calendar reading-circle-calendar">
-          <div class="calendar-header">
-            <h4>${now.format('YYYY年M月')}</h4>
-          </div>
-          <div class="calendar-grid">${cells}</div>
-        </div>
-      </div>
-    </section>
-  `;
-}
+import { esc, formatDateTime, h, isDoubanBookUrl, proxyImg, safeUrl } from './utils.js';
 
 function renderPostComposer() {
   const user = store.get('user');
@@ -483,21 +246,7 @@ async function fetchDoubanBookMeta(form) {
   }
 
   try {
-    const resp = await fetch(`${SUPABASE_URL}/functions/v1/fetch-douban-book`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-      },
-      body: JSON.stringify({ url })
-    });
-    const result = await resp.json().catch(() => ({}));
-    if (!resp.ok || !result?.success || !result?.data?.title) {
-      throw new Error(result?.error || result?.detail || '未抓取到书籍信息');
-    }
-
-    const book = result.data;
+    const book = await fetchDoubanBook(url);
     titleInput.value = book.title || '';
     authorInput.value = book.author || '';
     coverInput.value = book.cover_url || '';
@@ -554,7 +303,7 @@ async function submitReadingPost(form) {
   const submitBtn = form.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
 
-  const { error } = await sb.rpc('create_reading_post', payload);
+  const { error } = await createReadingPost(payload);
   if (error) {
     toast('发布失败：' + error.message, 'error');
     if (submitBtn) submitBtn.disabled = false;
@@ -569,10 +318,7 @@ async function submitReadingPost(form) {
 
 async function updatePostVisibility(button) {
   const { id, next } = button.dataset;
-  const { error } = await sb.rpc('update_reading_post_visibility', {
-    p_post_id: Number(id),
-    p_visibility: next
-  });
+  const { error } = await updateReadingPostVisibility(id, next);
   if (error) {
     toast('修改失败：' + error.message, 'error');
     return;
@@ -584,9 +330,7 @@ async function updatePostVisibility(button) {
 
 async function deletePost(button) {
   if (!confirm('确定删除这条动态吗？删除后会回收对应贡献值。')) return;
-  const { error } = await sb.rpc('delete_reading_post', {
-    p_post_id: Number(button.dataset.id)
-  });
+  const { error } = await deleteReadingPost(button.dataset.id);
   if (error) {
     toast('删除失败：' + error.message, 'error');
     return;
@@ -617,7 +361,7 @@ async function editReadingPost(form) {
   const submitBtn = form.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
 
-  const { error } = await sb.rpc('update_reading_post', payload);
+  const { error } = await updateReadingPost(payload);
   if (error) {
     toast('保存失败：' + error.message, 'error');
     if (submitBtn) submitBtn.disabled = false;
@@ -625,7 +369,7 @@ async function editReadingPost(form) {
   }
 
   document.querySelector('#modal-container .modal-overlay')?.remove();
-  postCache.delete(postId);
+  clearCachedPost(postId);
   await loadMemberSummary(store.get('user')?.id);
   toast('动态已更新');
   router.render();
@@ -644,7 +388,7 @@ async function toggleLike(button) {
   const postId = Number(button.dataset.id);
   button.disabled = true;
 
-  const { data, error } = await sb.rpc('toggle_post_like', { p_post_id: postId });
+  const { data, error } = await togglePostLike(postId);
   if (error) {
     toast(error.message, 'error');
     button.disabled = false;
@@ -694,7 +438,7 @@ async function loadComments(postId) {
   listEl.innerHTML = '<div class="comments-loading"><i data-lucide="loader"></i></div>';
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-  const { data, error } = await sb.rpc('list_comments', { p_post_id: Number(postId) });
+  const { data, error } = await listComments(postId);
   if (error) {
     listEl.innerHTML = `<div class="comments-error">加载失败：${error.message}</div>`;
     return;
@@ -744,17 +488,21 @@ async function submitComment(form) {
   const textarea = form.querySelector('textarea');
   const content = textarea?.value?.trim();
   if (!content) return;
+  if (content.length > 800) {
+    toast('评论最多 800 字', 'error');
+    return;
+  }
 
   const submitBtn = form.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
 
-  const { data: commentId, error } = await sb.rpc('create_comment', {
-    p_post_id: postId,
-    p_content: content
-  });
+  const { data: commentId, error } = await createComment(postId, content);
 
   if (error) {
-    toast(error.message, 'error');
+    const message = error.message === 'Duplicate comment too soon'
+      ? '请不要短时间内重复发送相同评论'
+      : (error.message === 'Comment content exceeds 800 characters' ? '评论最多 800 字' : error.message);
+    toast(message, 'error');
     if (submitBtn) submitBtn.disabled = false;
     return;
   }
@@ -778,7 +526,7 @@ async function deleteComment(button) {
   const commentId = Number(button.dataset.id);
   const postId = button.dataset.post;
 
-  const { error } = await sb.rpc('delete_comment', { p_comment_id: commentId });
+  const { error } = await deleteCommentById(commentId);
   if (error) {
     toast('删除失败：' + error.message, 'error');
     return;
@@ -796,8 +544,8 @@ async function deleteComment(button) {
 
 async function renderUserProfile(userId) {
   const [profileRes, postsRes, badgesRes] = await Promise.all([
-    sb.rpc('get_public_member_profile', { p_user_id: userId }),
-    sb.rpc('list_user_public_posts', { p_user_id: userId }),
+    getPublicMemberProfile(userId),
+    listUserPublicPosts(userId),
     sb.from('user_badges')
       .select('*, badge_catalog(*)')
       .eq('user_id', userId)
@@ -895,9 +643,9 @@ async function renderUserProfile(userId) {
 
 async function renderLeaderboard() {
   const [totalRes, monthRes, weekRes] = await Promise.all([
-    sb.rpc('get_contribution_leaderboard', { p_type: 'total' }),
-    sb.rpc('get_contribution_leaderboard', { p_type: 'month' }),
-    sb.rpc('get_contribution_leaderboard', { p_type: 'week' })
+    getContributionLeaderboard('total'),
+    getContributionLeaderboard('month'),
+    getContributionLeaderboard('week')
   ]);
 
   const tabs = [
@@ -973,7 +721,7 @@ export function bindReadingPostEvents() {
 
     const editBtn = e.target.closest('[data-action="edit-reading-post"]');
     if (editBtn) {
-      const post = postCache.get(Number(editBtn.dataset.id));
+      const post = getCachedPost(editBtn.dataset.id);
       if (post) {
         showReadingPostEditor(post);
       } else {

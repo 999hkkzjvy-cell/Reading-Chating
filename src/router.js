@@ -12,6 +12,10 @@ export function setAfterRouteRender(fn) {
   afterRouteRender = fn || (() => {});
 }
 
+function pathMatchesPrefix(path, prefix) {
+  return path === prefix || path.startsWith(prefix + '/');
+}
+
 export const router = {
   navigate(path) {
     location.hash = '#' + path;
@@ -54,14 +58,15 @@ export const router = {
   async render() {
     try {
       const path = this.currentPath();
+      const cleanPath = path.replace(/\?.*$/, '');
       const matched = this.match(path);
 
-      const authRequired = ['/member', '/profile', '/profile/edit', '/reading-circle/mine', '/admin'].some(p => path.startsWith(p));
+      const authRequired = ['/member', '/profile', '/reading-circle/mine', '/admin'].some(p => pathMatchesPrefix(cleanPath, p));
       if (authRequired && !store.get('user')) {
         return this.navigate('/login?redirect=' + encodeURIComponent(path));
       }
 
-      if (path.startsWith('/admin')) {
+      if (pathMatchesPrefix(cleanPath, '/admin')) {
         const user = store.get('user');
         if (!user) {
           return this.navigate('/login?redirect=' + encodeURIComponent(path));
@@ -91,8 +96,13 @@ export const router = {
   },
 
   updateNav(path) {
+    const cleanPath = path.replace(/\?.*$/, '');
     document.querySelectorAll('#nav-links a').forEach(a => {
-      a.classList.toggle('active', a.dataset.route && path.startsWith(a.dataset.route));
+      const routePath = a.dataset.route;
+      const isActive = routePath === '/'
+        ? cleanPath === '/'
+        : !!routePath && pathMatchesPrefix(cleanPath, routePath);
+      a.classList.toggle('active', isActive);
     });
   }
 };

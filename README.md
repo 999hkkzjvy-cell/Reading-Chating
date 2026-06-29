@@ -4,7 +4,7 @@
 
 ## 技术栈
 
-- **前端**：单文件 HTML（内联 CSS + JS）
+- **前端**：零构建原生 ES Modules（`index.html` + `src/*.js` + `src/styles.css`）
 - **后端**：Supabase（认证、数据库、存储、Edge Functions）
 - **CDN**：Inter + Noto Serif SC 字体、Lucide Icons、marked.js、dayjs、Supabase JS SDK
 
@@ -49,11 +49,11 @@ supabase secrets set SB_SERVICE_ROLE_KEY=你的-service-role-key
 
 ### 3. 配置 Supabase 公钥
 
-编辑 `index.html` 顶部 `<script type="module">` 中的两行：
+编辑 `src/config.js`：
 
 ```javascript
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';       // 替换为你的 Project URL
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // 替换为你的 anon key
+export const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+export const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 ```
 
 ### 4. 部署到静态托管
@@ -74,11 +74,16 @@ const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // 替换为你的 anon key
 
 ### 6. 现有数据库升级
 
-如果你已经部署过旧版本，请按顺序执行 `sql/migrate-v2.sql` 到 `sql/migrate-v8-profile-privacy.sql`。其中：
+如果你已经部署过旧版本，请按顺序执行尚未部署过的 `sql/migrate-v*.sql`。当前主要迁移包括：
 
 - v5 增加新书速递和想共读投票
 - v7 增加豆瓣书籍详情缓存，并收紧缓存写入权限
 - v8 收紧用户资料读取权限，微信号等私密字段只允许本人和管理员读取
+- v9-v12 增加会员等级、票券、徽章展示和周贡献排名
+- v13-v18 增加书友圈、贡献值、摘抄/心情/评分和动态编辑
+- v19-v24 增加点赞评论、个人主页、贡献榜、消息通知和评论防刷
+
+更详细的部署顺序见 `sql/deploy-order.md`。
 
 ## 功能清单
 
@@ -87,7 +92,9 @@ const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // 替换为你的 anon key
 | 首页 | 共读计划介绍 + 群规 + 当前共读书籍 |
 | 书库 | 按类型/状态筛选，详情页汇聚全部共读信息 |
 | 活动库 | 线下活动展示（海报/地点/嘉宾/价格） |
-| 个人中心 | 资料编辑 + 每日阅读签到日历 |
+| 会员中心 | 等级、贡献值、徽章、票券、已解锁资源 |
+| 资料与签到 | 资料编辑 + 每日阅读签到日历 |
+| 书友圈 | 阅读动态、摘抄/感想、心情、评分、点赞、评论、贡献榜 |
 | 管理后台 | 群规、书籍、活动 CRUD |
 | 新书速递 | 豆瓣新书同步 + 想共读投票 |
 | 西语文学 | 拉丁美洲文学互动地图 |
@@ -97,8 +104,20 @@ const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // 替换为你的 anon key
 
 | 文件 | 用途 |
 |------|------|
-| `index.html` | 主应用（单文件） |
+| `index.html` | 应用壳、导航、CDN 脚本和样式入口 |
+| `src/app.js` | 应用初始化、首页路由和全局事件 |
+| `src/config.js` | Supabase 项目 URL 和 anon key |
+| `src/*.js` | 前端页面、路由、数据访问和交互模块 |
 | `sql/supabase-schema.sql` | 数据库建表 + 种子数据 |
-| `sql/migrate-*.sql` | 旧数据库升级脚本 |
+| `sql/migrate-v*.sql` | 数据库升级脚本 |
+| `sql/deploy-order.md` | 当前推荐 SQL 部署顺序 |
 | `supabase/functions/*/index.ts` | Supabase Edge Functions |
 | `README.md` | 本文件 |
+
+## 本地检查
+
+项目没有构建步骤。提交前建议运行：
+
+```bash
+npm run check
+```
