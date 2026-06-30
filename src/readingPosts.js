@@ -11,6 +11,8 @@ import {
   getPublicMemberProfile,
   isFollowing,
   listComments,
+  listFollowers,
+  listFollowing,
   listUserPublicPosts,
   loadReadingPosts,
   searchReadingPosts,
@@ -855,11 +857,67 @@ async function handleFollow(button) {
   button.disabled = false;
 }
 
+// ---- 好友列表 ----
+
+function renderFriendRow(f) {
+  const avatarHtml = f.avatar_url
+    ? `<img src="${safeUrl(f.avatar_url)}" alt="">`
+    : h((f.display_name || '?')[0]);
+  return `
+    <a href="#/user/${h(f.user_id)}" class="friend-row">
+      <div class="friend-avatar">${avatarHtml}</div>
+      <div class="friend-info">
+        <strong>${h(f.display_name)}</strong>
+        <div>
+          ${f.level > 0 ? `<span class="member-level-badge">Lv.${h(f.level)} ${h(f.title)}</span>` : ''}
+          ${f.city ? `<span class="friend-city"><i data-lucide="map-pin"></i> ${h(f.city)}</span>` : ''}
+        </div>
+      </div>
+    </a>`;
+}
+
+async function renderFriendList() {
+  const user = store.get('user');
+  if (!user) return '<div class="container section"><div class="empty-state"><p>请先登录</p></div></div>';
+
+  const [followingRes, followersRes] = await Promise.all([
+    listFollowing(user.id),
+    listFollowers(user.id)
+  ]);
+
+  const following = followingRes.data || [];
+  const followers = followersRes.data || [];
+
+  const renderSection = (title, list, emptyText) => `
+    <div class="friend-section">
+      <h3>${title}<span>${h(list.length)} 人</span></h3>
+      ${list.length ? list.map(renderFriendRow).join('') : `<div class="empty-state"><p>${emptyText}</p></div>`}
+    </div>
+  `;
+
+  return `
+    <div class="container section friend-list-page">
+      <div class="member-heading">
+        <div>
+          <p class="member-eyebrow">个人中心</p>
+          <h1>我的好友</h1>
+        </div>
+        <a href="#/member" class="btn btn-outline"><i data-lucide="arrow-left"></i> 返回个人中心</a>
+      </div>
+      <div class="friend-sections">
+        ${renderSection('我关注的', following, '还没有关注任何人')}
+        ${renderSection('关注我的', followers, '还没有粉丝')}
+      </div>
+    </div>
+  `;
+}
+
 export function registerReadingPostRoutes() {
   route('/reading-circle', () => renderReadingCircle('public'));
   route('/reading-circle/friends', () => renderReadingCircle('friends'));
   route('/reading-circle/mine', () => renderReadingCircle('mine'));
   route('/reading-circle/leaderboard', () => renderLeaderboard());
+  route('/member/friends', () => renderFriendList());
   route('/user/:userId', (params) => renderUserProfile(params.userId));
 }
 

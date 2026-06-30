@@ -94,3 +94,11 @@ export function isFollowing(userId) {
 export function getFollowCounts(userId) {
   return sb.rpc('get_follow_counts', { p_user_id: userId });
 }
+
+export function listFollowing(userId) {
+  return sb.rpc('list_following', { p_user_id: userId });
+}
+
+export function listFollowers(userId) {
+  return sb.rpc('list_followers', { p_user_id: userId });
+}
