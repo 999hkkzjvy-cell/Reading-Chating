@@ -29,7 +29,8 @@ export async function loadMemberSummary(userId = store.get('user')?.id) {
       { data: nextLevel },
       { data: badgeDisplayPreferences },
       { data: weeklyRank },
-      { data: accessGrants }
+      { data: accessGrants },
+      { data: riddleAnswers }
     ] = await Promise.all([
       sb
         .from('view_passes')
@@ -64,7 +65,12 @@ export async function loadMemberSummary(userId = store.get('user')?.id) {
         .select('*, books(title, author)')
         .eq('user_id', userId)
         .is('revoked_at', null)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }),
+      sb
+        .from('badge_riddle_answers')
+        .select('badge_key, solved_at, awarded_points')
+        .eq('user_id', userId)
+        .order('solved_at', { ascending: false })
     ]);
 
     const safeViewPasses = viewPasses || [];
@@ -83,6 +89,7 @@ export async function loadMemberSummary(userId = store.get('user')?.id) {
       accessGrants: accessGrants || [],
       badges: badges || [],
       badgeDisplayPreferences: badgeDisplayPreferences || [],
+      riddleAnswers: riddleAnswers || [],
       weeklyRank: Array.isArray(weeklyRank) ? (weeklyRank[0] || null) : (weeklyRank || null)
     };
 

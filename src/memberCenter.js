@@ -4,6 +4,7 @@ import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { toast } from './ui.js';
 import { esc, formatDate, formatDateTime, h, safeUrl } from './utils.js';
+import { getBadgeRiddle } from './badgeRiddles.js';
 
 function storagePublicUrl(bucket, path) {
   if (!bucket || !path) return '';
@@ -305,6 +306,7 @@ function renderBadgeList(badges, opts = {}) {
   const totalCount = opts.totalCount ?? sortedBadges.length;
   const showMore = opts.showMore && totalCount > 0;
   const moreText = totalCount > opts.limit ? '更多徽章' : '管理徽章';
+  const answeredKeys = new Set((opts.riddleAnswers || []).map(row => row.badge_key));
 
   return `
     <div class="member-badge-grid">
@@ -321,8 +323,11 @@ function renderBadgeList(badges, opts = {}) {
             data-action="member-badge-preview"
             data-badge-title="${esc(title)}"
             data-badge-date="${esc(awardedAt)}"
+            data-badge-key="${esc(row.badge_key)}"
             data-badge-image="${esc(imageUrl)}"
             data-badge-back-image="${esc(backImageUrl)}"
+            data-badge-can-answer="${opts.canAnswer ? 'true' : 'false'}"
+            data-badge-riddle-solved="${answeredKeys.has(row.badge_key) ? 'true' : 'false'}"
           >
             <div class="member-badge-image">
               ${imageUrl ? `<img src="${safeUrl(imageUrl)}" alt="${esc(title)}">` : '<i data-lucide="badge"></i>'}
@@ -342,6 +347,7 @@ function renderBadgeList(badges, opts = {}) {
 function renderSelectableBadgeList(member) {
   const badges = sortBadgesForCatalogOrder(member?.badges || []);
   const selectedKeys = new Set(selectedDisplayBadgeKeys(member));
+  const answeredKeys = new Set((member?.riddleAnswers || []).map(row => row.badge_key));
 
   if (!badges.length) {
     return `
@@ -384,8 +390,11 @@ function renderSelectableBadgeList(member) {
                 data-action="member-badge-preview"
                 data-badge-title="${esc(title)}"
                 data-badge-date="${esc(awardedAt)}"
+                data-badge-key="${esc(row.badge_key)}"
                 data-badge-image="${esc(imageUrl)}"
                 data-badge-back-image="${esc(backImageUrl)}"
+                data-badge-can-answer="true"
+                data-badge-riddle-solved="${answeredKeys.has(row.badge_key) ? 'true' : 'false'}"
               >
                 ${imageUrl ? `<img src="${safeUrl(imageUrl)}" alt="${esc(title)}">` : '<i data-lucide="badge"></i>'}
               </button>
@@ -482,13 +491,100 @@ async function saveBadgeDisplayPreferences(form) {
   if (submitBtn) submitBtn.disabled = false;
 }
 
+function renderBadgeRiddlePanel({ badgeKey, canAnswer, solved }) {
+  const riddle = getBadgeRiddle(badgeKey);
+  if (!riddle) return '';
+
+  const lines = riddle.lines.map(line => `<span>${h(line)}</span>`).join('');
+  const answerHtml = solved
+    ? '<div class="badge-riddle-solved"><i data-lucide="check-circle-2"></i><span>已答对，贡献值奖励已领取</span></div>'
+    : canAnswer
+      ? `
+        <form class="badge-riddle-form" data-badge-key="${esc(badgeKey)}">
+          <label for="badge-riddle-answer-${esc(badgeKey)}">输入答案</label>
+          <div>
+            <input
+              id="badge-riddle-answer-${esc(badgeKey)}"
+              name="answer"
+              type="text"
+              autocomplete="off"
+              placeholder="写出作者或作品关键词"
+              maxlength="80"
+              required
+            >
+            <button type="submit" class="btn btn-primary btn-sm">提交</button>
+          </div>
+          <p data-role="badge-riddle-feedback">答对奖励 10 贡献值；答错不扣分。</p>
+        </form>
+      `
+      : '<p class="badge-riddle-note">在自己的会员中心答对后，可领取 10 贡献值。</p>';
+
+  return `
+    <div class="badge-riddle-panel">
+      <div class="badge-riddle-title">
+        <i data-lucide="sparkles"></i>
+        <span>成就谜面</span>
+      </div>
+      <div class="badge-riddle-poem">${lines}</div>
+      ${answerHtml}
+    </div>
+  `;
+}
+
+async function submitBadgeRiddleAnswer(form) {
+  const badgeKey = form.dataset.badgeKey || '';
+  const input = form.querySelector('input[name="answer"]');
+  const feedback = form.querySelector('[data-role="badge-riddle-feedback"]');
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const answer = input?.value?.trim() || '';
+
+  if (!badgeKey || !answer) return;
+
+  if (submitBtn) submitBtn.disabled = true;
+  if (feedback) feedback.textContent = '正在核对答案...';
+
+  const { data, error } = await sb.rpc('submit_badge_riddle_answer', {
+    p_badge_key: badgeKey,
+    p_answer: answer
+  });
+
+  if (error) {
+    const missingRpc = /submit_badge_riddle_answer/i.test(error.message || '');
+    if (feedback) feedback.textContent = missingRpc
+      ? '请先部署 v31 徽章谜面答题 SQL。'
+      : `提交失败：${error.message}`;
+    toast(missingRpc ? '请先部署 v31 徽章谜面答题 SQL。' : `提交失败：${error.message}`, 'error');
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+
+  const result = Array.isArray(data) ? data[0] : data;
+  if (result?.correct || result?.already_solved) {
+    document.querySelectorAll('[data-badge-key]').forEach(el => {
+      if (el.dataset.badgeKey === badgeKey) el.dataset.badgeRiddleSolved = 'true';
+    });
+    form.outerHTML = '<div class="badge-riddle-solved"><i data-lucide="check-circle-2"></i><span>已答对，贡献值奖励已领取</span></div>';
+    lucide.createIcons();
+    const user = store.get('user');
+    if (user) await loadMemberSummary(user.id);
+    toast(result?.message || '答对了，已增加 10 贡献值');
+    return;
+  }
+
+  if (feedback) feedback.textContent = result?.message || '答案还不对，可以再试一次。';
+  if (submitBtn) submitBtn.disabled = false;
+}
+
 export function openBadgePreview(button) {
   const title = button.dataset.badgeTitle || '徽章';
   const date = button.dataset.badgeDate || '';
+  const badgeKey = button.dataset.badgeKey || '';
   const imageUrl = button.dataset.badgeImage || '';
   const backImageUrl = button.dataset.badgeBackImage || '';
   if (!imageUrl) return;
   const canFlip = !!backImageUrl;
+  const canAnswer = button.dataset.badgeCanAnswer === 'true';
+  const solved = button.dataset.badgeRiddleSolved === 'true';
 
   document.querySelector('.badge-preview-overlay')?.remove();
   const overlay = document.createElement('div');
@@ -515,6 +611,7 @@ export function openBadgePreview(button) {
         <p>${h(date)}</p>
         ${canFlip ? '<p class="badge-preview-hint">点击徽章翻转查看背面</p>' : ''}
       </div>
+      ${renderBadgeRiddlePanel({ badgeKey, canAnswer, solved })}
     </div>
   `;
   document.body.appendChild(overlay);
@@ -531,6 +628,11 @@ export function bindMemberCenterEvents() {
     if (e.target.id === 'badge-display-form') {
       e.preventDefault();
       await saveBadgeDisplayPreferences(e.target);
+      return;
+    }
+    if (e.target.classList.contains('badge-riddle-form')) {
+      e.preventDefault();
+      await submitBadgeRiddleAnswer(e.target);
     }
   });
 
@@ -628,7 +730,9 @@ export function registerMemberCenterRoutes() {
                 limit: 6,
                 showMore: true,
                 totalCount: member?.badges?.length || 0,
-                preserveOrder: true
+                preserveOrder: true,
+                riddleAnswers: member?.riddleAnswers || [],
+                canAnswer: true
               })}
             </div>
           </section>

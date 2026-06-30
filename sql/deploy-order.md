@@ -26,7 +26,11 @@
 18. `sql/migrate-v25-resource-access.sql`
 19. `sql/migrate-v26-co-reading-claims.sql`
 20. `sql/migrate-v27-readable-co-reading-passwords.sql`
-21. `sql/migrate-v28-badge-back-images.sql`
+21. `sql/migrate-v28-avatar-upload-profile.sql`
+22. `sql/migrate-v28-badge-back-images.sql`
+23. `sql/migrate-v29-friends-search.sql`
+24. `sql/migrate-v30-friend-lists.sql`
+25. `sql/migrate-v31-badge-riddle-answers.sql`
 
 `supabase-schema.sql` 已包含早期基础结构，例如用户资料、站点配置、书库、活动、新书速递、豆瓣缓存、每日签到、`covers`/`files` Storage policy 等。新项目初始化后不要再重复执行 `migrate-v2.sql` 到 `migrate-v8-profile-privacy.sql`，除非你明确知道当前库缺少对应对象。
 
@@ -61,7 +65,11 @@ migrate-v24-comment-anti-spam-notification-dedupe.sql
 migrate-v25-resource-access.sql
 migrate-v26-co-reading-claims.sql
 migrate-v27-readable-co-reading-passwords.sql
+migrate-v28-avatar-upload-profile.sql
 migrate-v28-badge-back-images.sql
+migrate-v29-friends-search.sql
+migrate-v30-friend-lists.sql
+migrate-v31-badge-riddle-answers.sql
 ```
 
 如果不确定某个迁移是否已执行，先检查目标表、函数或字段是否存在。不要在同一个库里重复执行没有 `DROP POLICY IF EXISTS` 或 `CREATE POLICY` 防重处理的早期迁移。

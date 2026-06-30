@@ -638,8 +638,10 @@ async function renderUserProfile(userId) {
             data-action="member-badge-preview"
             data-badge-title="${esc(title)}"
             data-badge-date="${esc(awardedAt)}"
+            data-badge-key="${esc(b.badge_key)}"
             data-badge-image="${esc(imageUrl)}"
             data-badge-back-image="${esc(backImageUrl)}"
+            data-badge-can-answer="false"
             title="${esc(title)}">
             ${imgHtml}
           </button>`;

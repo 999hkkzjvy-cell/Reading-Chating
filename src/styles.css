@@ -496,7 +496,7 @@
     .badge-preview-overlay { background: rgba(18,14,12,0.58); }
     .badge-preview-modal {
       position: relative; max-width: min(620px, 92vw); padding: var(--space-3);
-      overflow: visible; animation: badgePreviewIn 0.24s ease-out;
+      max-height: 90vh; overflow-y: auto; animation: badgePreviewIn 0.24s ease-out;
     }
     .badge-flip-stage {
       width: min(440px, 72vw); aspect-ratio: 1;
@@ -526,6 +526,50 @@
     .badge-preview-caption .badge-preview-hint {
       margin-top: 4px; font-size: 0.78rem; color: var(--color-text-3);
     }
+    .badge-riddle-panel {
+      margin-top: var(--space-3); padding: var(--space-3);
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-bg);
+    }
+    .badge-riddle-title {
+      display: flex; align-items: center; gap: 6px;
+      margin-bottom: var(--space-2); color: var(--color-accent);
+      font-size: 0.86rem; font-weight: 700;
+    }
+    .badge-riddle-title i { width: 16px; height: 16px; }
+    .badge-riddle-poem {
+      display: grid; gap: 4px; padding-left: 12px;
+      border-left: 3px solid rgba(193,125,75,0.28);
+      color: var(--color-text-2); font-size: 0.9rem; line-height: 1.65;
+    }
+    .badge-riddle-poem span { display: block; }
+    .badge-riddle-form {
+      margin-top: var(--space-2); display: grid; gap: 8px;
+    }
+    .badge-riddle-form label {
+      font-size: 0.82rem; color: var(--color-text-3); font-weight: 600;
+    }
+    .badge-riddle-form > div {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+      align-items: center;
+    }
+    .badge-riddle-form input {
+      width: 100%; min-height: 38px; padding: 8px 10px;
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-surface); color: var(--color-text);
+    }
+    .badge-riddle-form input:focus {
+      outline: none; border-color: rgba(193,125,75,0.52);
+      box-shadow: 0 0 0 3px rgba(193,125,75,0.12);
+    }
+    .badge-riddle-form p, .badge-riddle-note {
+      margin: 0; color: var(--color-text-3); font-size: 0.78rem; line-height: 1.5;
+    }
+    .badge-riddle-solved {
+      display: flex; align-items: center; gap: 6px; margin-top: var(--space-2);
+      color: #4f7d58; font-size: 0.86rem; font-weight: 700;
+    }
+    .badge-riddle-solved i { width: 16px; height: 16px; }
     .badge-preview-close {
       position: absolute; top: 10px; right: 10px; z-index: 1;
       width: 34px; height: 34px; border: none; border-radius: 50%;
