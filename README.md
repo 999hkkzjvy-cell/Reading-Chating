@@ -1,123 +1,125 @@
 # 以读攻独 · 共读资源站
 
-在线共读社群资源网站。前端零构建，后端使用 Supabase（数据库、认证、存储、Edge Functions）。
+> 用阅读抵御孤独，遇见同频的书友。有深度、有温度的线上共读社群。
 
-## 技术栈
+---
 
-- **前端**：零构建原生 ES Modules（`index.html` + `src/*.js` + `src/styles.css`）
-- **后端**：Supabase（认证、数据库、存储、Edge Functions）
-- **CDN**：Inter + Noto Serif SC 字体、Lucide Icons、marked.js、dayjs、Supabase JS SDK
+## 项目概览
 
-## 部署步骤
+以读攻独是一个面向西语文学爱好者的线上共读社群网站，支持书籍管理、共读活动、书友圈交流、会员成长与徽章系统。
 
-### 1. 创建 Supabase 项目
+- **网站地址**：https://zugadhgezmqrnlwogomw.supabase.co
+- **技术栈**：单文件 SPA（HTML+CSS+JS）+ Supabase（Auth / DB / Storage / Edge Functions）
+- **CDN 依赖**：Inter + Noto Serif SC / Lucide Icons / marked.js / DOMPurify / dayjs / Leaflet.js
 
-1. 访问 [supabase.com](https://supabase.com) 注册/登录
-2. 创建新项目，记下 **Project URL** 和 **anon public key**
-3. 进入 SQL Editor，粘贴 `sql/supabase-schema.sql` 的全部内容并执行
-4. 进入 Authentication → Settings：
-   - 启用 Email 登录（关闭 "Confirm email" 可跳过邮箱验证，方便测试）
+---
 
-### 2. 部署 Edge Functions
+## 功能概览
 
-项目包含 4 个 Supabase Edge Functions：
+### 核心功能
+- 📚 **共读书库**：书籍 CRUD 管理后台（21 字段 + JSONB 构建器）、详情页 6 标签（简介/领读人/版本建议/时间计划/活动安排/资源材料）
+- 🗓️ **线下活动**：活动管理（CRUD）、8 种分类标签、活动状态按钮（回放/会议/敬请期待）
+- 📖 **每日签到**：打卡日历视图
+- 🆕 **新书速递**：豆瓣新书速递抓取、想共读投票、排行榜
+- 🌎 **西语文学专区**：Leaflet.js + GeoJSON 拉丁美洲文学交互地图
 
-| 函数 | 用途 |
-|------|------|
-| `deepseek-proxy` | 管理员添加书籍时调用 AI 生成简介 |
-| `scrape-douban` | 管理员同步豆瓣新书速递 |
-| `fetch-douban-book` | 获取豆瓣单本书元信息并写入缓存 |
-| `img-proxy` | 代理豆瓣封面图，避免外链图片失效 |
+### 会员系统
+- 🏅 **16 级会员等级**（Lv.1-Lv.16）：自动升级/降级、等级徽章发放与回收
+- ⭐ **贡献值系统**：书友圈/已读/字数/精选/点赞/评论计分、贡献值流水
+- 🎫 **票券系统**：资源浏览券（临时解锁 72h）、共读兑换券（永久解锁）、共读密码核销
+- 🏆 **贡献排行榜**：总榜/月榜/周榜横向三列
+- 🔔 **消息通知**：铃铛+红点+下拉面板+历史补录+定位跳转
 
-部署：
+### 书友圈
+- ✍️ **阅读动态**：想读/在读/已读/摘抄/感想/书评、已读评分（-10~10+emoji）
+- 💬 **点赞评论**：点赞与评论贡献值、评论防刷通知去重
+- ✏️ **动态编辑**：修改已发布内容
+- 🔒 **可见性控制**：公开/仅自己可见/好友可见
+- 👥 **好友系统**：关注/取关、好友动态、搜索书友圈、关注列表+粉丝列表
 
-```bash
-supabase functions deploy deepseek-proxy
-supabase functions deploy scrape-douban
-supabase functions deploy fetch-douban-book
-supabase functions deploy img-proxy
+### 徽章系统
+- 🎖️ **17 枚徽章**：16 枚等级成长徽章 + 1 枚开创者权限徽章
+- 🔄 **徽章翻面**：徽章背面图上传+预览弹窗翻转展示
+- 🧩 **成就谜面答题**（v31）：每枚徽章配谜面诗、答对奖励 10 贡献值
+- 🖼️ **自定义徽章展示**：用户可自选展示徽章
+
+### 安全与权限
+- 🔐 **Supabase Auth**：注册/登录、拼图验证码
+- 🛡️ **RLS 安全**：行级安全策略、服务端权限验证
+- 🔒 **资源权限**：受保护资源预览+临时解锁+永久解锁+开创者全开
+- 🧹 **安全加固**：DOMPurify/HTML 转义/CSP/CDN 锁定/href 防注入
+
+---
+
+## 项目结构
+
+```
+.
+├── index.html              # 主入口 SPA
+├── src/
+│   ├── app.js              # 应用初始化
+│   ├── router.js           # 路由系统
+│   ├── store.js            # 全局状态管理
+│   ├── config.js           # 配置常量
+│   ├── constants.js        # 静态常量
+│   ├── supabaseClient.js   # Supabase 客户端
+│   ├── auth.js             # 认证模块
+│   ├── authPages.js        # 登录/注册页面
+│   ├── ui.js               # UI 工具
+│   ├── utils.js            # 通用工具
+│   ├── components.js       # 通用组件
+│   ├── styles.css          # 全局样式
+│   ├── books.js            # 书籍
+│   ├── events.js           # 活动
+│   ├── newBooks.js         # 新书速递
+│   ├── checkins.js         # 每日签到
+│   ├── latam.js            # 西语文学地图
+│   ├── profile.js          # 个人资料
+│   ├── memberCenter.js     # 会员中心
+│   ├── memberSystemInfo.js # 会员系统说明页
+│   ├── members.js          # 会员数据加载
+│   ├── badgeRiddles.js     # 徽章谜面配置
+│   ├── readingPosts.js     # 书友圈
+│   ├── readingPostApi.js   # 书友圈 API
+│   ├── readingPostCards.js # 书友圈卡片
+│   ├── readingPostCalendar.js # 书友圈日历
+│   ├── readingPostUtils.js # 书友圈工具
+│   ├── access.js           # 资源权限
+│   ├── tickets.js          # 票券
+│   ├── uploads.js          # 文件上传
+│   ├── captcha.js          # 验证码
+│   ├── data.js             # 数据预取
+│   └── admin.js            # 管理后台
+├── sql/
+│   ├── supabase-schema.sql # 基础 Schema
+│   ├── deploy-order.md     # 迁移部署顺序
+│   ├── migrate-v2.sql ~ migrate-v31.sql  # 迁移脚本
+│   └── seed-king-lear.sql  # 测试种子数据
+└── badges/
+    ├── final/              # 徽章终稿 + 谜面文档 + 提示词
+    └── trials/             # 徽章设计过程稿 + 开发方案
 ```
 
-设置密钥：
+---
 
-```bash
-supabase secrets set DEEPSEEK_API_KEY=sk-xxx
-supabase secrets set SB_SERVICE_ROLE_KEY=你的-service-role-key
-```
+## 数据库迁移（v2 → v31）
 
-`deepseek-proxy` 和 `scrape-douban` 只允许管理员调用；普通用户可以浏览新书和投票，但不能触发抓取或消耗 AI 额度。
+最新迁移：**v31 徽章谜面答题**（2026-07-01）
 
-### 3. 配置 Supabase 公钥
+详见 [sql/deploy-order.md](sql/deploy-order.md) 获取完整部署顺序。
 
-编辑 `src/config.js`：
+---
 
-```javascript
-export const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-export const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
-```
+## 快速开始
 
-### 4. 部署到静态托管
+1. 部署 Supabase 项目，获取 API URL 和 anon key
+2. 按 [deploy-order.md](sql/deploy-order.md) 顺序执行 SQL 迁移
+3. 在 `src/supabaseClient.js` 中配置 Supabase 连接
+4. 部署静态文件至 Supabase Storage 或任意静态托管
+5. 配置 Edge Functions（豆瓣抓取、图片代理）
 
-将项目文件夹部署到任意静态托管服务：
+---
 
-- **Netlify**：拖拽文件夹到 netlify.com
-- **Vercel**：`vercel` 命令部署
-- **GitHub Pages**：推送到 GitHub 开启 Pages
-- **Cloudflare Pages**：连接 Git 仓库自动部署
+## 开发日志
 
-### 5. 设置管理员
-
-1. 在网站上注册一个账号（邮箱注册）
-2. 进入 Supabase → Table Editor → `profiles` 表
-3. 找到你的记录，将 `role` 改为 `admin`
-4. 刷新网站，即可看到"管理"入口
-
-### 6. 现有数据库升级
-
-如果你已经部署过旧版本，请按顺序执行尚未部署过的 `sql/migrate-v*.sql`。当前主要迁移包括：
-
-- v5 增加新书速递和想共读投票
-- v7 增加豆瓣书籍详情缓存，并收紧缓存写入权限
-- v8 收紧用户资料读取权限，微信号等私密字段只允许本人和管理员读取
-- v9-v12 增加会员等级、票券、徽章展示和周贡献排名
-- v13-v18 增加书友圈、贡献值、摘抄/心情/评分和动态编辑
-- v19-v28 增加点赞评论、个人主页、贡献榜、消息通知、评论防刷、资源权限解锁、共读密码核销、密码展示和徽章翻面
-
-更详细的部署顺序见 `sql/deploy-order.md`。
-
-## 功能清单
-
-| 功能 | 说明 |
-|------|------|
-| 首页 | 共读计划介绍 + 群规 + 当前共读书籍 |
-| 书库 | 按类型/状态筛选，详情页汇聚全部共读信息 |
-| 活动库 | 线下活动展示（海报/地点/嘉宾/价格） |
-| 会员中心 | 等级、贡献值、徽章、票券、已解锁资源 |
-| 资料与签到 | 资料编辑 + 每日阅读签到日历 |
-| 书友圈 | 阅读动态、摘抄/感想、心情、评分、点赞、评论、贡献榜 |
-| 管理后台 | 群规、书籍、活动 CRUD |
-| 新书速递 | 豆瓣新书同步 + 想共读投票 |
-| 西语文学 | 拉丁美洲文学互动地图 |
-| 移动适配 | 375px-1440px 响应式，汉堡菜单 |
-
-## 文件说明
-
-| 文件 | 用途 |
-|------|------|
-| `index.html` | 应用壳、导航、CDN 脚本和样式入口 |
-| `src/app.js` | 应用初始化、首页路由和全局事件 |
-| `src/config.js` | Supabase 项目 URL 和 anon key |
-| `src/*.js` | 前端页面、路由、数据访问和交互模块 |
-| `sql/supabase-schema.sql` | 数据库建表 + 种子数据 |
-| `sql/migrate-v*.sql` | 数据库升级脚本 |
-| `sql/deploy-order.md` | 当前推荐 SQL 部署顺序 |
-| `supabase/functions/*/index.ts` | Supabase Edge Functions |
-| `README.md` | 本文件 |
-
-## 本地检查
-
-项目没有构建步骤。提交前建议运行：
-
-```bash
-npm run check
-```
+详见 [Coding Log.md](Coding Log.md)
