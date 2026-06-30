@@ -9,14 +9,17 @@ import {
   fetchDoubanBook,
   getContributionLeaderboard,
   getPublicMemberProfile,
+  isFollowing,
   listComments,
   listUserPublicPosts,
   loadReadingPosts,
+  searchReadingPosts,
+  toggleFollow,
   togglePostLike,
   updateReadingPost,
   updateReadingPostVisibility
 } from './readingPostApi.js';
-import { clearCachedPost, getCachedPost, renderPosts } from './readingPostCards.js';
+import { clearCachedPost, getCachedPost, renderPostCard, renderPosts } from './readingPostCards.js';
 import { renderReadingActivityCalendar } from './readingPostCalendar.js';
 import { formatBookTitle, postTypeOptions, visibilityOptions } from './readingPostUtils.js';
 import { route, router } from './router.js';
@@ -52,18 +55,33 @@ async function renderReadingCircle(scope = 'public') {
       <div class="member-heading">
         <div>
           <p class="member-eyebrow">书友圈</p>
-          <h1>${scope === 'mine' ? '我的书友圈' : '书友圈广场'}</h1>
-          <p>${scope === 'mine' ? '管理你的公开与私密阅读动态。' : '看见大家正在读、想读和读完的书。'}</p>
+          <h1>${scope === 'mine' ? '我的书友圈' : scope === 'friends' ? '好友书友圈' : '书友圈广场'}</h1>
+          <p>${scope === 'mine' ? '管理你的公开与私密阅读动态。' : scope === 'friends' ? '关注的人正在读什么。' : '看见大家正在读、想读和读完的书。'}</p>
         </div>
         <div class="member-heading-actions">
           ${renderPostComposer()}
         </div>
       </div>
 
-      <div class="tabs reading-circle-tabs">
-        <a href="#/reading-circle" class="tab ${scope === 'public' ? 'active' : ''}">广场</a>
-        <a href="#/reading-circle/mine" class="tab ${scope === 'mine' ? 'active' : ''}">我的动态</a>
-        <a href="#/reading-circle/leaderboard" class="tab">贡献榜单</a>
+      <div class="reading-circle-controls">
+        <div class="tabs reading-circle-tabs">
+          <a href="#/reading-circle" class="tab ${scope === 'public' ? 'active' : ''}">广场</a>
+          ${user ? `<a href="#/reading-circle/friends" class="tab ${scope === 'friends' ? 'active' : ''}">好友动态</a>` : ''}
+          <a href="#/reading-circle/mine" class="tab ${scope === 'mine' ? 'active' : ''}">我的动态</a>
+          <a href="#/reading-circle/leaderboard" class="tab">贡献榜单</a>
+        </div>
+        <form class="reading-search-form" data-action="search-reading-posts" novalidate>
+          <input type="search" name="q" placeholder="搜索作者或书名..." value="">
+          <button type="submit" class="btn btn-sm btn-outline"><i data-lucide="search"></i></button>
+        </form>
+      </div>
+
+      <div class="reading-search-results" id="reading-search-results" style="display:none;">
+        <div class="reading-search-results-head">
+          <span id="search-results-title"></span>
+          <button type="button" class="btn btn-ghost btn-sm" data-action="clear-search">✕ 清除搜索</button>
+        </div>
+        <div class="search-results-inner" id="search-results-list"></div>
       </div>
 
       ${!user ? '<div class="card reading-login-tip"><div class="card-body"><p>登录后可以发布阅读动态，并通过公开动态获得贡献值。</p><a href="#/login" class="btn btn-outline btn-sm">登录</a></div></div>' : ''}
@@ -340,7 +358,7 @@ async function updatePostVisibility(button) {
     return;
   }
   await loadMemberSummary(store.get('user')?.id);
-  toast(next === 'public' ? '已设为公开' : '已设为私密');
+  toast(next === 'public' ? '已设为公开' : next === 'friends' ? '已设为好友可见' : '已设为私密');
   router.render();
 }
 
@@ -618,7 +636,21 @@ async function renderUserProfile(userId) {
       }).join('')
     : '<div class="user-no-badges">暂无徽章</div>';
 
-  const isOwn = store.get('user')?.id === userId;
+  const currentUserId = store.get('user')?.id;
+  const isOwn = currentUserId === userId;
+
+  // 关注状态
+  let followState = '';
+  let followLabel = '+ 关注';
+  if (!isOwn && currentUserId) {
+    const { data: iFollow } = await isFollowing(userId);
+    if (iFollow) {
+      const { data: theyFollow } = await sb.rpc('is_following', { p_following_id: currentUserId });
+      followState = theyFollow ? 'mutual' : 'following';
+      followLabel = theyFollow ? '互相关注' : '已关注';
+    }
+  }
+
   const extraInfo = [profile.bio, profile.city, profile.wechat_id].filter(Boolean);
 
   const statsHtml = `
@@ -649,7 +681,7 @@ async function renderUserProfile(userId) {
               ${profile.level > 0 ? `<div class="user-profile-level"><span class="member-level-badge">Lv.${h(profile.level)} ${h(profile.title)}</span><span class="user-tier">${h(profile.tier)}</span></div>` : `<div class="user-profile-level"><span class="user-tier">${h(profile.tier)}</span></div>`}
               ${statsHtml}
             </div>
-            ${isOwn ? `<div class="user-profile-actions"><a href="#/profile/edit" class="btn btn-outline btn-sm"><i data-lucide="edit-3"></i> 编辑资料</a></div>` : ''}
+            ${isOwn ? `<div class="user-profile-actions"><a href="#/profile/edit" class="btn btn-outline btn-sm"><i data-lucide="edit-3"></i> 编辑资料</a></div>` : `<div class="user-profile-actions"><button type="button" class="btn btn-outline btn-sm btn-follow ${followState ? 'following' : ''} ${followState === 'mutual' ? 'mutual' : ''}" data-action="toggle-follow" data-user-id="${h(userId)}">${h(followLabel)}</button></div>`}
           </div>
           ${extraHtml}
         </div>
@@ -715,6 +747,7 @@ async function renderLeaderboard() {
 
       <div class="tabs reading-circle-tabs">
         <a href="#/reading-circle" class="tab">广场</a>
+        ${store.get('user') ? '<a href="#/reading-circle/friends" class="tab">好友动态</a>' : ''}
         <a href="#/reading-circle/mine" class="tab">我的动态</a>
         <a href="#/reading-circle/leaderboard" class="tab active">贡献榜单</a>
       </div>
@@ -733,8 +766,98 @@ async function renderLeaderboard() {
   `;
 }
 
+// ---- 搜索 ----
+
+async function performSearch(form) {
+  const query = form.querySelector('input[name="q"]')?.value?.trim();
+  if (!query) return;
+
+  const resultsContainer = document.getElementById('reading-search-results');
+  const resultsList = document.getElementById('search-results-list');
+  const resultsTitle = document.getElementById('search-results-title');
+  if (!resultsContainer || !resultsList) return;
+
+  // 隐藏正常动态列表，显示搜索结果
+  const normalFeed = document.querySelector('.reading-post-list');
+  const normalLayout = document.querySelector('.reading-circle-layout');
+  if (normalFeed) normalFeed.style.display = 'none';
+  if (normalLayout) normalLayout.style.display = 'none';
+
+  resultsList.innerHTML = '<div class="comments-loading"><i data-lucide="loader"></i></div>';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  resultsContainer.style.display = '';
+  resultsTitle.textContent = `搜索"${query}"的结果`;
+
+  try {
+    const { data, error } = await searchReadingPosts(query);
+    if (error) {
+      resultsList.innerHTML = `<div class="comments-error">搜索失败：${error.message}</div>`;
+      return;
+    }
+    if (!data || !data.length) {
+      resultsList.innerHTML = '<div class="empty-state"><i data-lucide="search"></i><p>没有找到相关书友圈</p></div>';
+      return;
+    }
+    resultsList.innerHTML = data.map(post => renderPostCard(post, 'public')).join('');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  } catch (err) {
+    resultsList.innerHTML = `<div class="comments-error">搜索失败：${err.message || '未知错误'}<br><small>请确认已执行 v29 SQL 迁移</small></div>`;
+  }
+}
+
+function clearSearchResults() {
+  const container = document.getElementById('reading-search-results');
+  if (container) container.style.display = 'none';
+  const form = document.querySelector('.reading-search-form');
+  if (form) form.querySelector('input[name="q"]').value = '';
+  // 恢复正常动态列表
+  const normalFeed = document.querySelector('.reading-post-list');
+  const normalLayout = document.querySelector('.reading-circle-layout');
+  if (normalFeed) normalFeed.style.display = '';
+  if (normalLayout) normalLayout.style.display = '';
+}
+
+// ---- 关注 ----
+
+async function handleFollow(button) {
+  const user = store.get('user');
+  if (!user) {
+    toast('请先登录', 'error');
+    router.navigate('/login');
+    return;
+  }
+
+  const userId = button.dataset.userId;
+  button.disabled = true;
+
+  const { data, error } = await toggleFollow(userId);
+  if (error) {
+    toast(error.message, 'error');
+    button.disabled = false;
+    return;
+  }
+
+  if (data === 'followed') {
+    // 关注后检查是否互相关注
+    const { data: theyFollow } = await sb.rpc('is_following', { p_following_id: user.id });
+    if (theyFollow) {
+      button.textContent = '互相关注';
+      button.classList.add('following', 'mutual');
+    } else {
+      button.textContent = '已关注';
+      button.classList.add('following');
+      button.classList.remove('mutual');
+    }
+  } else {
+    button.textContent = '+ 关注';
+    button.classList.remove('following', 'mutual');
+  }
+  button.disabled = false;
+}
+
 export function registerReadingPostRoutes() {
   route('/reading-circle', () => renderReadingCircle('public'));
+  route('/reading-circle/friends', () => renderReadingCircle('friends'));
   route('/reading-circle/mine', () => renderReadingCircle('mine'));
   route('/reading-circle/leaderboard', () => renderLeaderboard());
   route('/user/:userId', (params) => renderUserProfile(params.userId));
@@ -811,6 +934,18 @@ export function bindReadingPostEvents() {
       return;
     }
 
+    const clearSearchBtn = e.target.closest('[data-action="clear-search"]');
+    if (clearSearchBtn) {
+      clearSearchResults();
+      return;
+    }
+
+    const followBtn = e.target.closest('[data-action="toggle-follow"]');
+    if (followBtn) {
+      await handleFollow(followBtn);
+      return;
+    }
+
   });
 
   document.addEventListener('change', async e => {
@@ -846,6 +981,10 @@ export function bindReadingPostEvents() {
     if (e.target.classList.contains('comment-form')) {
       e.preventDefault();
       await submitComment(e.target);
+    }
+    if (e.target.classList.contains('reading-search-form')) {
+      e.preventDefault();
+      await performSearch(e.target);
     }
   });
 }

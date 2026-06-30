@@ -584,8 +584,33 @@
        View: Reading Circle
        ======================================== */
     .reading-circle-page { padding-top: var(--space-5); }
+    .reading-circle-controls {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: var(--space-2); margin-bottom: var(--space-3); flex-wrap: wrap;
+    }
+    .reading-circle-tabs { margin-bottom: 0; }
     .reading-circle-tabs a.tab { display: inline-flex; color: var(--color-text-2); }
     .reading-circle-tabs a.tab.active { color: var(--color-accent); }
+    .reading-search-form {
+      display: flex; gap: 4px; align-items: center;
+    }
+    .reading-search-form input {
+      width: 200px; padding: 6px 10px; border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); font-size: 0.85rem;
+      background: var(--color-bg); color: var(--color-text);
+    }
+    .reading-search-form input:focus { outline: none; border-color: var(--color-accent); }
+    .reading-search-results { margin-bottom: var(--space-4); }
+    .search-results-inner { display: flex; flex-direction: column; gap: var(--space-3); }
+    .reading-search-results-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: var(--space-2); font-size: 0.9rem; color: var(--color-text-2);
+    }
+
+    /* 关注按钮 */
+    .btn-follow { transition: all 0.2s; }
+    .btn-follow.following { background: var(--color-accent-bg); color: var(--color-accent); border-color: var(--color-accent); }
+    .btn-follow.mutual { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
     .reading-login-tip { margin-bottom: var(--space-3); }
     .reading-login-tip .card-body {
       display: flex; align-items: center; justify-content: space-between;

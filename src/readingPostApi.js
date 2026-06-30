@@ -78,3 +78,19 @@ export function listUserPublicPosts(userId) {
 export function getContributionLeaderboard(type) {
   return sb.rpc('get_contribution_leaderboard', { p_type: type });
 }
+
+export function searchReadingPosts(query) {
+  return sb.rpc('search_reading_posts', { p_query: query });
+}
+
+export function toggleFollow(userId) {
+  return sb.rpc('toggle_follow', { p_following_id: userId });
+}
+
+export function isFollowing(userId) {
+  return sb.rpc('is_following', { p_following_id: userId });
+}
+
+export function getFollowCounts(userId) {
+  return sb.rpc('get_follow_counts', { p_user_id: userId });
+}

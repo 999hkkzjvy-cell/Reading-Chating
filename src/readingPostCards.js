@@ -90,8 +90,8 @@ export function renderPostCard(post, scope) {
           ${isMine ? `
             <div class="reading-post-actions">
               <button type="button" class="btn btn-ghost btn-sm" data-action="edit-reading-post" data-id="${h(post.id)}">编辑</button>
-              <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-post-visibility" data-id="${h(post.id)}" data-next="${post.visibility === 'public' ? 'private' : 'public'}">
-                ${post.visibility === 'public' ? '设为私密' : '设为公开'}
+              <button type="button" class="btn btn-ghost btn-sm" data-action="toggle-post-visibility" data-id="${h(post.id)}" data-next="${post.visibility === 'public' ? 'friends' : post.visibility === 'friends' ? 'private' : 'public'}">
+                ${post.visibility === 'public' ? '设为好友可见' : post.visibility === 'friends' ? '设为私密' : '设为公开'}
               </button>
               <button type="button" class="btn btn-danger btn-sm" data-action="delete-reading-post" data-id="${h(post.id)}">删除</button>
             </div>

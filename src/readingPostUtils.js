@@ -8,6 +8,7 @@ export const POST_TYPE_LABELS = {
 
 export const VISIBILITY_LABELS = {
   public: '公开',
+  friends: '好友可见',
   private: '仅自己可见'
 };
 
