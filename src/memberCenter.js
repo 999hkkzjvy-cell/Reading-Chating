@@ -560,8 +560,9 @@ export function registerMemberCenterRoutes() {
             </div>
           </div>
           <div class="member-heading-actions">
-            <a href="#/profile" class="btn btn-outline"><i data-lucide="calendar-check"></i> 资料与签到</a>
+            <a href="#/user/${h(user.id)}" class="btn btn-outline"><i data-lucide="user"></i> 个人主页</a>
             <a href="#/member/library" class="btn btn-outline"><i data-lucide="library"></i> 我的书库</a>
+            <button class="btn btn-outline btn-sm" id="member-logout-btn" style="color:var(--color-danger);border-color:var(--color-danger);"><i data-lucide="log-out"></i> 退出</button>
           </div>
         </div>
 

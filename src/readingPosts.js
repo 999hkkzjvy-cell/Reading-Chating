@@ -618,6 +618,9 @@ async function renderUserProfile(userId) {
       }).join('')
     : '<div class="user-no-badges">暂无徽章</div>';
 
+  const isOwn = store.get('user')?.id === userId;
+  const extraInfo = [profile.bio, profile.city, profile.wechat_id].filter(Boolean);
+
   const statsHtml = `
     <div class="user-stats">
       <div class="user-stat"><span>总贡献</span><strong>${h(profile.contribution_total)}</strong></div>
@@ -625,10 +628,18 @@ async function renderUserProfile(userId) {
       <div class="user-stat"><span>本周</span><strong>${h(profile.contribution_week)}</strong></div>
     </div>`;
 
+  const extraHtml = extraInfo.length ? `
+    <div class="user-profile-extra">
+      ${profile.bio ? `<p class="user-bio">${h(profile.bio)}</p>` : ''}
+      <div class="user-meta">
+        ${profile.city ? `<span><i data-lucide="map-pin"></i> ${h(profile.city)}</span>` : ''}
+        ${profile.wechat_id ? `<span><i data-lucide="message-circle"></i> 微信：${h(profile.wechat_id)}</span>` : ''}
+      </div>
+    </div>
+  ` : '';
+
   return `
     <div class="container section user-profile-page">
-      <a href="#/reading-circle" class="user-profile-back"><i data-lucide="arrow-left"></i> 返回书友圈</a>
-
       <div class="card user-profile-card">
         <div class="card-body">
           <div class="user-profile-head">
@@ -638,7 +649,9 @@ async function renderUserProfile(userId) {
               ${profile.level > 0 ? `<div class="user-profile-level"><span class="member-level-badge">Lv.${h(profile.level)} ${h(profile.title)}</span><span class="user-tier">${h(profile.tier)}</span></div>` : `<div class="user-profile-level"><span class="user-tier">${h(profile.tier)}</span></div>`}
               ${statsHtml}
             </div>
+            ${isOwn ? `<div class="user-profile-actions"><a href="#/profile/edit" class="btn btn-outline btn-sm"><i data-lucide="edit-3"></i> 编辑资料</a></div>` : ''}
           </div>
+          ${extraHtml}
         </div>
       </div>
 

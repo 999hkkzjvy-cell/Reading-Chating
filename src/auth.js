@@ -92,15 +92,13 @@ export function renderNavUser() {
   const container = document.getElementById('nav-user');
   if (user && profile) {
     container.innerHTML = `
+      ${store.get('isAdmin') ? '<a href="#/admin" class="btn btn-outline btn-sm">管理</a>' : ''}
+      <a href="#/member" class="nav-user-link">个人中心</a>
       <button class="btn-bell" id="btn-bell" title="消息通知">
         <i data-lucide="bell"></i>
         <span class="bell-dot" id="bell-dot" style="display:none;"></span>
       </button>
-      <a href="#/member" class="nav-user-link">个人中心</a>
-      ${store.get('isAdmin') ? '<a href="#/admin" class="btn btn-outline btn-sm">管理</a>' : ''}
-      <button class="btn btn-ghost btn-sm" id="btn-logout">退出</button>
     `;
-    document.getElementById('btn-logout').onclick = signOut;
     document.getElementById('btn-bell').onclick = toggleNotificationPanel;
     if (typeof lucide !== 'undefined') lucide.createIcons();
     refreshUnreadBadge();

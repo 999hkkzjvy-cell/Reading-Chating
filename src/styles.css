@@ -682,7 +682,7 @@
     }
 
     /* 用户主页 */
-    .user-profile-page { max-width: 720px; }
+    .user-profile-page { max-width: 1080px; }
     .user-profile-back {
       display: inline-flex; align-items: center; gap: 4px;
       margin-bottom: var(--space-3); color: var(--color-text-2);
@@ -720,6 +720,23 @@
     .user-badge-item img { width: 100%; height: 100%; object-fit: contain; }
     .user-badge-item i { width: 22px; height: 22px; color: var(--color-text-3); }
     .user-no-badges { color: var(--color-text-3); font-size: 0.85rem; }
+    .user-profile-actions { flex-shrink: 0; margin-left: auto; }
+    .user-profile-extra { margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
+    .user-bio { color: var(--color-text-2); font-size: 0.9rem; line-height: 1.7; margin-bottom: var(--space-1); }
+    .user-meta { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+    .user-meta span { display: inline-flex; align-items: center; gap: 4px; font-size: 0.82rem; color: var(--color-text-3); }
+    .user-meta i { width: 14px; height: 14px; }
+
+    /* 头像编辑 */
+    .avatar-edit-row { display: flex; gap: var(--space-2); align-items: flex-start; }
+    .avatar-edit-preview {
+      width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+      background: var(--color-bg); border: 1px solid var(--color-border);
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .avatar-edit-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-edit-preview i { width: 28px; height: 28px; color: var(--color-text-3); }
+    .avatar-edit-row input[type="file"] { font-size: 0.85rem; margin-bottom: 8px; }
 
     .reading-post-avatar {
       width: 56px; height: 56px; border-radius: 50%; flex: 0 0 auto;

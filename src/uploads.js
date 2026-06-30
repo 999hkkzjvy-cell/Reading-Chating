@@ -142,4 +142,27 @@ export function bindUploadHandlers() {
     updateJoinQrPreview(publicUrl);
     toast('二维码上传成功');
   });
+
+  // 头像上传
+  document.addEventListener('change', async (e) => {
+    if (e.target.id !== 'avatar-file-input') return;
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop();
+    const safeName = safeUploadName(file.name, 'avatar');
+    const path = `${Date.now()}_${safeName}.${ext}`;
+    const { error } = await sb.storage.from('avatars').upload(path, file);
+    if (error) {
+      toast('头像上传失败：' + error.message, 'error');
+      return;
+    }
+    const { data: { publicUrl } } = sb.storage.from('avatars').getPublicUrl(path);
+    const urlInput = document.querySelector('#profile-form input[name="avatar_url"]');
+    if (urlInput) urlInput.value = publicUrl;
+    const preview = document.getElementById('avatar-edit-preview');
+    if (preview) {
+      preview.innerHTML = `<img src="${publicUrl}" alt="">`;
+    }
+    toast('头像上传成功');
+  });
 }
