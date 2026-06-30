@@ -136,26 +136,56 @@ route('/books/:id', async (params) => {
   // Tab 3: 版本建议 — edition_notes + structured cards
   let editions = [];
   try { editions = typeof book.edition_guide === 'string' ? JSON.parse(book.edition_guide||'[]') : (book.edition_guide||[]); } catch(e){}
+
+  // 抓取版本建议的豆瓣封面
+  const editionCoverCache = {};
+  const editionDoubanUrls = editions.filter(e => isDoubanBookUrl(e.douban_link)).map(e => e.douban_link);
+  if (editionDoubanUrls.length > 0) {
+    try {
+      const { data: cached } = await sb.from('douban_book_cache').select('*').in('douban_url', editionDoubanUrls);
+      if (cached) cached.forEach(c => { editionCoverCache[c.douban_url] = c; });
+    } catch(e) {}
+    const uncached = editionDoubanUrls.filter(url => !editionCoverCache[url]);
+    if (uncached.length > 0) {
+      const results = await Promise.allSettled(uncached.map(url =>
+        fetch(`${SUPABASE_URL}/functions/v1/fetch-douban-book`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ url })
+        }).then(r => r.json()).then(r => (r && r.success) ? r.data : null).catch(() => null)
+      ));
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled' && r.value) editionCoverCache[uncached[i]] = r.value;
+      });
+    }
+  }
+
   const editionNotesHtml = safeMarked(book.edition_notes || '');
   const editionsCardsHtml = editions.length === 0 ? '<p style="color:var(--color-text-3);">暂无版本建议。</p>' : `
     <div style="display:flex;flex-direction:column;gap:var(--space-2);">
-      ${editions.map(e => `
-        <div class="edition-card">
-          <h3>${h(e.name || '未命名版本')}</h3>
-          <div class="edition-meta">
-            ${e.translator ? `<div>译本：${h(e.translator)} 译</div>` : ''}
-            ${e.publisher ? `<div>出版方：${h(e.publisher)}</div>` : ''}
+      ${editions.map(e => {
+        const db = e.douban_link ? editionCoverCache[e.douban_link] : null;
+        const coverHtml = db?.cover_url ? `<div class="edition-cover"><img src="${esc(proxyImg(db.cover_url))}" alt="${esc(db.title || '')}" loading="lazy"></div>` : '';
+        return `
+        <div class="edition-card ${coverHtml ? 'edition-card-with-cover' : ''}">
+          <div class="edition-card-body">
+            <h3>${h(e.name || '未命名版本')}</h3>
+            <div class="edition-meta">
+              ${e.translator ? `<div>译本：${h(e.translator)} 译</div>` : ''}
+              ${e.publisher ? `<div>出版方：${h(e.publisher)}</div>` : ''}
+            </div>
+            <div class="edition-pros-cons">
+              ${e.pros ? `<div><span class="pros-label">优点</span><p>${h(e.pros)}</p></div>` : ''}
+              ${e.cons ? `<div><span class="cons-label">缺点</span><p>${h(e.cons)}</p></div>` : ''}
+            </div>
+            <div class="edition-links">
+              ${e.buy_link ? `<a href="${safeUrl(e.buy_link)}" target="_blank" class="btn btn-outline btn-sm">购买</a>` : ''}
+              ${e.douban_link ? `<a href="${safeUrl(e.douban_link)}" target="_blank" class="btn btn-outline btn-sm">豆瓣</a>` : ''}
+            </div>
           </div>
-          <div class="edition-pros-cons">
-            ${e.pros ? `<div><span class="pros-label">优点</span><p>${h(e.pros)}</p></div>` : ''}
-            ${e.cons ? `<div><span class="cons-label">缺点</span><p>${h(e.cons)}</p></div>` : ''}
-          </div>
-          <div class="edition-links">
-            ${e.buy_link ? `<a href="${safeUrl(e.buy_link)}" target="_blank" class="btn btn-outline btn-sm">购买</a>` : ''}
-            ${e.douban_link ? `<a href="${safeUrl(e.douban_link)}" target="_blank" class="btn btn-outline btn-sm">豆瓣</a>` : ''}
-          </div>
+          ${coverHtml}
         </div>
-      `).join('')}
+      `;}).join('')}
     </div>`;
   const editionsHtml = `
     ${book.edition_notes ? `<div class="md-content" style="max-width:none;margin-bottom:var(--space-4);">${editionNotesHtml}</div>` : ''}

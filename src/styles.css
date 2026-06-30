@@ -1320,6 +1320,13 @@
       border-radius: var(--radius-md); padding: var(--space-3);
       transition: box-shadow 0.2s ease;
     }
+    .edition-card-with-cover { display: flex; gap: var(--space-3); align-items: flex-start; }
+    .edition-card-body { flex: 1; min-width: 0; }
+    .edition-cover {
+      width: 160px; flex-shrink: 0; border-radius: var(--radius-sm);
+      overflow: hidden; border: 1px solid var(--color-border);
+    }
+    .edition-cover img { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
     .edition-card:hover { box-shadow: var(--shadow-sm); }
     .edition-card h3 { font-size: 1.1rem; margin-bottom: var(--space-1); }
     .edition-meta {
