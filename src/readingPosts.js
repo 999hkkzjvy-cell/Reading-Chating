@@ -647,9 +647,14 @@ async function renderUserProfile(userId) {
   if (!isOwn && currentUserId) {
     const { data: iFollow } = await isFollowing(userId);
     if (iFollow) {
-      const { data: theyFollow } = await sb.rpc('is_following', { p_following_id: currentUserId });
-      followState = theyFollow ? 'mutual' : 'following';
-      followLabel = theyFollow ? '互相关注' : '已关注';
+      // 检查对方是否也关注了我
+      const { data: theyFollowRow } = await sb.from('user_follows')
+        .select('id')
+        .eq('follower_id', userId)
+        .eq('following_id', currentUserId)
+        .maybeSingle();
+      followState = theyFollowRow ? 'mutual' : 'following';
+      followLabel = theyFollowRow ? '互相关注' : '已关注';
     }
   }
 
@@ -841,8 +846,12 @@ async function handleFollow(button) {
 
   if (data === 'followed') {
     // 关注后检查是否互相关注
-    const { data: theyFollow } = await sb.rpc('is_following', { p_following_id: user.id });
-    if (theyFollow) {
+    const { data: theyFollowRow } = await sb.from('user_follows')
+      .select('id')
+      .eq('follower_id', userId)
+      .eq('following_id', user.id)
+      .maybeSingle();
+    if (theyFollowRow) {
       button.textContent = '互相关注';
       button.classList.add('following', 'mutual');
     } else {
