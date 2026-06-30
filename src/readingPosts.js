@@ -616,10 +616,17 @@ async function renderUserProfile(userId) {
         const badge = b.badge_catalog || {};
         const bucket = badge.image_bucket;
         const path = badge.image_path;
+        const backBucket = badge.back_image_bucket || badge.image_bucket;
+        const backPath = badge.back_image_path;
         let imageUrl = '';
+        let backImageUrl = '';
         if (bucket && path) {
           const { data: publicUrl } = sb.storage.from(bucket).getPublicUrl(path);
           imageUrl = publicUrl?.publicUrl || '';
+        }
+        if (backBucket && backPath) {
+          const { data: publicUrl } = sb.storage.from(backBucket).getPublicUrl(backPath);
+          backImageUrl = publicUrl?.publicUrl || '';
         }
         const title = badge.level && badge.title ? `Lv.${badge.level} ${badge.title}` : (badge.title || '徽章');
         const awardedAt = b.awarded_at ? formatDateTime(b.awarded_at) : '';
@@ -632,6 +639,7 @@ async function renderUserProfile(userId) {
             data-badge-title="${esc(title)}"
             data-badge-date="${esc(awardedAt)}"
             data-badge-image="${esc(imageUrl)}"
+            data-badge-back-image="${esc(backImageUrl)}"
             title="${esc(title)}">
             ${imgHtml}
           </button>`;

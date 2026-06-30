@@ -109,6 +109,8 @@ CREATE TABLE IF NOT EXISTS public.badge_catalog (
   level         INTEGER,
   image_bucket  TEXT NOT NULL DEFAULT 'badges',
   image_path    TEXT,
+  back_image_bucket TEXT NOT NULL DEFAULT 'badges',
+  back_image_path TEXT,
   riddle_key    TEXT,
   is_active     BOOLEAN NOT NULL DEFAULT true,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),

@@ -259,7 +259,7 @@ BEGIN
 
   RETURN v_new_expires;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ------------------------------------------------------------
 -- 4. 共读纪念徽章与密码核销
@@ -417,7 +417,7 @@ BEGIN
 
   RETURN v_claim_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 CREATE OR REPLACE FUNCTION public.award_finished_commemorative_badge()
 RETURNS TRIGGER AS $$

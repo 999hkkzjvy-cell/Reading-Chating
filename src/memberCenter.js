@@ -16,6 +16,11 @@ function getBadgeImageUrl(badgeCatalog) {
   return storagePublicUrl(badgeCatalog.image_bucket, badgeCatalog.image_path);
 }
 
+function getBadgeBackImageUrl(badgeCatalog) {
+  if (!badgeCatalog) return '';
+  return storagePublicUrl(badgeCatalog.back_image_bucket || badgeCatalog.image_bucket, badgeCatalog.back_image_path);
+}
+
 function badgeDisplayTitle(row) {
   const badge = row.badge_catalog || {};
   if (badge.badge_type === 'founder' || row.badge_type === 'founder') {
@@ -306,6 +311,7 @@ function renderBadgeList(badges, opts = {}) {
       ${visibleBadges.map(row => {
         const badge = row.badge_catalog || {};
         const imageUrl = getBadgeImageUrl(badge);
+        const backImageUrl = getBadgeBackImageUrl(badge);
         const title = badgeDisplayTitle(row);
         const awardedAt = row.awarded_at ? formatDate(row.awarded_at) : '已获得';
         return `
@@ -316,6 +322,7 @@ function renderBadgeList(badges, opts = {}) {
             data-badge-title="${esc(title)}"
             data-badge-date="${esc(awardedAt)}"
             data-badge-image="${esc(imageUrl)}"
+            data-badge-back-image="${esc(backImageUrl)}"
           >
             <div class="member-badge-image">
               ${imageUrl ? `<img src="${safeUrl(imageUrl)}" alt="${esc(title)}">` : '<i data-lucide="badge"></i>'}
@@ -354,6 +361,7 @@ function renderSelectableBadgeList(member) {
         ${badges.map(row => {
           const badge = row.badge_catalog || {};
           const imageUrl = getBadgeImageUrl(badge);
+          const backImageUrl = getBadgeBackImageUrl(badge);
           const title = badgeDisplayTitle(row);
           const awardedAt = row.awarded_at ? formatDate(row.awarded_at) : '已获得';
           const isFounder = row.badge_key === 'founder' || row.badge_type === 'founder';
@@ -377,6 +385,7 @@ function renderSelectableBadgeList(member) {
                 data-badge-title="${esc(title)}"
                 data-badge-date="${esc(awardedAt)}"
                 data-badge-image="${esc(imageUrl)}"
+                data-badge-back-image="${esc(backImageUrl)}"
               >
                 ${imageUrl ? `<img src="${safeUrl(imageUrl)}" alt="${esc(title)}">` : '<i data-lucide="badge"></i>'}
               </button>
@@ -477,7 +486,9 @@ export function openBadgePreview(button) {
   const title = button.dataset.badgeTitle || '徽章';
   const date = button.dataset.badgeDate || '';
   const imageUrl = button.dataset.badgeImage || '';
+  const backImageUrl = button.dataset.badgeBackImage || '';
   if (!imageUrl) return;
+  const canFlip = !!backImageUrl;
 
   document.querySelector('.badge-preview-overlay')?.remove();
   const overlay = document.createElement('div');
@@ -487,10 +498,22 @@ export function openBadgePreview(button) {
       <button type="button" class="badge-preview-close" data-action="badge-preview-close" aria-label="关闭">
         <i data-lucide="x"></i>
       </button>
-      <img src="${safeUrl(imageUrl)}" alt="${esc(title)}">
+      <button type="button" class="badge-flip-stage ${canFlip ? 'can-flip' : ''}" data-action="badge-preview-flip" ${canFlip ? '' : 'disabled'} aria-label="${canFlip ? '翻转徽章' : '徽章预览'}">
+        <span class="badge-flip-inner">
+          <span class="badge-flip-face badge-flip-front">
+            <img src="${safeUrl(imageUrl)}" alt="${esc(title)}正面">
+          </span>
+          ${canFlip ? `
+            <span class="badge-flip-face badge-flip-back">
+              <img src="${safeUrl(backImageUrl)}" alt="${esc(title)}背面">
+            </span>
+          ` : ''}
+        </span>
+      </button>
       <div class="badge-preview-caption">
         <h3>${h(title)}</h3>
         <p>${h(date)}</p>
+        ${canFlip ? '<p class="badge-preview-hint">点击徽章翻转查看背面</p>' : ''}
       </div>
     </div>
   `;
@@ -520,6 +543,12 @@ export function bindMemberCenterEvents() {
 
     if (e.target.closest('[data-action="badge-preview-close"]') || e.target.classList.contains('badge-preview-overlay')) {
       document.querySelector('.badge-preview-overlay')?.remove();
+      return;
+    }
+
+    const flipBtn = e.target.closest('[data-action="badge-preview-flip"]');
+    if (flipBtn && !flipBtn.disabled) {
+      flipBtn.classList.toggle('is-flipped');
     }
   });
 

@@ -483,9 +483,9 @@
     .member-badge-image {
       width: 56px; height: 56px; border-radius: 50%; flex: 0 0 auto;
       display: flex; align-items: center; justify-content: center;
-      background: var(--color-bg-alt); overflow: hidden;
+      background: var(--color-bg-alt); overflow: hidden; padding: 4px;
     }
-    .member-badge-image img { width: 100%; height: 100%; object-fit: cover; }
+    .member-badge-image img { width: 100%; height: 100%; object-fit: contain; }
     .member-badge-image i { width: 24px; height: 24px; color: var(--color-text-3); }
     .member-badge-card h4 {
       font-family: var(--font-sans); font-size: 0.92rem; line-height: 1.35;
@@ -498,13 +498,34 @@
       position: relative; max-width: min(620px, 92vw); padding: var(--space-3);
       overflow: visible; animation: badgePreviewIn 0.24s ease-out;
     }
-    .badge-preview-modal img {
-      width: min(520px, 78vw); aspect-ratio: 1; object-fit: contain;
-      margin: 0 auto; border-radius: var(--radius-md);
+    .badge-flip-stage {
+      width: min(440px, 72vw); aspect-ratio: 1;
+      display: block; margin: 0 auto; padding: 0; border: 0;
+      background: transparent; perspective: 1200px; cursor: default;
+    }
+    .badge-flip-stage.can-flip { cursor: pointer; }
+    .badge-flip-inner {
+      position: relative; display: block; width: 100%; height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.62s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+    .badge-flip-stage.is-flipped .badge-flip-inner { transform: rotateY(180deg); }
+    .badge-flip-face {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      backface-visibility: hidden; -webkit-backface-visibility: hidden;
+      border-radius: var(--radius-md);
+    }
+    .badge-flip-back { transform: rotateY(180deg); }
+    .badge-flip-face img {
+      width: 100%; height: 100%; aspect-ratio: 1; object-fit: contain;
+      border-radius: var(--radius-md); pointer-events: none;
     }
     .badge-preview-caption { text-align: center; padding-top: var(--space-2); }
     .badge-preview-caption h3 { font-size: 1.25rem; }
     .badge-preview-caption p { color: var(--color-text-3); font-size: 0.88rem; }
+    .badge-preview-caption .badge-preview-hint {
+      margin-top: 4px; font-size: 0.78rem; color: var(--color-text-3);
+    }
     .badge-preview-close {
       position: absolute; top: 10px; right: 10px; z-index: 1;
       width: 34px; height: 34px; border: none; border-radius: 50%;
@@ -762,10 +783,10 @@
     .user-badges-card h3 { font-size: 1rem; margin-bottom: var(--space-2); }
     .user-badges-grid { display: flex; gap: 10px; flex-wrap: wrap; }
     .user-badge-item {
-      width: 52px; height: 52px; border-radius: var(--radius-sm);
+      width: 52px; height: 52px; border-radius: 50%;
       background: var(--color-bg); border: 1px solid var(--color-border);
       display: flex; align-items: center; justify-content: center;
-      overflow: hidden; cursor: pointer; padding: 0;
+      overflow: hidden; cursor: pointer; padding: 4px;
       transition: transform 0.2s, box-shadow 0.2s;
     }
     .user-badge-item:hover { transform: scale(1.1); box-shadow: 0 2px 12px rgba(0,0,0,0.1); }

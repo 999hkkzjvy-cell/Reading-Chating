@@ -5,6 +5,13 @@
 - 占位版徽章：`commemorative_book_书籍ID_claimed`
 - 已读版徽章：`commemorative_book_书籍ID_finished`
 
+每条徽章记录支持正面图和背面图，所以每期共读需要准备 4 张图片：
+
+- 占位版正面
+- 占位版背面
+- 已读版正面
+- 已读版背面
+
 其中 `书籍ID` 是 `books.id`。
 
 ## 1. 查询书籍 ID
@@ -26,15 +33,19 @@ ORDER BY id;
 建议路径格式：
 
 ```text
-final/commemorative/book-书籍ID-claimed.png
-final/commemorative/book-书籍ID-finished.png
+final/commemorative/book-书籍ID-claimed-front.png
+final/commemorative/book-书籍ID-claimed-back.png
+final/commemorative/book-书籍ID-finished-front.png
+final/commemorative/book-书籍ID-finished-back.png
 ```
 
 例如书籍 ID 为 `12`：
 
 ```text
-final/commemorative/book-12-claimed.png
-final/commemorative/book-12-finished.png
+final/commemorative/book-12-claimed-front.png
+final/commemorative/book-12-claimed-back.png
+final/commemorative/book-12-finished-front.png
+final/commemorative/book-12-finished-back.png
 ```
 
 注意：路径中不要重复写 `badges/`，因为 `badges` 是 bucket 名。
@@ -46,13 +57,17 @@ final/commemorative/book-12-finished.png
 ```sql
 UPDATE public.badge_catalog
 SET image_bucket = 'badges',
-    image_path = 'final/commemorative/book-12-claimed.png',
+    image_path = 'final/commemorative/book-12-claimed-front.png',
+    back_image_bucket = 'badges',
+    back_image_path = 'final/commemorative/book-12-claimed-back.png',
     updated_at = now()
 WHERE badge_key = 'commemorative_book_12_claimed';
 
 UPDATE public.badge_catalog
 SET image_bucket = 'badges',
-    image_path = 'final/commemorative/book-12-finished.png',
+    image_path = 'final/commemorative/book-12-finished-front.png',
+    back_image_bucket = 'badges',
+    back_image_path = 'final/commemorative/book-12-finished-back.png',
     updated_at = now()
 WHERE badge_key = 'commemorative_book_12_finished';
 ```
@@ -64,7 +79,7 @@ WHERE badge_key = 'commemorative_book_12_finished';
 执行：
 
 ```sql
-SELECT badge_key, title, image_bucket, image_path
+SELECT badge_key, title, image_bucket, image_path, back_image_bucket, back_image_path
 FROM public.badge_catalog
 WHERE badge_key IN (
   'commemorative_book_12_claimed',
@@ -72,9 +87,9 @@ WHERE badge_key IN (
 );
 ```
 
-确认 `image_bucket` 为 `badges`，`image_path` 为刚上传的路径。
+确认 `image_bucket` / `back_image_bucket` 为 `badges`，`image_path` / `back_image_path` 为刚上传的路径。
 
-然后刷新网站，在用户获得该纪念徽章后查看会员中心徽章墙。
+然后刷新网站，在用户获得该纪念徽章后查看会员中心徽章墙或个人主页徽章墙。点击徽章放大，再点击放大的徽章即可翻转查看背面。
 
 ## 5. 缓存说明
 
@@ -86,4 +101,4 @@ WHERE badge_key IN (
 final/commemorative/book-12-claimed-v2.png
 ```
 
-然后重新更新 `badge_catalog.image_path`。
+然后重新更新 `badge_catalog.image_path` 或 `badge_catalog.back_image_path`。
