@@ -122,6 +122,54 @@ async function refreshUnreadBadge() {
   }
 }
 
+function notificationHashLink(n) {
+  if (n.link_path) return `#${n.link_path}`;
+  if (n.post_id) return `#/reading-circle?post=${encodeURIComponent(n.post_id)}`;
+  return '#/member';
+}
+
+function renderActorLink(n) {
+  if (!n.actor_id) return h(n.actor_name || '书友');
+  return `<a href="#/user/${h(n.actor_id)}" class="notification-name-link" data-action="close-notification">${h(n.actor_name || '书友')}</a>`;
+}
+
+function renderNotificationCopy(n) {
+  if (n.message && (n.type === 'level_badge' || n.type === 'follow')) {
+    if (n.type === 'follow') {
+      return `${renderActorLink(n)}关注了你`;
+    }
+    return h(n.message);
+  }
+
+  if (n.type === 'follow') {
+    return `${renderActorLink(n)}关注了你`;
+  }
+
+  if (n.type === 'level_badge') {
+    return h(n.message || '你获得了新的会员徽章，快去个人中心看看吧！');
+  }
+
+  return `
+    ${renderActorLink(n)}
+    给您关于<em>《${h(n.book_title || '未知书目')}》</em>的书友圈${n.type === 'like' ? '点了赞' : '留了评论'}
+  `;
+}
+
+function renderNotificationItem(n) {
+  const target = notificationHashLink(n);
+  const actionText = n.type === 'level_badge' ? '去看看' : n.type === 'follow' ? '查看主页' : '查看详情';
+  return `
+    <div class="notification-item ${n.is_read ? 'read' : 'unread'}">
+      <a href="#/user/${h(n.actor_id)}" class="notification-avatar notification-user-link" data-action="close-notification">${n.actor_avatar ? `<img src="${safeUrl(n.actor_avatar)}" alt="">` : h((n.actor_name || '?')[0])}</a>
+      <div class="notification-body">
+        <p>${renderNotificationCopy(n)}</p>
+        <span>${h(formatDateTime(n.created_at))}</span>
+      </div>
+      <a href="${h(target)}" class="btn btn-sm btn-outline notification-detail-btn" data-action="close-notification">${actionText}</a>
+    </div>
+  `;
+}
+
 async function toggleNotificationPanel() {
   let panel = document.getElementById('notification-panel');
   if (panel) {
@@ -148,19 +196,7 @@ async function toggleNotificationPanel() {
         ${unseenIds.length > 0 ? `<button class="btn-read-all" data-action="mark-all-read">全部已读</button>` : ''}
       </div>
       <div class="notification-list">
-        ${notifications.map(n => `
-          <div class="notification-item ${n.is_read ? 'read' : 'unread'}">
-            <div class="notification-avatar">${n.actor_avatar ? `<img src="${safeUrl(n.actor_avatar)}" alt="">` : h((n.actor_name || '?')[0])}</div>
-            <div class="notification-body">
-              <p>
-                <strong>${h(n.actor_name)}</strong>
-                给您关于<em>《${h(n.book_title || '未知书目')}》</em>的书友圈${n.type === 'like' ? '点了赞' : '留了评论'}
-              </p>
-              <span>${h(formatDateTime(n.created_at))}</span>
-            </div>
-            <a href="#/reading-circle?post=${h(n.post_id)}" class="btn btn-sm btn-outline notification-detail-btn" data-action="close-notification">查看详情</a>
-          </div>
-        `).join('')}
+        ${notifications.map(renderNotificationItem).join('')}
       </div>
     `;
   }

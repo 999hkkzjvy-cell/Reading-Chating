@@ -15,6 +15,7 @@ import {
   listFollowing,
   listUserPublicPosts,
   loadReadingPosts,
+  searchMembersByDisplayName,
   searchReadingPosts,
   toggleFollow,
   togglePostLike,
@@ -923,12 +924,54 @@ async function renderFriendList() {
         </div>
         <a href="#/member" class="btn btn-outline"><i data-lucide="arrow-left"></i> 返回个人中心</a>
       </div>
+      <section class="card friend-search-card">
+        <div class="card-body">
+          <form class="friend-search-form" data-action="search-members" novalidate>
+            <label for="friend-search-input">搜索书友</label>
+            <div class="friend-search-row">
+              <input id="friend-search-input" type="search" name="q" placeholder="输入显示名字..." autocomplete="off">
+              <button type="submit" class="btn btn-outline btn-sm"><i data-lucide="search"></i> 搜索</button>
+            </div>
+          </form>
+          <div id="friend-search-results" class="friend-search-results" hidden></div>
+        </div>
+      </section>
       <div class="friend-sections">
         ${renderSection('我关注的', following, '还没有关注任何人')}
         ${renderSection('关注我的', followers, '还没有粉丝')}
       </div>
     </div>
   `;
+}
+
+async function performMemberSearch(form) {
+  const input = form.querySelector('input[name="q"]');
+  const results = document.getElementById('friend-search-results');
+  const query = input?.value.trim() || '';
+  if (!results) return;
+
+  if (!query) {
+    results.hidden = false;
+    results.innerHTML = '<div class="empty-state compact"><p>请输入书友的显示名字。</p></div>';
+    input?.focus();
+    return;
+  }
+
+  results.hidden = false;
+  results.innerHTML = '<div class="empty-state compact"><p>正在搜索...</p></div>';
+
+  const { data, error } = await searchMembersByDisplayName(query);
+  if (error) {
+    results.innerHTML = `<div class="comments-error">搜索失败：${h(error.message || '未知错误')}<br><small>请确认已执行 v35 SQL 迁移</small></div>`;
+    return;
+  }
+
+  const members = data || [];
+  results.innerHTML = `
+    <div class="friend-search-head">找到 ${h(members.length)} 位书友</div>
+    ${members.length ? members.map(renderFriendRow).join('') : '<div class="empty-state compact"><p>没有找到匹配的书友。</p></div>'}
+  `;
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 export function registerReadingPostRoutes() {
@@ -1062,6 +1105,10 @@ export function bindReadingPostEvents() {
     if (e.target.classList.contains('reading-search-form')) {
       e.preventDefault();
       await performSearch(e.target);
+    }
+    if (e.target.classList.contains('friend-search-form')) {
+      e.preventDefault();
+      await performMemberSearch(e.target);
     }
   });
 }

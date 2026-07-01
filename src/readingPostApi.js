@@ -83,6 +83,10 @@ export function searchReadingPosts(query) {
   return sb.rpc('search_reading_posts', { p_query: query });
 }
 
+export function searchMembersByDisplayName(query) {
+  return sb.rpc('search_members_by_display_name', { p_query: query });
+}
+
 export function toggleFollow(userId) {
   return sb.rpc('toggle_follow', { p_following_id: userId });
 }

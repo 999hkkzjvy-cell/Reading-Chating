@@ -164,9 +164,12 @@
       color: var(--color-text-2); overflow: hidden;
     }
     .notification-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .notification-user-link,
+    .notification-name-link { text-decoration: none; color: inherit; }
+    .notification-name-link { font-weight: 700; color: var(--color-text); }
+    .notification-name-link:hover { color: var(--color-accent); }
     .notification-body { flex: 1; min-width: 0; }
     .notification-body p { font-size: 0.85rem; line-height: 1.5; margin: 0; color: var(--color-text-2); }
-    .notification-body strong { color: var(--color-text); }
     .notification-body em { font-style: normal; color: var(--color-accent); }
     .notification-body span { font-size: 0.72rem; color: var(--color-text-3); }
     .notification-detail-btn { flex-shrink: 0; align-self: center; }
@@ -731,6 +734,23 @@
 
     /* 好友列表 */
     .friend-list-page { max-width: 1080px; }
+    .friend-search-card { margin-bottom: var(--space-4); }
+    .friend-search-form label {
+      display: block; font-weight: 700; font-size: 0.95rem;
+      margin-bottom: var(--space-2);
+    }
+    .friend-search-row { display: flex; gap: 10px; align-items: center; }
+    .friend-search-row input {
+      flex: 1; min-width: 0; border: 1px solid var(--color-border);
+      border-radius: var(--radius); padding: 10px 12px; font: inherit;
+      background: #fff;
+    }
+    .friend-search-row input:focus { outline: none; border-color: var(--color-accent); }
+    .friend-search-results { margin-top: var(--space-3); }
+    .friend-search-head {
+      color: var(--color-text-2); font-size: 0.86rem;
+      margin-bottom: 4px;
+    }
     .friend-sections { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
     .friend-section h3 {
       display: flex; align-items: baseline; gap: 8px;
@@ -1876,6 +1896,8 @@
       .reading-post-head, .reading-post-foot { align-items: flex-start; flex-direction: column; }
       .reading-post-actions { margin-left: 0; }
       .reading-login-tip .card-body { align-items: flex-start; flex-direction: column; }
+      .friend-search-row { align-items: stretch; flex-direction: column; }
+      .friend-search-row .btn { justify-content: center; }
       .new-books-layout { flex-direction: column; }
       .new-books-layout .new-books-side { width: 100%; }
       .extended-reading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
