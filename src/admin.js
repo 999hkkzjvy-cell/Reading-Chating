@@ -15,6 +15,67 @@ function generateReadablePassword(length = 18) {
   return Array.from(bytes, byte => alphabet[byte % alphabet.length]).join('');
 }
 
+function memberLevelText(member) {
+  const level = Number(member.level || 0);
+  if (level <= 0) return member.tier || '基础会员';
+  return `Lv.${level} ${member.title || ''}`.trim();
+}
+
+function renderAdminMemberList(members, error) {
+  if (error) {
+    return `
+      <div class="admin-inline-warning">
+        <i data-lucide="database"></i>
+        <span>会员清单暂不可用：请先部署 v32 会员清单 SQL。</span>
+      </div>
+    `;
+  }
+
+  if (!members?.length) {
+    return '<p class="admin-muted">暂无会员数据。</p>';
+  }
+
+  return `
+    <div class="admin-member-table-wrap">
+      <table class="admin-member-table">
+        <thead>
+          <tr>
+            <th>会员 UID</th>
+            <th>显示名字</th>
+            <th>Email</th>
+            <th>注册时间</th>
+            <th>当前等级</th>
+            <th>备注</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${members.map(member => `
+            <tr>
+              <td><code>${h(member.user_id)}</code></td>
+              <td>${h(member.display_name || '未命名')}</td>
+              <td>${h(member.email || '')}</td>
+              <td>${h(formatDateTime(member.registered_at))}</td>
+              <td>${h(memberLevelText(member))}</td>
+              <td>
+                <textarea
+                  class="admin-member-note-input"
+                  data-member-note="${esc(member.user_id)}"
+                  maxlength="1000"
+                  placeholder="添加后台备注，仅管理员可见"
+                >${h(member.note || '')}</textarea>
+              </td>
+              <td>
+                <button type="button" class="btn btn-outline btn-sm" data-action="admin-save-member-note" data-user-id="${esc(member.user_id)}">保存</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 // ===========================================
 // ROUTE: ADMIN
 // ===========================================
@@ -22,6 +83,7 @@ route('/admin', async () => {
   const config = await loadConfig();
   const books = await loadBooks();
   const events = await loadEvents();
+  const { data: adminMembers, error: adminMembersError } = await sb.rpc('admin_list_members');
   const { data: coReadingPasswords } = await sb
     .from('co_reading_passwords')
     .select('*, books(title)')
@@ -92,6 +154,19 @@ route('/admin', async () => {
         </div>
       </div>
       <div id="admin-tab-members" style="display:none;">
+        <div class="card" style="margin-bottom:var(--space-3);">
+          <div class="card-body">
+            <div class="admin-section-head">
+              <div>
+                <h3>会员清单</h3>
+                <p>查看所有会员基础信息，并维护后台备注。</p>
+              </div>
+              <span>${h(adminMembers?.length || 0)} 位会员</span>
+            </div>
+            ${renderAdminMemberList(adminMembers || [], adminMembersError)}
+          </div>
+        </div>
+
         <div class="card" style="margin-bottom:var(--space-3);">
           <div class="card-body">
             <h3 style="margin-bottom:var(--space-1);">本周资源浏览券</h3>
@@ -627,6 +702,26 @@ document.addEventListener('click', async (e) => {
     }
     toast(togglePasswordBtn.dataset.active === 'true' ? '密码已启用' : '密码已停用');
     router.render();
+    return;
+  }
+
+  const saveMemberNoteBtn = e.target.closest('[data-action="admin-save-member-note"]');
+  if (saveMemberNoteBtn) {
+    const userId = saveMemberNoteBtn.dataset.userId;
+    const noteInput = [...document.querySelectorAll('[data-member-note]')]
+      .find(input => input.dataset.memberNote === userId);
+    saveMemberNoteBtn.disabled = true;
+    const { error } = await sb.rpc('admin_update_member_note', {
+      p_user_id: userId,
+      p_note: noteInput?.value || ''
+    });
+    if (error) {
+      toast('备注保存失败：' + error.message, 'error');
+      saveMemberNoteBtn.disabled = false;
+      return;
+    }
+    toast('会员备注已保存');
+    saveMemberNoteBtn.disabled = false;
     return;
   }
 
