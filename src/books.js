@@ -83,61 +83,21 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ===========================================
-// ROUTE: BOOK DETAIL (v2)
-// ===========================================
-route('/books/:id', async (params) => {
-  // Check memory cache first (hit if user visited book list before)
-  let book = store.get('books').find(b => b.id == params.id);
-  if (!book) {
-    const { data } = await sb.from('books').select('*').eq('id', params.id).single();
-    book = data;
-  }
-  if (!book) return '<div class="container section"><div class="empty-state"><i data-lucide="book"></i><p>书籍未找到</p></div></div>';
-  const accessSummary = await loadBookAccessSummary(book.id);
+const bookDetailState = new Map();
 
-  // Tab 1: 简介 — description + author_bio + historical_context
-  const descHtml = safeMarked(book.description || '暂无简介。');
-  const authorBioHtml = safeMarked(book.author_bio || '暂无作者简介。');
-  const contextHtml = safeMarked(book.historical_context || '暂无时代背景介绍。');
-  const introHtml = `
-    <div class="md-content" style="max-width:none;">
-      <h2>书籍简介</h2>
-      <hr style="border:none;border-top:1px solid var(--color-border);margin:6px 0 var(--space-2);">
-      ${descHtml}
-      <div style="height:var(--space-3);"></div>
-      <h2>作者简介</h2>
-      <hr style="border:none;border-top:1px solid var(--color-border);margin:6px 0 var(--space-2);">
-      ${authorBioHtml}
-      <div style="height:var(--space-3);"></div>
-      <h2>创作时代背景</h2>
-      <hr style="border:none;border-top:1px solid var(--color-border);margin:6px 0 var(--space-2);">
-      ${contextHtml}
-    </div>`;
+function lazyTabPlaceholder(label) {
+  return `
+    <div class="empty-state compact">
+      <i data-lucide="loader"></i>
+      <p>${h(label)}将在打开本分页时加载。</p>
+    </div>
+  `;
+}
 
-  // Tab 2: 领读人简介 — host + host_intro
-  const hostIntroHtml = safeMarked(book.host_intro || '暂无领读人信息。');
-  const hostTabHtml = `
-    <div class="md-content" style="max-width:none;">
-      <h2>领读人：${h(book.host || '待定')}</h2>
-      <hr style="border:none;border-top:1px solid var(--color-border);margin:var(--space-2) 0;">
-      <div style="font-size:1rem;line-height:1.8;">${hostIntroHtml}</div>
-    </div>`;
-
-  // Tab 2.5: 灵沁碎碎念 — host_notes (only if has content)
-  const hostNotesHtml = book.host_notes ? safeMarked(book.host_notes) : '';
-  const hostNotesTabHtml = book.host_notes ? `
-    <div class="md-content" style="max-width:none;">
-      ${hostNotesHtml}
-    </div>` : '';
-  const hostNotesTabBtn = book.host_notes ? '<button class="tab" data-tab="hostnotes">灵沁碎碎念</button>' : '';
-  const hostNotesTabContent = book.host_notes ? `<div id="tab-hostnotes" class="tab-content" style="display:none;">${hostNotesTabHtml}</div>` : '';
-
-  // Tab 3: 版本建议 — edition_notes + structured cards
+async function renderEditionTab(book) {
   let editions = [];
-  try { editions = typeof book.edition_guide === 'string' ? JSON.parse(book.edition_guide||'[]') : (book.edition_guide||[]); } catch(e){}
+  try { editions = typeof book.edition_guide === 'string' ? JSON.parse(book.edition_guide || '[]') : (book.edition_guide || []); } catch(e){}
 
-  // 抓取版本建议的豆瓣封面
   const editionCoverCache = {};
   const editionDoubanUrls = editions.filter(e => isDoubanBookUrl(e.douban_link)).map(e => e.douban_link);
   if (editionDoubanUrls.length > 0) {
@@ -187,9 +147,190 @@ route('/books/:id', async (params) => {
         </div>
       `;}).join('')}
     </div>`;
-  const editionsHtml = `
+
+  return `
     ${book.edition_notes ? `<div class="md-content" style="max-width:none;margin-bottom:var(--space-4);">${editionNotesHtml}</div>` : ''}
     ${editionsCardsHtml}`;
+}
+
+async function renderResourcesTab(book, accessSummary) {
+  let resources = { extended_reading: [], text_materials: [], film_resources: [], other: [] };
+  try { resources = typeof book.resources === 'string' ? JSON.parse(book.resources) : (book.resources || {}); } catch(e) {}
+
+  const extItems = resources.extended_reading || [];
+  const extReadingKey = resourceKey(book.id, 'resource_extended_reading', 'all', 'list');
+  const extReadingUnlocked = canViewResource(accessSummary, extReadingKey);
+  const doubanCache = {};
+  const doubanUrls = extReadingUnlocked ? extItems.filter(item => isDoubanBookUrl(item.url)).map(item => item.url) : [];
+  if (doubanUrls.length > 0) {
+    try {
+      const { data: cached } = await sb.from('douban_book_cache').select('*').in('douban_url', doubanUrls);
+      if (cached) cached.forEach(c => { doubanCache[c.douban_url] = c; });
+    } catch(e) {}
+    const uncached = doubanUrls.filter(url => !doubanCache[url]);
+    if (uncached.length > 0) {
+      const results = await Promise.allSettled(uncached.map(url =>
+        fetch(`${SUPABASE_URL}/functions/v1/fetch-douban-book`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ url })
+        }).then(r => r.json()).then(r => (r && r.success) ? r.data : null).catch(() => null)
+      ));
+      results.forEach((r, i) => {
+        if (r.status === 'fulfilled' && r.value) {
+          doubanCache[uncached[i]] = r.value;
+        }
+      });
+    }
+  }
+
+  const extReadingHtml = extItems.length === 0 ? '' : `
+    <div class="extended-reading-section">
+      <h4>延伸读物</h4>
+      ${extReadingUnlocked ? `
+        <div class="extended-reading-grid">
+          ${extItems.map((item) => {
+          const db = doubanCache[item.url] || {};
+          return `
+          <div class="new-book-card extended-reading-card">
+            <div class="nb-cover" style="width:100px;">
+              ${db.cover_url
+                ? `<img src="${esc(proxyImg(db.cover_url))}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">`
+                : ''}
+              <i data-lucide="book" class="cover-fallback" style="${db.cover_url ? 'display:none;' : ''}"></i>
+            </div>
+            <div class="nb-body extended-reading-body">
+              <div class="extended-reading-copy">
+                <h3>${h(db.title || item.title)}</h3>
+                ${db.author ? `<div class="nb-row"><span class="nb-label">作者</span>${h(db.author)}</div>` : ''}
+                ${db.publisher ? `<div class="nb-row"><span class="nb-label">出版方</span>${h(db.publisher)}</div>` : ''}
+                ${db.rating ? `<div class="nb-row rating">⭐${h(db.rating)} · ${db.review_count || 0}人评价</div>` : ''}
+                ${item.description ? `<div class="nb-row extended-reading-description">${h(item.description)}</div>` : ''}
+              </div>
+              ${item.url ? `<a href="${safeUrl(item.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm extended-reading-detail">查看详情</a>` : ''}
+            </div>
+          </div>`;
+          }).join('')}
+        </div>
+      ` : renderProtectedGroup({
+        bookId: book.id,
+        key: extReadingKey,
+        title: '延伸读物暂未解锁',
+        description: `本期共读列出了 ${extItems.length} 本延伸读物。解锁后可查看完整书单、作者、封面和详情链接。`,
+        summary: accessSummary,
+        unlockLabel: '解锁延伸读物'
+      })}
+    </div>`;
+
+  const otherSections = [
+    { key: 'text_materials', label: '文字材料' },
+    { key: 'film_resources', label: '影视资源' },
+    { key: 'other', label: '其他' }
+  ];
+
+  const resourcesHtml = extReadingHtml + otherSections.map(sec => {
+    const items = resources[sec.key] || [];
+    if (items.length === 0) return '';
+    return `<div style="margin-bottom:var(--space-3);">
+      <h4 style="margin-bottom:var(--space-1);">${sec.label}</h4>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${items.map((item, index) => `
+          <div style="padding:6px 0;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);">
+            <div>
+              <span>${h(item.title)}</span>
+              ${item.description ? `<div style="font-size:0.84rem;color:var(--color-text-3);margin-top:2px;">${h(item.description)}</div>` : ''}
+            </div>
+            ${renderProtectedLink({
+              bookId: book.id,
+              key: resourceKey(book.id, `resource_${sec.key}`, index, 'url'),
+              url: item.url,
+              label: '查看',
+              summary: accessSummary
+            })}
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  return resourcesHtml || '<p style="color:var(--color-text-3);">暂无资源材料。</p>';
+}
+
+async function loadBookLazyTab(target) {
+  if (!target?.dataset.lazyBookTab || target.dataset.loaded === 'true') return;
+  const state = bookDetailState.get(target.dataset.bookId);
+  if (!state) return;
+
+  const tabName = target.dataset.lazyBookTab;
+  target.innerHTML = '<div class="empty-state compact"><i data-lucide="loader"></i><p>正在加载...</p></div>';
+  lucide.createIcons();
+
+  try {
+    if (tabName === 'edition') {
+      target.innerHTML = await renderEditionTab(state.book);
+    } else if (tabName === 'resources') {
+      target.innerHTML = await renderResourcesTab(state.book, state.accessSummary);
+    }
+    target.dataset.loaded = 'true';
+  } catch (err) {
+    console.warn('Book lazy tab load failed:', err);
+    target.innerHTML = '<div class="empty-state"><i data-lucide="alert-triangle"></i><p>加载失败，请稍后重试。</p></div>';
+  }
+  lucide.createIcons();
+}
+
+// ===========================================
+// ROUTE: BOOK DETAIL (v2)
+// ===========================================
+route('/books/:id', async (params) => {
+  // Check memory cache first (hit if user visited book list before)
+  const cachedBook = store.get('books').find(b => b.id == params.id);
+  const bookPromise = cachedBook
+    ? Promise.resolve(cachedBook)
+    : sb.from('books').select('*').eq('id', params.id).single().then(({ data }) => data);
+  const accessPromise = loadBookAccessSummary(params.id);
+  const [book, accessSummary] = await Promise.all([bookPromise, accessPromise]);
+  if (!book) return '<div class="container section"><div class="empty-state"><i data-lucide="book"></i><p>书籍未找到</p></div></div>';
+
+  // Tab 1: 简介 — description + author_bio + historical_context
+  const descHtml = safeMarked(book.description || '暂无简介。');
+  const authorBioHtml = safeMarked(book.author_bio || '暂无作者简介。');
+  const contextHtml = safeMarked(book.historical_context || '暂无时代背景介绍。');
+  const introHtml = `
+    <div class="md-content" style="max-width:none;">
+      <h2>书籍简介</h2>
+      <hr style="border:none;border-top:1px solid var(--color-border);margin:6px 0 var(--space-2);">
+      ${descHtml}
+      <div style="height:var(--space-3);"></div>
+      <h2>作者简介</h2>
+      <hr style="border:none;border-top:1px solid var(--color-border);margin:6px 0 var(--space-2);">
+      ${authorBioHtml}
+      <div style="height:var(--space-3);"></div>
+      <h2>创作时代背景</h2>
+      <hr style="border:none;border-top:1px solid var(--color-border);margin:6px 0 var(--space-2);">
+      ${contextHtml}
+    </div>`;
+
+  // Tab 2: 领读人简介 — host + host_intro
+  const hostIntroHtml = safeMarked(book.host_intro || '暂无领读人信息。');
+  const hostTabHtml = `
+    <div class="md-content" style="max-width:none;">
+      <h2>领读人：${h(book.host || '待定')}</h2>
+      <hr style="border:none;border-top:1px solid var(--color-border);margin:var(--space-2) 0;">
+      <div style="font-size:1rem;line-height:1.8;">${hostIntroHtml}</div>
+    </div>`;
+
+  // Tab 2.5: 灵沁碎碎念 — host_notes (only if has content)
+  const hostNotesHtml = book.host_notes ? safeMarked(book.host_notes) : '';
+  const hostNotesTabHtml = book.host_notes ? `
+    <div class="md-content" style="max-width:none;">
+      ${hostNotesHtml}
+    </div>` : '';
+  const hostNotesTabBtn = book.host_notes ? '<button class="tab" data-tab="hostnotes">灵沁碎碎念</button>' : '';
+  const hostNotesTabContent = book.host_notes ? `<div id="tab-hostnotes" class="tab-content" style="display:none;">${hostNotesTabHtml}</div>` : '';
+
+  // Tab 3: 版本建议 — 延迟到用户打开分页时加载，避免阻塞首屏
+  const editionsHtml = lazyTabPlaceholder('版本建议');
 
   // Tab 4: 时间计划
   let scheduleData = { summary: '', pdf_url: '' };
@@ -241,109 +382,8 @@ route('/books/:id', async (params) => {
       `).join('')}
     </div>`;
 
-  // Tab 6: 资源材料
-  let resources = { extended_reading: [], text_materials: [], film_resources: [], other: [] };
-  try { resources = typeof book.resources === 'string' ? JSON.parse(book.resources) : (book.resources || {}); } catch(e) {}
-
-  // Fetch Douban metadata for extended reading items with Douban URLs
-  const extItems = resources.extended_reading || [];
-  const extReadingKey = resourceKey(book.id, 'resource_extended_reading', 'all', 'list');
-  const extReadingUnlocked = canViewResource(accessSummary, extReadingKey);
-  const doubanCache = {};
-  const doubanUrls = extReadingUnlocked ? extItems.filter(item => isDoubanBookUrl(item.url)).map(item => item.url) : [];
-  if (doubanUrls.length > 0) {
-    // Check cache first
-    try {
-      const { data: cached } = await sb.from('douban_book_cache').select('*').in('douban_url', doubanUrls);
-      if (cached) cached.forEach(c => { doubanCache[c.douban_url] = c; });
-    } catch(e) {}
-    // Fetch uncached ones via Edge Function
-    const uncached = doubanUrls.filter(url => !doubanCache[url]);
-    if (uncached.length > 0) {
-      const results = await Promise.allSettled(uncached.map(url =>
-        fetch(`${SUPABASE_URL}/functions/v1/fetch-douban-book`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-          body: JSON.stringify({ url })
-        }).then(r => r.json()).then(r => (r && r.success) ? r.data : null).catch(() => null)
-      ));
-      results.forEach((r, i) => {
-        if (r.status === 'fulfilled' && r.value) {
-          doubanCache[uncached[i]] = r.value;
-        }
-      });
-    }
-  }
-
-  // Render extended reading as cards with Douban metadata
-  const extReadingHtml = extItems.length === 0 ? '' : `
-    <div class="extended-reading-section">
-      <h4>延伸读物</h4>
-      ${extReadingUnlocked ? `
-        <div class="extended-reading-grid">
-          ${extItems.map((item) => {
-          const db = doubanCache[item.url] || {};
-          return `
-          <div class="new-book-card extended-reading-card">
-            <div class="nb-cover" style="width:100px;">
-              ${db.cover_url
-                ? `<img src="${esc(proxyImg(db.cover_url))}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">`
-                : ''}
-              <i data-lucide="book" class="cover-fallback" style="${db.cover_url ? 'display:none;' : ''}"></i>
-            </div>
-            <div class="nb-body extended-reading-body">
-              <div class="extended-reading-copy">
-                <h3>${h(db.title || item.title)}</h3>
-                ${db.author ? `<div class="nb-row"><span class="nb-label">作者</span>${h(db.author)}</div>` : ''}
-                ${db.publisher ? `<div class="nb-row"><span class="nb-label">出版方</span>${h(db.publisher)}</div>` : ''}
-                ${db.rating ? `<div class="nb-row rating">⭐${h(db.rating)} · ${db.review_count || 0}人评价</div>` : ''}
-                ${item.description ? `<div class="nb-row extended-reading-description">${h(item.description)}</div>` : ''}
-              </div>
-              ${item.url ? `<a href="${safeUrl(item.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm extended-reading-detail">查看详情</a>` : ''}
-            </div>
-          </div>`;
-          }).join('')}
-        </div>
-      ` : renderProtectedGroup({
-        bookId: book.id,
-        key: extReadingKey,
-        title: '延伸读物暂未解锁',
-        description: `本期共读列出了 ${extItems.length} 本延伸读物。解锁后可查看完整书单、作者、封面和详情链接。`,
-        summary: accessSummary,
-        unlockLabel: '解锁延伸读物'
-      })}
-    </div>`;
-
-  // Render other resource sections as simple lists
-  const otherSections = [
-    { key: 'text_materials', label: '文字材料' },
-    { key: 'film_resources', label: '影视资源' },
-    { key: 'other', label: '其他' }
-  ];
-  const resourcesHtml = extReadingHtml + otherSections.map(sec => {
-    const items = resources[sec.key] || [];
-    if (items.length === 0) return '';
-    return `<div style="margin-bottom:var(--space-3);">
-      <h4 style="margin-bottom:var(--space-1);">${sec.label}</h4>
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        ${items.map((item, index) => `
-          <div style="padding:6px 0;border-bottom:1px solid var(--color-border);display:flex;justify-content:space-between;align-items:center;gap:var(--space-2);">
-            <div>
-              <span>${h(item.title)}</span>
-              ${item.description ? `<div style="font-size:0.84rem;color:var(--color-text-3);margin-top:2px;">${h(item.description)}</div>` : ''}
-            </div>
-            ${renderProtectedLink({
-              bookId: book.id,
-              key: resourceKey(book.id, `resource_${sec.key}`, index, 'url'),
-              url: item.url,
-              label: '查看',
-              summary: accessSummary
-            })}
-          </div>
-        `).join('')}
-      </div>
-    </div>`;
-  }).join('');
+  // Tab 6: 资源材料 — 延迟到用户打开分页时加载，避免阻塞首屏
+  const resourcesHtml = lazyTabPlaceholder('资源材料');
 
   // Tab 7: 聊天干货
   let chats = [];
@@ -428,6 +468,8 @@ route('/books/:id', async (params) => {
     </div>
   `;
 
+  bookDetailState.set(String(book.id), { book, accessSummary });
+
   return `
     <div class="container section">
       <a href="#/books" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回共读书库</a>
@@ -465,11 +507,11 @@ route('/books/:id', async (params) => {
       <div id="tab-intro" class="tab-content">${introHtml}</div>
       <div id="tab-host" class="tab-content" style="display:none;">${hostTabHtml}</div>
       ${hostNotesTabContent}
-      <div id="tab-edition" class="tab-content" style="display:none;">${editionsHtml}</div>
+      <div id="tab-edition" class="tab-content" style="display:none;" data-lazy-book-tab="edition" data-book-id="${h(book.id)}">${editionsHtml}</div>
       <div id="tab-schedule" class="tab-content" style="display:none;">${scheduleHtml}</div>
       ${joinEnabled ? `<div id="tab-join" class="tab-content" style="display:none;">${joinHtml}</div>` : ''}
       <div id="tab-activities" class="tab-content" style="display:none;">${activitiesHtml}</div>
-      <div id="tab-resources" class="tab-content" style="display:none;">
+      <div id="tab-resources" class="tab-content" style="display:none;" data-lazy-book-tab="resources" data-book-id="${h(book.id)}">
         ${resourcesHtml || '<p style="color:var(--color-text-3);">暂无资源材料。</p>'}
       </div>
       <div id="tab-chats" class="tab-content" style="display:none;">
@@ -487,5 +529,8 @@ document.addEventListener('click', (e) => {
   tab.classList.add('active');
   document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
   const target = document.getElementById('tab-' + tab.dataset.tab);
-  if (target) target.style.display = '';
+  if (target) {
+    target.style.display = '';
+    loadBookLazyTab(target);
+  }
 });
