@@ -1276,16 +1276,16 @@
       position: relative; align-items: stretch; min-height: 168px;
     }
     .extended-reading-body {
-      min-width: 0; padding-bottom: 42px;
+      min-width: 0; display: flex; flex-direction: column;
     }
     .extended-reading-copy { min-width: 0; }
-    .new-book-card .nb-body .extended-reading-description {
-      white-space: normal; overflow: visible; text-overflow: clip;
+    .new-book-card .nb-body .nb-row.extended-reading-description {
+      display: block; white-space: pre-wrap; overflow: visible; text-overflow: clip;
       margin-top: 2px; padding-right: 4px;
-      overflow-wrap: anywhere;
+      overflow-wrap: anywhere; max-height: none;
     }
     .extended-reading-detail {
-      position: absolute; right: 12px; bottom: 12px;
+      align-self: flex-end; margin-top: auto;
     }
 
     /* ========================================
