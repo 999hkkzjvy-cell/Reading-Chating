@@ -1,6 +1,7 @@
 import { loadMemberSummary } from './members.js';
 import { route } from './router.js';
 import { sb } from './supabaseClient.js';
+import { signOut } from './auth.js';
 import { store } from './store.js';
 import { toast } from './ui.js';
 import { esc, formatDate, formatDateTime, h, safeUrl } from './utils.js';
@@ -637,6 +638,12 @@ export function bindMemberCenterEvents() {
   });
 
   document.addEventListener('click', e => {
+    const logoutBtn = e.target.closest('#member-logout-btn');
+    if (logoutBtn) {
+      signOut();
+      return;
+    }
+
     const badgeButton = e.target.closest('[data-action="member-badge-preview"]');
     if (badgeButton) {
       openBadgePreview(badgeButton);
@@ -694,7 +701,7 @@ export function registerMemberCenterRoutes() {
             <a href="#/user/${h(user.id)}" class="btn btn-outline"><i data-lucide="user"></i> 个人主页</a>
             <a href="#/member/friends" class="btn btn-outline"><i data-lucide="users"></i> 我的好友</a>
             <a href="#/member/library" class="btn btn-outline"><i data-lucide="library"></i> 我的书库</a>
-            <button class="btn btn-outline btn-sm" id="member-logout-btn" style="color:var(--color-danger);border-color:var(--color-danger);"><i data-lucide="log-out"></i> 退出</button>
+            <button type="button" class="btn btn-outline btn-sm" id="member-logout-btn" style="color:var(--color-danger);border-color:var(--color-danger);"><i data-lucide="log-out"></i> 退出</button>
           </div>
         </div>
 

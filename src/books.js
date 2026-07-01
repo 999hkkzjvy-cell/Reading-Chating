@@ -277,29 +277,29 @@ route('/books/:id', async (params) => {
 
   // Render extended reading as cards with Douban metadata
   const extReadingHtml = extItems.length === 0 ? '' : `
-    <div style="margin-bottom:var(--space-3);">
-      <h4 style="margin-bottom:var(--space-1);">延伸读物</h4>
+    <div class="extended-reading-section">
+      <h4>延伸读物</h4>
       ${extReadingUnlocked ? `
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-2);">
+        <div class="extended-reading-grid">
           ${extItems.map((item) => {
           const db = doubanCache[item.url] || {};
           return `
-          <div class="new-book-card">
+          <div class="new-book-card extended-reading-card">
             <div class="nb-cover" style="width:100px;">
               ${db.cover_url
                 ? `<img src="${esc(proxyImg(db.cover_url))}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">`
                 : ''}
               <i data-lucide="book" class="cover-fallback" style="${db.cover_url ? 'display:none;' : ''}"></i>
             </div>
-            <div class="nb-body">
-              <h3>${h(db.title || item.title)}</h3>
-              ${db.author ? `<div class="nb-row"><span class="nb-label">作者</span>${h(db.author)}</div>` : ''}
-              ${db.publisher ? `<div class="nb-row"><span class="nb-label">出版方</span>${h(db.publisher)}</div>` : ''}
-              ${db.rating ? `<div class="nb-row rating">⭐${h(db.rating)} · ${db.review_count || 0}人评价</div>` : ''}
-              ${item.description ? `<div class="nb-row" style="white-space:normal;margin-top:2px;">${h(item.description)}</div>` : ''}
-              <div class="nb-actions" style="margin-top:4px;">
-                ${item.url ? `<a href="${safeUrl(item.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">查看详情</a>` : ''}
+            <div class="nb-body extended-reading-body">
+              <div class="extended-reading-copy">
+                <h3>${h(db.title || item.title)}</h3>
+                ${db.author ? `<div class="nb-row"><span class="nb-label">作者</span>${h(db.author)}</div>` : ''}
+                ${db.publisher ? `<div class="nb-row"><span class="nb-label">出版方</span>${h(db.publisher)}</div>` : ''}
+                ${db.rating ? `<div class="nb-row rating">⭐${h(db.rating)} · ${db.review_count || 0}人评价</div>` : ''}
+                ${item.description ? `<div class="nb-row extended-reading-description">${h(item.description)}</div>` : ''}
               </div>
+              ${item.url ? `<a href="${safeUrl(item.url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm extended-reading-detail">查看详情</a>` : ''}
             </div>
           </div>`;
           }).join('')}

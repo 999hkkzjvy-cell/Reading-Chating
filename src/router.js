@@ -1,5 +1,6 @@
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
+import { toast } from './ui.js';
 
 const routes = {};
 let afterRouteRender = () => {};
@@ -61,8 +62,11 @@ export const router = {
       const cleanPath = path.replace(/\?.*$/, '');
       const matched = this.match(path);
 
-      const authRequired = ['/member', '/profile', '/reading-circle/mine', '/admin'].some(p => pathMatchesPrefix(cleanPath, p));
+      const authRequired = ['/member', '/profile', '/reading-circle', '/user', '/admin'].some(p => pathMatchesPrefix(cleanPath, p));
       if (authRequired && !store.get('user')) {
+        if (pathMatchesPrefix(cleanPath, '/reading-circle') || pathMatchesPrefix(cleanPath, '/user')) {
+          toast('会员登录方可浏览书友圈。', 'error');
+        }
         return this.navigate('/login?redirect=' + encodeURIComponent(path));
       }
 

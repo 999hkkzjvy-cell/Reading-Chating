@@ -1266,6 +1266,27 @@
       font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;
       color: var(--color-text-2);
     }
+    .extended-reading-section { margin-bottom: var(--space-3); }
+    .extended-reading-section h4 { margin-bottom: var(--space-1); }
+    .extended-reading-grid {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+    .extended-reading-card {
+      position: relative; align-items: stretch; min-height: 168px;
+    }
+    .extended-reading-body {
+      min-width: 0; padding-bottom: 42px;
+    }
+    .extended-reading-copy { min-width: 0; }
+    .new-book-card .nb-body .extended-reading-description {
+      white-space: normal; overflow: visible; text-overflow: clip;
+      margin-top: 2px; padding-right: 4px;
+      overflow-wrap: anywhere;
+    }
+    .extended-reading-detail {
+      position: absolute; right: 12px; bottom: 12px;
+    }
 
     /* ========================================
        Modal
@@ -1857,6 +1878,7 @@
       .reading-login-tip .card-body { align-items: flex-start; flex-direction: column; }
       .new-books-layout { flex-direction: column; }
       .new-books-layout .new-books-side { width: 100%; }
+      .extended-reading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .latam-layout { flex-direction: column; }
       .latam-map-wrap { max-width: 100%; }
       #latam-leaflet-map { height: 350px !important; }
@@ -1884,6 +1906,7 @@
       .member-heading-profile, .member-current-card { align-items: flex-start; }
       .member-current-card { flex-direction: column; }
       .member-stats-grid { grid-template-columns: 1fr; }
+      .extended-reading-grid { grid-template-columns: 1fr; }
       .reading-post-main { flex-direction: column; }
       .reading-post-cover { width: 92px; }
       .modal { max-width: 95vw; }
