@@ -9,6 +9,7 @@ import {
   loadBooks,
   loadConfig,
   loadEvents,
+  loadHomeBooks,
 } from './data.js';
 import './events.js';
 import { bindLatamEvents, initLatamMap, renderLatamPage } from './latam.js';
@@ -80,16 +81,10 @@ import { safeMarked } from './utils.js';
     // ROUTE: HOME
     // ===========================================
     route('/', async () => {
-      const config = await loadConfig();
-      const books = await loadBooks();
-      // Show the two books with most recent end dates
-      const latestBooks = [...books]
-        .filter(b => b.end_date)
-        .sort((a, b) => dayjs(b.end_date).diff(dayjs(a.end_date)))
-        .slice(0, 2);
-      if (latestBooks.length === 0 && books.length > 0) {
-        latestBooks.push(...books.slice(0, 2 - latestBooks.length));
-      }
+      const [config, latestBooks] = await Promise.all([
+        loadConfig(),
+        loadHomeBooks()
+      ]);
 
       const rulesHtml = safeMarked(config.group_rules || '群规加载中...');
 

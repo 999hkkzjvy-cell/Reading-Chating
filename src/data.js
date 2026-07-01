@@ -9,6 +9,37 @@ export async function loadBooks() {
   return data || [];
 }
 
+export async function loadHomeBooks() {
+  const columns = [
+    'id',
+    'title',
+    'author',
+    'author_country',
+    'translator',
+    'publisher',
+    'cover_url',
+    'status',
+    'start_date',
+    'end_date',
+    'description'
+  ].join(',');
+  const { data } = await sb
+    .from('books')
+    .select(columns)
+    .not('end_date', 'is', null)
+    .order('end_date', { ascending: false })
+    .limit(2);
+
+  if (data?.length) return data;
+
+  const { data: fallback } = await sb
+    .from('books')
+    .select(columns)
+    .order('start_date', { ascending: false, nullsFirst: false })
+    .limit(2);
+  return fallback || [];
+}
+
 export async function loadEvents() {
   const { data } = await sb.from('events').select('*').order('event_date', { ascending: false });
   store.set('events', data || []);

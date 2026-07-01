@@ -11,7 +11,9 @@ export async function initAuth() {
     const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
     store.set('profile', profile);
     store.set('isAdmin', profile?.role === 'admin');
-    await loadMemberSummary(user.id);
+    loadMemberSummary(user.id).catch(err => {
+      console.warn('Member summary background load failed:', err);
+    });
   }
   renderNavUser();
 }
