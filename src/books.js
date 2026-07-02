@@ -320,13 +320,13 @@ route('/books/:id', async (params) => {
       <div style="font-size:1rem;line-height:1.8;">${hostIntroHtml}</div>
     </div>`;
 
-  // Tab 2.5: 灵沁碎碎念 — host_notes (only if has content)
+  // Tab 2.5: 共读导言 — host_notes (only if has content)
   const hostNotesHtml = book.host_notes ? safeMarked(book.host_notes) : '';
   const hostNotesTabHtml = book.host_notes ? `
     <div class="md-content" style="max-width:none;">
       ${hostNotesHtml}
     </div>` : '';
-  const hostNotesTabBtn = book.host_notes ? '<button class="tab" data-tab="hostnotes">灵沁碎碎念</button>' : '';
+  const hostNotesTabBtn = book.host_notes ? '<button class="tab" data-tab="hostnotes">共读导言</button>' : '';
   const hostNotesTabContent = book.host_notes ? `<div id="tab-hostnotes" class="tab-content" style="display:none;">${hostNotesTabHtml}</div>` : '';
 
   // Tab 3: 版本建议 — 延迟到用户打开分页时加载，避免阻塞首屏
