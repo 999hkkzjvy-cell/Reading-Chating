@@ -777,9 +777,37 @@
       margin-top: auto; color: var(--color-text-3); font-size: 0.76rem;
     }
     .member-library-slots { display: flex; flex-direction: column; gap: 12px; }
+    .member-library-slots-want {
+      display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px; align-items: stretch;
+    }
     .member-library-slot-card {
       display: grid; grid-template-columns: 34px 78px minmax(0, 1fr) 150px;
       gap: 12px; align-items: center; padding: 12px;
+    }
+    .member-library-slots-want .member-library-slot-card {
+      display: flex; flex-direction: column; align-items: stretch;
+      min-height: 350px;
+    }
+    .member-library-slots-want .member-library-cover {
+      width: min(100%, 96px); margin: 0 auto;
+    }
+    .member-library-slots-want .member-library-card-body {
+      flex: 1; text-align: center;
+    }
+    .member-library-slots-want .member-library-card-body strong {
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .member-library-slots-want .member-library-card-body p {
+      display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+      overflow: hidden; text-align: justify; text-align-last: left;
+    }
+    .member-library-slots-want .member-library-slot-actions {
+      margin-top: auto;
+    }
+    .member-library-slots-want .member-library-empty-slot {
+      min-height: 350px; flex-direction: column; padding: 12px; text-align: center;
     }
     .member-library-slot-rank {
       width: 28px; height: 28px; border-radius: 50%;
@@ -1083,8 +1111,17 @@
       gap: 10px;
     }
     .user-library-cover-grid {
-      grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
-      gap: 12px;
+      display: flex; flex-wrap: nowrap; gap: 12px;
+      overflow-x: auto; padding-bottom: 2px;
+      scrollbar-width: thin;
+    }
+    .user-library-five-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      align-items: stretch;
+    }
+    .user-library-three-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px; align-items: stretch;
     }
     .user-library-book {
       display: grid; grid-template-columns: 52px minmax(0, 1fr);
@@ -1093,8 +1130,17 @@
       color: var(--color-text); text-decoration: none;
       transition: background 0.2s ease, border-color 0.2s ease;
     }
+    .user-library-five-grid .user-library-book {
+      grid-template-columns: 1fr; align-content: start;
+      min-height: 230px;
+    }
+    .user-library-three-grid .user-library-book {
+      grid-template-columns: 1fr; align-content: start;
+      min-height: 300px; padding: 12px;
+    }
     .user-library-book-cover-only {
       display: block; padding: 6px; width: 100%;
+      flex: 0 0 74px;
     }
     .user-library-book:hover {
       background: var(--color-accent-bg); border-color: rgba(193,125,75,0.35);
@@ -1107,18 +1153,39 @@
     .user-library-cover img { width: 100%; height: 100%; object-fit: cover; }
     .user-library-cover i { width: 22px; height: 22px; }
     .user-library-book-cover-only .user-library-cover {
-      width: 100%; max-width: 92px; margin: 0 auto;
+      width: 100%; margin: 0 auto;
     }
+    .user-library-five-grid .user-library-cover {
+      width: min(100%, 86px); margin: 0 auto;
+    }
+    .user-library-three-grid .user-library-cover {
+      width: min(100%, 118px); margin: 0 auto;
+    }
+    .user-library-five-grid .user-library-book > div { text-align: center; }
+    .user-library-three-grid .user-library-book > div { text-align: center; }
     .user-library-book strong {
       display: block; font-size: 0.88rem; line-height: 1.35;
       margin-bottom: 2px; word-break: break-word;
     }
+    .user-library-five-grid .user-library-book strong,
+    .user-library-three-grid .user-library-book strong,
+    .user-library-five-grid .user-library-book p {
+      display: -webkit-box; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .user-library-five-grid .user-library-book strong { -webkit-line-clamp: 2; }
+    .user-library-five-grid .user-library-book p { -webkit-line-clamp: 3; }
+    .user-library-three-grid .user-library-book strong { -webkit-line-clamp: 2; }
     .user-library-book span,
     .user-library-book p {
       display: block; color: var(--color-text-2);
       font-size: 0.78rem; line-height: 1.45;
     }
     .user-library-book p { margin-top: 3px; color: var(--color-text-3); }
+    .user-library-five-grid .user-library-book p,
+    .user-library-three-grid .user-library-book p {
+      text-align: justify; text-align-last: left;
+    }
     .user-library-more { margin-top: 8px; }
 
     /* 头像编辑 */
@@ -2107,11 +2174,21 @@
       .member-heading { align-items: flex-start; flex-direction: column; }
       .member-overview, .member-main-grid, .member-ticket-page-grid { grid-template-columns: 1fr; }
       .member-stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .user-library-five-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .user-library-three-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .member-library-slots-want { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .member-library-slot-card {
         grid-template-columns: 30px 64px minmax(0, 1fr);
         align-items: start;
       }
+      .member-library-slots-want .member-library-slot-card,
+      .member-library-slots-want .member-library-empty-slot {
+        min-height: 320px;
+      }
       .member-library-slot-card .member-library-cover { width: 64px; }
+      .member-library-slots-want .member-library-cover {
+        width: min(100%, 92px);
+      }
       .member-library-slot-actions {
         grid-column: 1 / -1; flex-direction: row;
       }
@@ -2154,6 +2231,9 @@
       .member-heading-profile, .member-current-card { align-items: flex-start; }
       .member-current-card { flex-direction: column; }
       .member-stats-grid { grid-template-columns: 1fr; }
+      .member-library-slots-want { grid-template-columns: 1fr; }
+      .user-library-five-grid { grid-template-columns: 1fr; }
+      .user-library-three-grid { grid-template-columns: 1fr; }
       .extended-reading-grid { grid-template-columns: 1fr; }
       .reading-post-main { flex-direction: column; }
       .reading-post-cover { width: 92px; }

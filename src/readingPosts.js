@@ -639,6 +639,8 @@ function renderProfileLibraryGroup(title, rows, options = {}) {
   const visibleRows = rows.slice(0, options.limit || rows.length);
   const hiddenCount = rows.length - visibleRows.length;
   const coverOnly = !!options.coverOnly;
+  const fiveAcross = !!options.fiveAcross;
+  const threeAcross = !!options.threeAcross;
 
   return `
     <section class="user-library-group">
@@ -646,7 +648,7 @@ function renderProfileLibraryGroup(title, rows, options = {}) {
         <h4>${h(title)}</h4>
         <span>${h(rows.length)} 本</span>
       </div>
-      <div class="user-library-grid ${coverOnly ? 'user-library-cover-grid' : ''}">
+      <div class="user-library-grid ${coverOnly ? 'user-library-cover-grid' : ''} ${fiveAcross ? 'user-library-five-grid' : ''} ${threeAcross ? 'user-library-three-grid' : ''}">
         ${visibleRows.map(row => {
           const href = row.post_id ? `#/reading-circle?post=${h(row.post_id)}` : safeUrl(row.douban_url || '#');
           const externalAttrs = row.post_id ? '' : ' target="_blank" rel="noopener"';
@@ -683,8 +685,8 @@ function renderProfileLibrary(rows) {
           <h3>书库</h3>
           <span>${h(life.length + want.length + finished.length)} 本</span>
         </div>
-        ${renderProfileLibraryGroup('人生之书', life)}
-        ${renderProfileLibraryGroup('想读书目', want)}
+        ${renderProfileLibraryGroup('人生之书', life, { threeAcross: true })}
+        ${renderProfileLibraryGroup('想读书目', want, { fiveAcross: true })}
         ${renderProfileLibraryGroup('已读书目', finished, { limit: 12, coverOnly: true })}
       </div>
     </div>

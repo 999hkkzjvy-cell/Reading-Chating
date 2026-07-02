@@ -137,7 +137,7 @@ function renderEditableLibrary(listType, items) {
   });
 
   return `
-    <div class="member-library-slots">
+    <div class="member-library-slots member-library-slots-${h(listType)}">
       ${slots.map(order => {
         const item = byOrder.get(order);
         if (!item) {
