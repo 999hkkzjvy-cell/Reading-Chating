@@ -36,27 +36,45 @@ function renderAdminMemberList(members, error) {
   }
 
   return `
+    <div class="admin-member-toolbar">
+      <div class="admin-member-search">
+        <i data-lucide="search"></i>
+        <input type="search" id="admin-member-search-input" placeholder="搜索用户 ID 或显示名字">
+      </div>
+      <span class="admin-muted">可在这里封禁或解锁会员账号。</span>
+    </div>
     <div class="admin-member-table-wrap">
       <table class="admin-member-table">
         <thead>
           <tr>
-            <th>会员 UID</th>
-            <th>显示名字</th>
-            <th>Email</th>
-            <th>注册时间</th>
-            <th>当前等级</th>
+            <th>会员信息</th>
+            <th>注册与等级</th>
+            <th>账号状态</th>
             <th>备注</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
           ${members.map(member => `
-            <tr>
-              <td><code>${h(member.user_id)}</code></td>
-              <td>${h(member.display_name || '未命名')}</td>
-              <td>${h(member.email || '')}</td>
-              <td>${h(formatDateTime(member.registered_at))}</td>
-              <td>${h(memberLevelText(member))}</td>
+            <tr data-admin-member-row data-member-search="${esc(`${member.user_id || ''} ${member.display_name || ''}`.toLowerCase())}">
+              <td>
+                <div class="admin-member-identity">
+                  <strong>${h(member.display_name || '未命名')}</strong>
+                  <span>${h(member.email || '未记录邮箱')}</span>
+                  <code>${h(member.user_id)}</code>
+                </div>
+              </td>
+              <td>
+                <div class="admin-member-meta">
+                  <span>${h(memberLevelText(member))}</span>
+                  <small>注册：${h(formatDateTime(member.registered_at))}</small>
+                </div>
+              </td>
+              <td>
+                ${member.is_banned
+                  ? `<span class="admin-member-status banned">已封禁</span>${member.banned_at ? `<small>${h(formatDateTime(member.banned_at))}</small>` : ''}${member.ban_reason ? `<small>${h(member.ban_reason)}</small>` : ''}`
+                  : '<span class="admin-member-status normal">正常</span>'}
+              </td>
               <td>
                 <textarea
                   class="admin-member-note-input"
@@ -66,7 +84,17 @@ function renderAdminMemberList(members, error) {
                 >${h(member.note || '')}</textarea>
               </td>
               <td>
-                <button type="button" class="btn btn-outline btn-sm" data-action="admin-save-member-note" data-user-id="${esc(member.user_id)}">保存</button>
+                <div class="admin-member-actions">
+                  <button type="button" class="btn btn-outline btn-sm" data-action="admin-save-member-note" data-user-id="${esc(member.user_id)}">保存备注</button>
+                  <button
+                    type="button"
+                    class="btn btn-sm ${member.is_banned ? 'btn-outline' : 'btn-danger'}"
+                    data-action="admin-toggle-member-ban"
+                    data-user-id="${esc(member.user_id)}"
+                    data-is-banned="${member.is_banned ? 'true' : 'false'}"
+                    data-display-name="${esc(member.display_name || '未命名')}"
+                  >${member.is_banned ? '解锁用户' : '封禁用户'}</button>
+                </div>
               </td>
             </tr>
           `).join('')}
@@ -97,6 +125,7 @@ route('/admin', async () => {
         <button class="tab active" data-tab="rules">群规编辑</button>
         <button class="tab" data-tab="books">书籍管理</button>
         <button class="tab" data-tab="events">活动管理</button>
+        <button class="tab" data-tab="member-list">会员清单</button>
         <button class="tab" data-tab="members">会员运营</button>
       </div>
       <div id="admin-tab-rules">
@@ -153,20 +182,22 @@ route('/admin', async () => {
           `).join('')}
         </div>
       </div>
-      <div id="admin-tab-members" style="display:none;">
+      <div id="admin-tab-member-list" style="display:none;">
         <div class="card" style="margin-bottom:var(--space-3);">
           <div class="card-body">
             <div class="admin-section-head">
               <div>
                 <h3>会员清单</h3>
-                <p>查看所有会员基础信息，并维护后台备注。</p>
+                <p>查看所有会员基础信息，维护后台备注，并封禁或解锁会员账号。</p>
               </div>
               <span>${h(adminMembers?.length || 0)} 位会员</span>
             </div>
             ${renderAdminMemberList(adminMembers || [], adminMembersError)}
           </div>
         </div>
+      </div>
 
+      <div id="admin-tab-members" style="display:none;">
         <div class="card" style="margin-bottom:var(--space-3);">
           <div class="card-body">
             <h3 style="margin-bottom:var(--space-1);">本周资源浏览券</h3>
@@ -237,7 +268,7 @@ document.addEventListener('click', (e) => {
   if (!tab) return;
   document.querySelectorAll('#admin-tabs .tab').forEach(t => t.classList.remove('active'));
   tab.classList.add('active');
-  ['rules','books','events','members'].forEach(t => {
+  ['rules','books','events','member-list','members'].forEach(t => {
     const el = document.getElementById('admin-tab-' + t);
     if (el) el.style.display = tab.dataset.tab === t ? '' : 'none';
   });
@@ -728,6 +759,38 @@ document.addEventListener('click', async (e) => {
     return;
   }
 
+  const toggleMemberBanBtn = e.target.closest('[data-action="admin-toggle-member-ban"]');
+  if (toggleMemberBanBtn) {
+    const userId = toggleMemberBanBtn.dataset.userId;
+    const displayName = toggleMemberBanBtn.dataset.displayName || userId;
+    const isBanned = toggleMemberBanBtn.dataset.isBanned === 'true';
+    let reason = '';
+
+    if (isBanned) {
+      if (!confirm(`确定解锁「${displayName}」吗？解锁后该账号将恢复共读书库、书友圈和西语文学板块访问权限。`)) return;
+    } else {
+      const promptedReason = prompt(`确定封禁「${displayName}」吗？\n封禁后该账号将不能浏览共读书库、书友圈、西语文学板块，也不能在书友圈发帖互动。\n\n可填写封禁原因：`, '');
+      if (promptedReason === null) return;
+      reason = promptedReason;
+      if (!confirm(`请再次确认：封禁「${displayName}」？`)) return;
+    }
+
+    toggleMemberBanBtn.disabled = true;
+    const { error } = await sb.rpc('admin_set_member_ban', {
+      p_user_id: userId,
+      p_is_banned: !isBanned,
+      p_reason: reason
+    });
+    if (error) {
+      toast((isBanned ? '解锁失败：' : '封禁失败：') + error.message, 'error');
+      toggleMemberBanBtn.disabled = false;
+      return;
+    }
+    toast(isBanned ? '用户已解锁' : '用户已封禁');
+    router.render();
+    return;
+  }
+
   const addBookBtn = e.target.closest('#btn-add-book, #btn-add-book2');
   if (addBookBtn) { showBookForm(); return; }
   const addEventBtn = e.target.closest('#btn-add-event');
@@ -799,4 +862,15 @@ document.addEventListener('click', async (e) => {
     aiBtn.textContent = '🤖 AI 自动填充简介';
     return;
   }
+});
+
+document.addEventListener('input', (e) => {
+  const searchInput = e.target.closest('#admin-member-search-input');
+  if (!searchInput) return;
+
+  const query = searchInput.value.trim().toLowerCase();
+  document.querySelectorAll('[data-admin-member-row]').forEach(row => {
+    const haystack = row.dataset.memberSearch || '';
+    row.style.display = !query || haystack.includes(query) ? '' : 'none';
+  });
 });

@@ -17,6 +17,26 @@ function pathMatchesPrefix(path, prefix) {
   return path === prefix || path.startsWith(prefix + '/');
 }
 
+function isBanProtectedPath(path) {
+  return ['/books', '/reading-circle', '/latin-america'].some(prefix => pathMatchesPrefix(path, prefix));
+}
+
+async function isCurrentUserBanned() {
+  const user = store.get('user');
+  if (!user || store.get('isAdmin')) return false;
+
+  const cached = store.get('isBanned');
+  if (typeof cached === 'boolean') return cached;
+
+  const { data, error } = await sb.rpc('is_current_user_banned');
+  if (error) {
+    console.warn('Ban status unavailable:', error.message);
+    return false;
+  }
+  store.set('isBanned', !!data);
+  return !!data;
+}
+
 export const router = {
   navigate(path) {
     location.hash = '#' + path;
@@ -81,6 +101,19 @@ export const router = {
           lucide.createIcons();
           return;
         }
+      }
+
+      if (isBanProtectedPath(cleanPath) && await isCurrentUserBanned()) {
+        document.getElementById('view').innerHTML = `
+          <div class="container section">
+            <div class="empty-state">
+              <i data-lucide="shield-alert"></i>
+              <p>该账号已被封禁，暂不能浏览共读书库、书友圈和西语文学板块。</p>
+            </div>
+          </div>
+        `;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
       }
 
       if (matched) {

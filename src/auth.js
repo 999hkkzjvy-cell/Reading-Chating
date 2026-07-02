@@ -5,6 +5,7 @@ import { loadMemberSummary } from './members.js';
 import { esc, formatDateTime, h, safeUrl } from './utils.js';
 
 export async function initAuth() {
+  store.set('isBanned', null);
   const { data: { user } } = await sb.auth.getUser();
   if (user) {
     store.set('user', user);
@@ -70,6 +71,7 @@ export async function signOut() {
   store.set('profile', null);
   store.set('member', null);
   store.set('isAdmin', false);
+  store.set('isBanned', null);
   renderNavUser();
   location.hash = '#/';
 }

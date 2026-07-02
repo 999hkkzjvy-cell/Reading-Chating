@@ -174,6 +174,35 @@
     .notification-body span { font-size: 0.72rem; color: var(--color-text-3); }
     .notification-detail-btn { flex-shrink: 0; align-self: center; }
 
+    .admin-member-toolbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: var(--space-2); margin-bottom: var(--space-2); flex-wrap: wrap;
+    }
+    .admin-member-search {
+      display: flex; align-items: center; gap: 8px; min-width: min(420px, 100%);
+      border: 1px solid var(--color-border); border-radius: var(--radius);
+      padding: 8px 10px; background: #fff;
+    }
+    .admin-member-search i { width: 16px; height: 16px; color: var(--color-text-3); }
+    .admin-member-search input {
+      flex: 1; min-width: 0; border: 0; outline: 0; font: inherit; background: transparent;
+    }
+    .admin-member-status {
+      display: inline-flex; align-items: center; width: max-content;
+      padding: 2px 8px; border-radius: 999px; font-size: 0.76rem; font-weight: 700;
+    }
+    .admin-member-status.normal { background: #e8f5e9; color: #2e7d32; }
+    .admin-member-status.banned { background: #ffebee; color: #c62828; }
+    .admin-member-table td small {
+      display: block; margin-top: 4px; color: var(--color-text-3); font-size: 0.72rem;
+    }
+    .admin-member-actions {
+      display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+    }
+    .admin-member-actions .btn {
+      width: 100%; justify-content: center; white-space: nowrap;
+    }
+
     .hamburger { display: none; background: none; border: none; color: var(--color-text); padding: 4px; }
 
     /* Main */
@@ -351,7 +380,8 @@
       border-radius: var(--radius-sm); background: var(--color-bg);
     }
     .admin-member-table {
-      width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.86rem;
+      width: 100%; min-width: 1040px; border-collapse: collapse; font-size: 0.86rem;
+      table-layout: fixed;
     }
     .admin-member-table th, .admin-member-table td {
       padding: 10px; border-bottom: 1px solid var(--color-border);
@@ -361,15 +391,35 @@
       color: var(--color-text-2); background: var(--color-bg-alt);
       font-weight: 700; white-space: nowrap;
     }
-    .admin-member-table td:nth-child(1) { width: 240px; }
-    .admin-member-table td:nth-child(6) { width: 280px; }
+    .admin-member-table th:nth-child(1), .admin-member-table td:nth-child(1) { width: 30%; }
+    .admin-member-table th:nth-child(2), .admin-member-table td:nth-child(2) { width: 15%; }
+    .admin-member-table th:nth-child(3), .admin-member-table td:nth-child(3) { width: 14%; }
+    .admin-member-table th:nth-child(4), .admin-member-table td:nth-child(4) { width: 28%; }
+    .admin-member-table th:nth-child(5), .admin-member-table td:nth-child(5) { width: 13%; }
     .admin-member-table tr:last-child td { border-bottom: 0; }
-    .admin-member-table code {
-      display: inline-block; max-width: 220px; overflow-wrap: anywhere;
-      font-size: 0.78rem; color: var(--color-text-2);
+    .admin-member-identity,
+    .admin-member-meta {
+      display: flex; flex-direction: column; gap: 4px; min-width: 0;
+    }
+    .admin-member-identity strong {
+      font-size: 0.95rem; color: var(--color-text); line-height: 1.35;
+    }
+    .admin-member-identity span,
+    .admin-member-meta span {
+      color: var(--color-text-2); overflow-wrap: anywhere;
+    }
+    .admin-member-identity code {
+      display: block; max-width: 100%; overflow-wrap: anywhere;
+      font-size: 0.76rem; color: var(--color-text-3);
+      background: var(--color-bg-alt); border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); padding: 3px 6px; width: fit-content;
+      max-width: 100%;
+    }
+    .admin-member-meta span {
+      font-weight: 700; color: var(--color-text);
     }
     .admin-member-note-input {
-      width: 100%; min-height: 72px; resize: vertical;
+      width: 100%; min-height: 86px; resize: vertical;
       padding: 8px 10px; border: 1px solid var(--color-border);
       border-radius: var(--radius-sm); background: var(--color-surface);
       color: var(--color-text); line-height: 1.5; font-size: 0.86rem;
