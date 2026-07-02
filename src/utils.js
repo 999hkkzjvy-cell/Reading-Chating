@@ -30,7 +30,23 @@ export function parseHttpUrl(u) {
 
 export function isDoubanBookUrl(u) {
   const parsed = parseHttpUrl(u);
-  return !!parsed && parsed.hostname === 'book.douban.com' && parsed.pathname.startsWith('/subject/');
+  if (!parsed) return false;
+  // 桌面版：book.douban.com/subject/1234567/
+  if (parsed.hostname === 'book.douban.com' && parsed.pathname.startsWith('/subject/')) return true;
+  // 移动端分享链接：www.douban.com/doubanapp/dispatch/book/12345678
+  if (parsed.hostname === 'www.douban.com' && /^\/doubanapp\/dispatch\/book\/\d+/.test(parsed.pathname)) return true;
+  return false;
+}
+
+export function normalizeDoubanBookUrl(u) {
+  const parsed = parseHttpUrl(u);
+  if (!parsed) return u;
+  // 移动端 → 桌面版
+  const m = parsed.pathname.match(/^\/doubanapp\/dispatch\/book\/(\d+)/);
+  if (m && parsed.hostname === 'www.douban.com') {
+    return `https://book.douban.com/subject/${m[1]}/`;
+  }
+  return u;
 }
 
 function isDoubanioImageUrl(u) {

@@ -19,9 +19,16 @@ function parseDoubanBookUrl(input: string) {
     return null;
   }
   if (!["http:", "https:"].includes(parsed.protocol)) return null;
-  if (parsed.hostname !== "book.douban.com") return null;
-  if (!parsed.pathname.startsWith("/subject/")) return null;
-  return parsed.toString();
+  // 桌面版：book.douban.com/subject/1234567/
+  if (parsed.hostname === "book.douban.com" && parsed.pathname.startsWith("/subject/")) {
+    return parsed.toString();
+  }
+  // 移动端分享：www.douban.com/doubanapp/dispatch/book/12345678
+  const m = parsed.pathname.match(/^\/doubanapp\/dispatch\/book\/(\d+)/);
+  if (m && parsed.hostname === "www.douban.com") {
+    return `https://book.douban.com/subject/${m[1]}/`;
+  }
+  return null;
 }
 
 Deno.serve(async (req: Request) => {

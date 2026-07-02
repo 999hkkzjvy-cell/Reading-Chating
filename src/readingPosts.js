@@ -29,7 +29,7 @@ import { route, router } from './router.js';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { showModal, toast } from './ui.js';
-import { esc, formatDateTime, h, isDoubanBookUrl, proxyImg, safeUrl } from './utils.js';
+import { esc, formatDateTime, h, isDoubanBookUrl, normalizeDoubanBookUrl, proxyImg, safeUrl } from './utils.js';
 
 function renderPostComposer() {
   const user = store.get('user');
@@ -270,7 +270,7 @@ async function fetchDoubanBookMeta(form) {
   const authorInput = form.querySelector('input[name="author"]');
   const coverInput = form.querySelector('input[name="cover_url"]');
   const preview = form.querySelector('[data-role="douban-preview"]');
-  const url = urlInput?.value?.trim();
+  const url = normalizeDoubanBookUrl(urlInput?.value?.trim());
 
   if (!isDoubanBookUrl(url)) {
     toast('请填写有效的豆瓣图书链接', 'error');
@@ -311,7 +311,7 @@ async function fetchDoubanBookMeta(form) {
 
 async function submitReadingPost(form) {
   const fd = new FormData(form);
-  const doubanUrl = fd.get('douban_url')?.trim();
+  const doubanUrl = normalizeDoubanBookUrl(fd.get('douban_url')?.trim());
   if (!isDoubanBookUrl(doubanUrl)) {
     toast('请填写有效的豆瓣图书链接', 'error');
     return;
@@ -327,7 +327,7 @@ async function submitReadingPost(form) {
     p_post_type: refreshedFd.get('post_type'),
     p_book_title: refreshedFd.get('book_title'),
     p_author: refreshedFd.get('author') || null,
-    p_douban_url: refreshedFd.get('douban_url') || null,
+    p_douban_url: doubanUrl || null,
     p_cover_url: refreshedFd.get('cover_url') || null,
     p_content: refreshedFd.get('content') || null,
     p_visibility: refreshedFd.get('visibility'),
