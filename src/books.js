@@ -327,10 +327,22 @@ route('/books/:id', async (params) => {
   const hostNotesPreview = hostNotesUnlocked
     ? hostNotesRaw
     : hostNotesRaw.slice(0, Math.ceil(hostNotesRaw.length * 0.1));
-  const hostNotesHtml = hostNotesRaw ? safeMarked(hostNotesPreview) : '';
+  const hostNotesBodyHtml = hostNotesRaw ? safeMarked(hostNotesPreview) : '';
+  const hostNotesTitle = book.host_notes_title || '';
+  const hostNotesSubtitle = book.host_notes_subtitle || '';
+  const hostNotesAuthor = book.host_notes_author || '';
+  const hostNotesHeaderHtml = (hostNotesTitle || hostNotesAuthor) ? `
+    <div class="host-notes-header">
+      ${hostNotesTitle ? `<h2>${h(hostNotesTitle)}</h2>` : ''}
+      ${hostNotesSubtitle ? `<p class="host-notes-subtitle">${h(hostNotesSubtitle)}</p>` : ''}
+      ${hostNotesAuthor ? `<div class="host-notes-author">作者：${h(hostNotesAuthor)}</div>` : ''}
+      <hr style="border:none;border-top:1px solid var(--color-border);margin:var(--space-2) 0;">
+    </div>
+  ` : '';
   const hostNotesTabHtml = hostNotesRaw ? `
     <div class="md-content" style="max-width:none;">
-      ${hostNotesHtml}
+      ${hostNotesHeaderHtml}
+      ${hostNotesBodyHtml}
       ${!hostNotesUnlocked ? `
         <div class="resource-locked-block" style="margin-top:var(--space-4);">
           <i data-lucide="lock"></i>

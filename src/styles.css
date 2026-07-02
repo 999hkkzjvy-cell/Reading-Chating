@@ -1933,3 +1933,18 @@
       .reading-post-cover { width: 92px; }
       .modal { max-width: 95vw; }
     }
+
+    /* 共读导言头部 */
+    .host-notes-header { margin-bottom: var(--space-3); }
+    .host-notes-header h2 {
+      font-family: var(--font-serif); font-size: 1.8rem; margin-bottom: 4px;
+      color: var(--color-text); text-align: center; font-weight: 700;
+    }
+    .host-notes-subtitle {
+      font-family: var(--font-serif); font-size: 1.1rem; color: var(--color-text-2);
+      margin-bottom: 2px; text-align: center; font-weight: 400;
+    }
+    .host-notes-author {
+      font-size: 1.05rem; color: var(--color-text-2); font-weight: 700;
+      text-align: right;
+    }
