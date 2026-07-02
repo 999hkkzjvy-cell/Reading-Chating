@@ -53,7 +53,7 @@ export function renderBookAccessPanel(book, summary) {
   `;
 }
 
-function renderUnlockButton(bookId, key, summary, label = '临时解锁') {
+export function renderUnlockButton(bookId, key, summary, label = '临时解锁') {
   if (!store.get('user')) {
     return `<a href="#/login?redirect=/books/${h(bookId)}" class="btn btn-outline btn-sm">登录查看</a>`;
   }

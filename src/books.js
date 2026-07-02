@@ -1,5 +1,5 @@
 import { renderBookCard, statusTag } from './components.js';
-import { canViewResource, renderBookAccessPanel, renderProtectedGroup, renderProtectedLink, renderProtectedText, resourceKey } from './access.js';
+import { canViewResource, renderBookAccessPanel, renderProtectedGroup, renderProtectedLink, renderProtectedText, renderUnlockButton, resourceKey } from './access.js';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 import { GENRES } from './constants.js';
 import { loadBooks } from './data.js';
@@ -320,14 +320,30 @@ route('/books/:id', async (params) => {
       <div style="font-size:1rem;line-height:1.8;">${hostIntroHtml}</div>
     </div>`;
 
-  // Tab 2.5: 共读导言 — host_notes (only if has content)
-  const hostNotesHtml = book.host_notes ? safeMarked(book.host_notes) : '';
-  const hostNotesTabHtml = book.host_notes ? `
+  // Tab 2.5: 共读导言 — host_notes (only if has content), 未解锁仅显示前10%
+  const hostNotesKey = resourceKey(book.id, 'host_notes', 'all', 'content');
+  const hostNotesUnlocked = canViewResource(accessSummary, hostNotesKey);
+  const hostNotesRaw = book.host_notes || '';
+  const hostNotesPreview = hostNotesUnlocked
+    ? hostNotesRaw
+    : hostNotesRaw.slice(0, Math.ceil(hostNotesRaw.length * 0.1));
+  const hostNotesHtml = hostNotesRaw ? safeMarked(hostNotesPreview) : '';
+  const hostNotesTabHtml = hostNotesRaw ? `
     <div class="md-content" style="max-width:none;">
       ${hostNotesHtml}
+      ${!hostNotesUnlocked ? `
+        <div class="resource-locked-block" style="margin-top:var(--space-4);">
+          <i data-lucide="lock"></i>
+          <div>
+            <strong>完整共读导言暂未解锁</strong>
+            <p>以上为前 10% 预览。解锁后可查看完整共读导言。</p>
+            ${renderUnlockButton(book.id, hostNotesKey, accessSummary, '解锁完整导言')}
+          </div>
+        </div>
+      ` : ''}
     </div>` : '';
-  const hostNotesTabBtn = book.host_notes ? '<button class="tab" data-tab="hostnotes">共读导言</button>' : '';
-  const hostNotesTabContent = book.host_notes ? `<div id="tab-hostnotes" class="tab-content" style="display:none;">${hostNotesTabHtml}</div>` : '';
+  const hostNotesTabBtn = hostNotesRaw ? '<button class="tab" data-tab="hostnotes">共读导言</button>' : '';
+  const hostNotesTabContent = hostNotesRaw ? `<div id="tab-hostnotes" class="tab-content" style="display:none;">${hostNotesTabHtml}</div>` : '';
 
   // Tab 3: 版本建议 — 延迟到用户打开分页时加载，避免阻塞首屏
   const editionsHtml = lazyTabPlaceholder('版本建议');
