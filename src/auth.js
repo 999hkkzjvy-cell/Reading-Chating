@@ -151,7 +151,7 @@ function renderNotificationCopy(n) {
 
   return `
     ${renderActorLink(n)}
-    给您关于<em>《${h(n.book_title || '未知书目')}》</em>的书友圈${n.type === 'like' ? '点了赞' : '留了评论'}
+    给您关于<em>《${h(n.book_title || '未知书目')}》</em>的${n.type === 'comment_reply' ? '评论留了评论' : `书友圈${n.type === 'like' ? '点了赞' : '留了评论'}`}
   `;
 }
 

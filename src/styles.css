@@ -1052,6 +1052,18 @@
     .comment-form textarea:focus { outline: none; border-color: var(--color-accent); }
     .comment-form .btn { flex-shrink: 0; align-self: flex-end; }
 
+    /* 嵌套回复 */
+    .comment-reply { margin-left: 38px; border-left: 2px solid var(--color-border); padding-left: 12px; }
+    .comment-reply .comment-avatar { width: 24px; height: 24px; font-size: 0.65rem; }
+    .comment-actions { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+    .btn-comment-reply {
+      font-size: 0.75rem; color: var(--color-text-3); border: none; background: none;
+      cursor: pointer; padding: 2px 4px; border-radius: 4px;
+    }
+    .btn-comment-reply:hover { color: var(--color-accent); background: var(--color-accent-bg); }
+    .comment-reply-to { font-size: 0.78rem; color: var(--color-accent); font-weight: 500; }
+    .reply-form-inline { margin-left: 38px; margin-top: 4px; margin-bottom: 8px; }
+
     .reading-post-actions {
       display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap;
     }

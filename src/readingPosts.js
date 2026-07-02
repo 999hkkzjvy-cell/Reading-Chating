@@ -484,6 +484,30 @@ async function loadComments(postId) {
   renderComments(listEl, data || [], postId);
 }
 
+function showReplyForm(button) {
+  const postId = button.dataset.post;
+  const commentId = button.dataset.commentId;
+  const authorName = button.dataset.author;
+
+  // 移除已有的行内回复表单
+  document.querySelectorAll('.reply-form-inline').forEach(f => f.remove());
+
+  const form = document.createElement('form');
+  form.className = 'comment-form reply-form-inline';
+  form.dataset.commentForm = postId;
+  form.dataset.parentId = commentId;
+  form.novalidate = true;
+  form.innerHTML = `
+    <textarea name="content" placeholder="回复 ${h(authorName)}..." required rows="2"></textarea>
+    <button type="submit" class="btn btn-sm btn-primary">回复</button>
+    <button type="button" class="btn btn-sm btn-ghost" data-action="cancel-reply">取消</button>
+  `;
+
+  const commentItem = button.closest('.comment-item');
+  commentItem.after(form);
+  form.querySelector('textarea').focus();
+}
+
 function renderComments(listEl, comments, postId) {
   if (!comments.length) {
     listEl.innerHTML = '<div class="comments-empty">暂无评论，来写第一条吧</div>';
@@ -492,23 +516,38 @@ function renderComments(listEl, comments, postId) {
 
   const currentUserId = store.get('user')?.id;
 
-  listEl.innerHTML = comments.map(c => `
-    <div class="comment-item">
+  function renderComment(c, isReply) {
+    const replyTo = c.parent_author_name ? ` 回复 ${h(c.parent_author_name)}` : '';
+    return `
+    <div class="comment-item ${isReply ? 'comment-reply' : ''}">
       <div class="comment-avatar">${c.avatar_url ? `<img src="${safeUrl(c.avatar_url)}" alt="">` : h((c.display_name || '书')[0].toUpperCase())}</div>
       <div class="comment-body">
         <div class="comment-head">
           <strong>${h(c.display_name || '书友')}</strong>
+          ${replyTo ? `<span class="comment-reply-to">${replyTo}</span>` : ''}
           <span>${h(formatDateTime(c.created_at))}</span>
         </div>
         <p class="comment-text">${h(c.content)}</p>
-        ${c.user_id === currentUserId ? `
-          <button type="button" class="btn-comment-delete" data-action="delete-comment" data-id="${h(c.id)}" data-post="${h(postId)}" title="删除评论">
-            <i data-lucide="trash-2"></i>
-          </button>
-        ` : ''}
+        <div class="comment-actions">
+          <button type="button" class="btn-comment-reply" data-action="reply-comment" data-comment-id="${h(c.id)}" data-post="${h(postId)}" data-author="${h(c.display_name)}">回复</button>
+          ${c.user_id === currentUserId ? `
+            <button type="button" class="btn-comment-delete" data-action="delete-comment" data-id="${h(c.id)}" data-post="${h(postId)}" title="删除评论">
+              <i data-lucide="trash-2"></i>
+            </button>
+          ` : ''}
+        </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }
+
+  // 分组：顶级评论 + 其回复
+  const topComments = comments.filter(c => !c.parent_id);
+  const replies = comments.filter(c => c.parent_id);
+
+  listEl.innerHTML = topComments.map(tc => {
+    const children = replies.filter(r => r.parent_id === tc.id);
+    return renderComment(tc, false) + children.map(r => renderComment(r, true)).join('');
+  }).join('');
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -533,7 +572,8 @@ async function submitComment(form) {
   const submitBtn = form.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
 
-  const { data: commentId, error } = await createComment(postId, content);
+  const parentId = form.dataset.parentId || null;
+  const { data: commentId, error } = await createComment(postId, content, parentId);
 
   if (error) {
     const message = error.message === 'Duplicate comment too soon'
@@ -1048,9 +1088,21 @@ export function bindReadingPostEvents() {
       return;
     }
 
+    const replyBtn = e.target.closest('[data-action="reply-comment"]');
+    if (replyBtn) {
+      showReplyForm(replyBtn);
+      return;
+    }
+
     const deleteCommentBtn = e.target.closest('[data-action="delete-comment"]');
     if (deleteCommentBtn) {
       await deleteComment(deleteCommentBtn);
+      return;
+    }
+
+    const cancelReplyBtn = e.target.closest('[data-action="cancel-reply"]');
+    if (cancelReplyBtn) {
+      document.querySelectorAll('.reply-form-inline').forEach(f => f.remove());
       return;
     }
 
@@ -1098,7 +1150,7 @@ export function bindReadingPostEvents() {
       e.preventDefault();
       await editReadingPost(e.target);
     }
-    if (e.target.classList.contains('comment-form')) {
+    if (e.target.classList.contains('comment-form') || e.target.classList.contains('reply-form-inline')) {
       e.preventDefault();
       await submitComment(e.target);
     }

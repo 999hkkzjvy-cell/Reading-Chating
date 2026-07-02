@@ -56,10 +56,11 @@ export function listComments(postId) {
   return sb.rpc('list_comments', { p_post_id: Number(postId) });
 }
 
-export function createComment(postId, content) {
+export function createComment(postId, content, parentId = null) {
   return sb.rpc('create_comment', {
     p_post_id: Number(postId),
-    p_content: content
+    p_content: content,
+    p_parent_id: parentId ? Number(parentId) : null
   });
 }
 
