@@ -37,6 +37,8 @@
 29. `sql/migrate-v35-member-search.sql`
 30. `sql/migrate-v36-follow-level-notifications.sql`
 31. `sql/migrate-v37-member-ban.sql`
+32. `sql/migrate-v38-member-library.sql`
+33. `sql/migrate-v39-public-member-library.sql`
 
 `supabase-schema.sql` 已包含早期基础结构，例如用户资料、站点配置、书库、活动、新书速递、豆瓣缓存、每日签到、`covers`/`files` Storage policy 等。新项目初始化后不要再重复执行 `migrate-v2.sql` 到 `migrate-v8-profile-privacy.sql`，除非你明确知道当前库缺少对应对象。
 
@@ -82,6 +84,8 @@ migrate-v34-given-interaction-contributions.sql
 migrate-v35-member-search.sql
 migrate-v36-follow-level-notifications.sql
 migrate-v37-member-ban.sql
+migrate-v38-member-library.sql
+migrate-v39-public-member-library.sql
 ```
 
 如果不确定某个迁移是否已执行，先检查目标表、函数或字段是否存在。不要在同一个库里重复执行没有 `DROP POLICY IF EXISTS` 或 `CREATE POLICY` 防重处理的早期迁移。

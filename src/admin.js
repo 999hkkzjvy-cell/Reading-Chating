@@ -21,6 +21,101 @@ function memberLevelText(member) {
   return `Lv.${level} ${member.title || ''}`.trim();
 }
 
+function libraryTypeLabel(type) {
+  return type === 'life' ? '人生之书' : '想读书目';
+}
+
+function csvCell(value) {
+  const text = String(value ?? '');
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function downloadTextFile(filename, content, mimeType = 'text/plain;charset=utf-8') {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function memberLibraryRowsToCsv(rows) {
+  const header = ['用户UID', '显示名字', 'Email', '类型', '排序', '书名', '作者', '豆瓣链接', '理由', '更新时间'];
+  const lines = rows.map(row => [
+    row.user_id,
+    row.display_name,
+    row.email,
+    libraryTypeLabel(row.list_type),
+    row.sort_order,
+    row.book_title,
+    row.author,
+    row.douban_url,
+    row.reason,
+    formatDateTime(row.updated_at)
+  ].map(csvCell).join(','));
+  return '\ufeff' + [header.map(csvCell).join(','), ...lines].join('\n');
+}
+
+function topCounts(rows, keyFn, limit = 10) {
+  const counts = new Map();
+  rows.forEach(row => {
+    const key = keyFn(row);
+    if (!key) return;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-Hans-CN'))
+    .slice(0, limit);
+}
+
+function buildMemberLibraryReport(rows) {
+  const wantRows = rows.filter(row => row.list_type === 'want');
+  const lifeRows = rows.filter(row => row.list_type === 'life');
+  const users = new Set(rows.map(row => row.user_id).filter(Boolean));
+  const bookKey = row => row.book_title ? `${row.book_title}${row.author ? ` - ${row.author}` : ''}` : '';
+
+  const renderTop = list => list.length
+    ? list.map(([name, count], index) => `${index + 1}. ${name}：${count} 次`).join('\n')
+    : '暂无数据';
+
+  return `# 会员书库分析报告
+
+生成时间：${formatDateTime(new Date().toISOString())}
+
+## 数据概览
+
+- 参与会员数：${users.size}
+- 想读书目：${wantRows.length}
+- 人生之书：${lifeRows.length}
+- 总记录数：${rows.length}
+
+## 想读书目高频书
+
+${renderTop(topCounts(wantRows, bookKey))}
+
+## 人生之书高频书
+
+${renderTop(topCounts(lifeRows, bookKey))}
+
+## 高频作者
+
+${renderTop(topCounts(rows, row => row.author || ''))}
+
+## 可作为共读候选的书目
+
+${renderTop(topCounts(wantRows, bookKey, 15))}
+`;
+}
+
+async function loadAdminMemberLibraryRows() {
+  const { data, error } = await sb.rpc('admin_export_member_library');
+  if (error) throw error;
+  return data || [];
+}
+
 function renderAdminMemberList(members, error) {
   if (error) {
     return `
@@ -203,6 +298,17 @@ route('/admin', async () => {
             <h3 style="margin-bottom:var(--space-1);">本周资源浏览券</h3>
             <p style="color:var(--color-text-2);font-size:0.9rem;margin-bottom:var(--space-2);">按当前会员等级发放本周资源浏览券，当前周贡献榜前 5 名发放数量翻倍。同一周重复点击不会重复发券。</p>
             <button type="button" class="btn btn-primary" data-action="admin-issue-weekly-passes">一键发放本周浏览券</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:var(--space-3);">
+          <div class="card-body">
+            <h3 style="margin-bottom:var(--space-1);">会员书库数据</h3>
+            <p style="color:var(--color-text-2);font-size:0.9rem;margin-bottom:var(--space-2);">抽取当前所有会员的想读书目与人生之书，下载 CSV 数据表格或 Markdown 分析报告。</p>
+            <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline" data-action="admin-download-member-library-csv"><i data-lucide="table"></i> 下载数据表格</button>
+              <button type="button" class="btn btn-outline" data-action="admin-download-member-library-report"><i data-lucide="file-text"></i> 下载分析报告</button>
+            </div>
           </div>
         </div>
 
@@ -722,6 +828,36 @@ document.addEventListener('click', async (e) => {
     const row = Array.isArray(data) ? data[0] : data;
     toast(`已发放 ${row?.issued_passes || 0} 张浏览券，覆盖 ${row?.issued_users || 0} 位会员`);
     router.render();
+    return;
+  }
+
+  const libraryCsvBtn = e.target.closest('[data-action="admin-download-member-library-csv"]');
+  if (libraryCsvBtn) {
+    libraryCsvBtn.disabled = true;
+    try {
+      const rows = await loadAdminMemberLibraryRows();
+      downloadTextFile(`member-library-${dayjs().format('YYYYMMDD-HHmm')}.csv`, memberLibraryRowsToCsv(rows), 'text/csv;charset=utf-8');
+      toast(`已导出 ${rows.length} 条书库数据`);
+    } catch (err) {
+      toast('导出失败：' + (err.message || '未知错误'), 'error');
+    } finally {
+      libraryCsvBtn.disabled = false;
+    }
+    return;
+  }
+
+  const libraryReportBtn = e.target.closest('[data-action="admin-download-member-library-report"]');
+  if (libraryReportBtn) {
+    libraryReportBtn.disabled = true;
+    try {
+      const rows = await loadAdminMemberLibraryRows();
+      downloadTextFile(`member-library-report-${dayjs().format('YYYYMMDD-HHmm')}.md`, buildMemberLibraryReport(rows));
+      toast('分析报告已生成');
+    } catch (err) {
+      toast('报告生成失败：' + (err.message || '未知错误'), 'error');
+    } finally {
+      libraryReportBtn.disabled = false;
+    }
     return;
   }
 

@@ -1,11 +1,14 @@
 import { loadMemberSummary } from './members.js';
-import { route } from './router.js';
+import { fetchDoubanBook } from './readingPostApi.js';
+import { route, router } from './router.js';
 import { sb } from './supabaseClient.js';
 import { signOut } from './auth.js';
 import { store } from './store.js';
-import { toast } from './ui.js';
-import { esc, formatDate, formatDateTime, h, safeUrl } from './utils.js';
+import { showModal, toast } from './ui.js';
+import { esc, formatDate, formatDateTime, h, isDoubanBookUrl, normalizeDoubanBookUrl, proxyImg, safeUrl } from './utils.js';
 import { getBadgeRiddle } from './badgeRiddles.js';
+
+const memberLibraryItemCache = new Map();
 
 function storagePublicUrl(bucket, path) {
   if (!bucket || !path) return '';
@@ -57,6 +60,279 @@ function sortBadgesForCatalogOrder(badges) {
 
     return new Date(b.awarded_at || 0) - new Date(a.awarded_at || 0);
   });
+}
+
+function memberLibraryKey(listType, sortOrder) {
+  return `${listType}:${sortOrder}`;
+}
+
+function getLibraryConfig(listType) {
+  return listType === 'life'
+    ? { title: '人生之书', max: 3, reasonLabel: '推荐理由', emptyText: '设置一本人生之书' }
+    : { title: '想读书目', max: 5, reasonLabel: '想读理由', emptyText: '添加一本想读书' };
+}
+
+function activeLibraryTab() {
+  const tab = router.currentQuery().tab || 'finished';
+  return ['finished', 'want', 'life'].includes(tab) ? tab : 'finished';
+}
+
+function renderLibraryTabs(active) {
+  const tabs = [
+    ['finished', '已读书目'],
+    ['want', '想读书目'],
+    ['life', '人生之书']
+  ];
+  return `
+    <div class="tabs member-library-tabs">
+      ${tabs.map(([key, label]) => `<a href="#/member/library?tab=${key}" class="tab ${active === key ? 'active' : ''}">${label}</a>`).join('')}
+    </div>
+  `;
+}
+
+function renderLibraryCover(url, title) {
+  return `
+    <div class="member-library-cover">
+      ${url ? `<img src="${safeUrl(proxyImg(url))}" alt="${esc(title || '书籍封面')}">` : '<i data-lucide="book-open"></i>'}
+    </div>
+  `;
+}
+
+function shortLibraryText(text, max = 72) {
+  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!value) return '';
+  return value.length > max ? `${value.slice(0, max)}...` : value;
+}
+
+function renderFinishedLibrary(finishedBooks) {
+  if (!finishedBooks?.length) {
+    return '<div class="empty-state"><i data-lucide="book-check"></i><p>还没有通过书友圈标记已读的书目。</p></div>';
+  }
+
+  return `
+    <div class="member-library-grid">
+      ${finishedBooks.map(book => `
+        <a href="#/reading-circle/mine?post=${h(book.post_id)}" class="member-library-card">
+          ${renderLibraryCover(book.cover_url, book.book_title)}
+          <div class="member-library-card-body">
+            <strong>${h(book.book_title || '未命名书目')}</strong>
+            ${book.author ? `<span>${h(book.author)}</span>` : ''}
+            ${book.content ? `<p>${h(shortLibraryText(book.content))}</p>` : ''}
+            <small>${h(formatDate(book.finished_at))}${Number(book.post_count || 0) > 1 ? ` · ${h(book.post_count)} 条已读动态` : ''}</small>
+          </div>
+        </a>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderEditableLibrary(listType, items) {
+  const config = getLibraryConfig(listType);
+  const byOrder = new Map((items || []).filter(item => item.list_type === listType).map(item => [Number(item.sort_order), item]));
+  const slots = Array.from({ length: config.max }, (_, index) => index + 1);
+
+  slots.forEach(order => {
+    const item = byOrder.get(order);
+    if (item) memberLibraryItemCache.set(memberLibraryKey(listType, order), item);
+  });
+
+  return `
+    <div class="member-library-slots">
+      ${slots.map(order => {
+        const item = byOrder.get(order);
+        if (!item) {
+          return `
+            <button type="button" class="member-library-empty-slot" data-action="member-library-edit" data-list-type="${listType}" data-sort-order="${order}">
+              <span>${h(order)}</span>
+              <i data-lucide="plus"></i>
+              ${h(config.emptyText)}
+            </button>
+          `;
+        }
+
+        return `
+          <div class="member-library-slot-card">
+            <div class="member-library-slot-rank">${h(order)}</div>
+            ${renderLibraryCover(item.cover_url, item.book_title)}
+            <div class="member-library-card-body">
+              <strong>${h(item.book_title || '未命名书目')}</strong>
+              ${item.author ? `<span>${h(item.author)}</span>` : ''}
+              ${item.reason ? `<p>${h(shortLibraryText(item.reason, 96))}</p>` : `<p class="muted">${h(config.reasonLabel)}待补充</p>`}
+              <small>更新：${h(formatDate(item.updated_at))}</small>
+            </div>
+            <div class="member-library-slot-actions">
+              <button type="button" class="btn btn-outline btn-sm" data-action="member-library-edit" data-list-type="${listType}" data-sort-order="${order}"><i data-lucide="edit-3"></i> 编辑</button>
+              <button type="button" class="btn btn-ghost btn-sm" data-action="member-library-delete" data-list-type="${listType}" data-sort-order="${order}"><i data-lucide="trash-2"></i> 删除</button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+async function loadMemberLibrary() {
+  const [finishedRes, itemRes] = await Promise.all([
+    sb.rpc('list_my_finished_books'),
+    sb.rpc('list_my_member_library_items')
+  ]);
+
+  return {
+    finishedBooks: finishedRes.data || [],
+    items: itemRes.data || [],
+    error: finishedRes.error || itemRes.error
+  };
+}
+
+function renderMemberLibraryError(error) {
+  return `
+    <div class="container section">
+      <div class="empty-state">
+        <i data-lucide="database"></i>
+        <p>我的书库暂不可用：${h(error?.message || '请先部署 v38 我的书库 SQL。')}</p>
+      </div>
+    </div>
+  `;
+}
+
+function renderMemberLibraryPreview(book) {
+  if (!book?.title) {
+    return '<div class="member-library-form-preview empty"><i data-lucide="book-open"></i><p>抓取豆瓣链接后，将在这里显示书籍信息。</p></div>';
+  }
+
+  return `
+    <div class="member-library-form-preview">
+      ${renderLibraryCover(book.cover_url, book.title)}
+      <div>
+        <strong>${h(book.title)}</strong>
+        ${book.author ? `<span>${h(book.author)}</span>` : '<span>作者信息未抓取到</span>'}
+      </div>
+    </div>
+  `;
+}
+
+function showMemberLibraryItemModal(listType, sortOrder) {
+  const config = getLibraryConfig(listType);
+  const item = memberLibraryItemCache.get(memberLibraryKey(listType, Number(sortOrder))) || null;
+  const book = item ? {
+    title: item.book_title,
+    author: item.author,
+    cover_url: item.cover_url
+  } : null;
+
+  showModal(`${config.title} · 第 ${sortOrder} 位`, `
+    <form id="member-library-item-form" data-loaded-url="${esc(item?.douban_url || '')}">
+      <input type="hidden" name="list_type" value="${esc(listType)}">
+      <input type="hidden" name="sort_order" value="${esc(sortOrder)}">
+      <input type="hidden" name="book_title" value="${esc(item?.book_title || '')}">
+      <input type="hidden" name="author" value="${esc(item?.author || '')}">
+      <input type="hidden" name="cover_url" value="${esc(item?.cover_url || '')}">
+
+      <div class="form-group">
+        <label>豆瓣链接 *</label>
+        <div class="member-library-url-row">
+          <input type="url" name="douban_url" required placeholder="https://book.douban.com/subject/..." value="${esc(item?.douban_url || '')}">
+          <button type="button" class="btn btn-outline btn-sm" data-action="member-library-fetch-book"><i data-lucide="search"></i> 抓取</button>
+        </div>
+      </div>
+
+      <div id="member-library-book-preview">
+        ${renderMemberLibraryPreview(book)}
+      </div>
+
+      <div class="form-group">
+        <label>${h(config.reasonLabel)}</label>
+        <textarea name="reason" maxlength="1000" style="min-height:110px;" placeholder="${h(config.reasonLabel)}，最多 1000 字。">${h(item?.reason || '')}</textarea>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;">保存</button>
+    </form>
+  `);
+}
+
+async function fetchMemberLibraryBookMeta(form) {
+  const urlInput = form.querySelector('input[name="douban_url"]');
+  const titleInput = form.querySelector('input[name="book_title"]');
+  const authorInput = form.querySelector('input[name="author"]');
+  const coverInput = form.querySelector('input[name="cover_url"]');
+  const preview = form.querySelector('#member-library-book-preview');
+  const normalizedUrl = normalizeDoubanBookUrl(urlInput?.value || '').trim();
+
+  if (!isDoubanBookUrl(normalizedUrl)) {
+    toast('请填写有效的豆瓣读书链接', 'error');
+    return null;
+  }
+
+  if (preview) preview.innerHTML = '<div class="member-library-form-preview empty"><i data-lucide="loader"></i><p>正在抓取书籍信息...</p></div>';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  const book = await fetchDoubanBook(normalizedUrl);
+  urlInput.value = normalizedUrl;
+  titleInput.value = book.title || '';
+  authorInput.value = book.author || '';
+  coverInput.value = book.cover_url || '';
+  form.dataset.loadedUrl = normalizedUrl;
+  if (preview) preview.innerHTML = renderMemberLibraryPreview(book);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  return book;
+}
+
+async function submitMemberLibraryItem(form) {
+  const fd = new FormData(form);
+  const normalizedUrl = normalizeDoubanBookUrl(fd.get('douban_url') || '').trim();
+
+  if (!isDoubanBookUrl(normalizedUrl)) {
+    toast('请填写有效的豆瓣读书链接', 'error');
+    return;
+  }
+
+  if (!fd.get('book_title') || form.dataset.loadedUrl !== normalizedUrl) {
+    try {
+      await fetchMemberLibraryBookMeta(form);
+    } catch (err) {
+      toast('抓取失败：' + (err.message || '未知错误'), 'error');
+      return;
+    }
+  }
+
+  const refreshed = new FormData(form);
+  const { error } = await sb.rpc('upsert_my_member_library_item', {
+    p_list_type: refreshed.get('list_type'),
+    p_sort_order: Number(refreshed.get('sort_order')),
+    p_book_title: refreshed.get('book_title'),
+    p_author: refreshed.get('author') || null,
+    p_douban_url: normalizeDoubanBookUrl(refreshed.get('douban_url')),
+    p_cover_url: refreshed.get('cover_url') || null,
+    p_reason: refreshed.get('reason') || ''
+  });
+
+  if (error) {
+    toast('保存失败：' + error.message, 'error');
+    return;
+  }
+
+  document.querySelector('.modal-overlay')?.remove();
+  toast('我的书库已更新');
+  router.render();
+}
+
+async function deleteMemberLibraryItem(button) {
+  const listType = button.dataset.listType;
+  const sortOrder = Number(button.dataset.sortOrder);
+  if (!confirm('确定删除这个书目吗？删除后后台不保留该条数据。')) return;
+
+  button.disabled = true;
+  const { error } = await sb.rpc('delete_my_member_library_item', {
+    p_list_type: listType,
+    p_sort_order: sortOrder
+  });
+  if (error) {
+    toast('删除失败：' + error.message, 'error');
+    button.disabled = false;
+    return;
+  }
+  toast('已删除');
+  router.render();
 }
 
 function selectedDisplayBadgeKeys(member) {
@@ -634,10 +910,15 @@ export function bindMemberCenterEvents() {
     if (e.target.classList.contains('badge-riddle-form')) {
       e.preventDefault();
       await submitBadgeRiddleAnswer(e.target);
+      return;
+    }
+    if (e.target.id === 'member-library-item-form') {
+      e.preventDefault();
+      await submitMemberLibraryItem(e.target);
     }
   });
 
-  document.addEventListener('click', e => {
+  document.addEventListener('click', async e => {
     const logoutBtn = e.target.closest('#member-logout-btn');
     if (logoutBtn) {
       signOut();
@@ -658,6 +939,33 @@ export function bindMemberCenterEvents() {
     const flipBtn = e.target.closest('[data-action="badge-preview-flip"]');
     if (flipBtn && !flipBtn.disabled) {
       flipBtn.classList.toggle('is-flipped');
+      return;
+    }
+
+    const libraryEditBtn = e.target.closest('[data-action="member-library-edit"]');
+    if (libraryEditBtn) {
+      showMemberLibraryItemModal(libraryEditBtn.dataset.listType, libraryEditBtn.dataset.sortOrder);
+      return;
+    }
+
+    const libraryFetchBtn = e.target.closest('[data-action="member-library-fetch-book"]');
+    if (libraryFetchBtn) {
+      const form = libraryFetchBtn.closest('#member-library-item-form');
+      if (!form) return;
+      libraryFetchBtn.disabled = true;
+      try {
+        await fetchMemberLibraryBookMeta(form);
+      } catch (err) {
+        toast('抓取失败：' + (err.message || '未知错误'), 'error');
+      } finally {
+        libraryFetchBtn.disabled = false;
+      }
+      return;
+    }
+
+    const libraryDeleteBtn = e.target.closest('[data-action="member-library-delete"]');
+    if (libraryDeleteBtn) {
+      await deleteMemberLibraryItem(libraryDeleteBtn);
     }
   });
 
@@ -768,14 +1076,33 @@ export function registerMemberCenterRoutes() {
     `;
   });
 
-  route('/member/library', () => `
-    <div class="container section">
-      <div class="empty-state">
-        <i data-lucide="library"></i>
-        <p>我的书库将在后续阶段开放</p>
+  route('/member/library', async () => {
+    memberLibraryItemCache.clear();
+    const active = activeLibraryTab();
+    const { finishedBooks, items, error } = await loadMemberLibrary();
+    if (error) return renderMemberLibraryError(error);
+
+    return `
+      <div class="container section member-library-page">
+        <div class="member-heading">
+          <div>
+            <p class="member-eyebrow">会员中心</p>
+            <h1>我的书库</h1>
+            <p>整理你的已读、想读，以及愿意郑重推荐给他人的人生之书。</p>
+          </div>
+          <a href="#/member" class="btn btn-outline"><i data-lucide="arrow-left"></i> 返回个人中心</a>
+        </div>
+
+        ${renderLibraryTabs(active)}
+
+        <section class="card member-panel">
+          <div class="card-body">
+            ${active === 'finished' ? renderFinishedLibrary(finishedBooks) : renderEditableLibrary(active, items)}
+          </div>
+        </section>
       </div>
-    </div>
-  `);
+    `;
+  });
 
   route('/member/badges', async () => {
     const user = store.get('user');

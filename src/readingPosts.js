@@ -13,6 +13,7 @@ import {
   listComments,
   listFollowers,
   listFollowing,
+  listPublicMemberLibrary,
   listUserPublicPosts,
   loadReadingPosts,
   searchMembersByDisplayName,
@@ -619,8 +620,79 @@ async function deleteComment(button) {
   await loadComments(postId);
 }
 
+function renderProfileLibraryCover(url, title) {
+  return `
+    <div class="user-library-cover">
+      ${url ? `<img src="${safeUrl(proxyImg(url))}" alt="${esc(title || '书籍封面')}">` : '<i data-lucide="book-open"></i>'}
+    </div>
+  `;
+}
+
+function compactLibraryNote(text, max = 68) {
+  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!value) return '';
+  return value.length > max ? `${value.slice(0, max)}...` : value;
+}
+
+function renderProfileLibraryGroup(title, rows, options = {}) {
+  if (!rows.length) return '';
+  const visibleRows = rows.slice(0, options.limit || rows.length);
+  const hiddenCount = rows.length - visibleRows.length;
+  const coverOnly = !!options.coverOnly;
+
+  return `
+    <section class="user-library-group">
+      <div class="user-library-group-head">
+        <h4>${h(title)}</h4>
+        <span>${h(rows.length)} 本</span>
+      </div>
+      <div class="user-library-grid ${coverOnly ? 'user-library-cover-grid' : ''}">
+        ${visibleRows.map(row => {
+          const href = row.post_id ? `#/reading-circle?post=${h(row.post_id)}` : safeUrl(row.douban_url || '#');
+          const externalAttrs = row.post_id ? '' : ' target="_blank" rel="noopener"';
+          return `
+            <a href="${href}"${externalAttrs} class="user-library-book ${coverOnly ? 'user-library-book-cover-only' : ''}" title="${esc(row.book_title || '已读书目')}">
+              ${renderProfileLibraryCover(row.cover_url, row.book_title)}
+              ${coverOnly ? '' : `
+                <div>
+                  <strong>${h(row.book_title || '未命名书目')}</strong>
+                  ${row.author ? `<span>${h(row.author)}</span>` : ''}
+                  ${row.note ? `<p>${h(compactLibraryNote(row.note))}</p>` : ''}
+                </div>
+              `}
+            </a>
+          `;
+        }).join('')}
+      </div>
+      ${hiddenCount > 0 ? `<p class="user-library-more">另有 ${h(hiddenCount)} 本已读书目，可在下方书友圈继续查看。</p>` : ''}
+    </section>
+  `;
+}
+
+function renderProfileLibrary(rows) {
+  const life = rows.filter(row => row.list_type === 'life');
+  const want = rows.filter(row => row.list_type === 'want');
+  const finished = rows.filter(row => row.list_type === 'finished');
+
+  if (!life.length && !want.length && !finished.length) return '';
+
+  return `
+    <div class="card user-library-card">
+      <div class="card-body">
+        <div class="user-library-title">
+          <h3>书库</h3>
+          <span>${h(life.length + want.length + finished.length)} 本</span>
+        </div>
+        ${renderProfileLibraryGroup('人生之书', life)}
+        ${renderProfileLibraryGroup('想读书目', want)}
+        ${renderProfileLibraryGroup('已读书目', finished, { limit: 12, coverOnly: true })}
+      </div>
+    </div>
+  `;
+}
+
 async function renderUserProfile(userId) {
-  const [profileRes, postsRes, badgesRes] = await Promise.all([
+  const [profileRes, postsRes, badgesRes, libraryRes] = await Promise.all([
     getPublicMemberProfile(userId),
     listUserPublicPosts(userId),
     sb.from('user_badges')
@@ -628,12 +700,14 @@ async function renderUserProfile(userId) {
       .eq('user_id', userId)
       .is('revoked_at', null)
       .order('awarded_at', { ascending: false })
-      .limit(6)
+      .limit(6),
+    listPublicMemberLibrary(userId)
   ]);
 
   const profile = profileRes.data?.[0];
   const posts = postsRes.data || [];
   const badges = badgesRes.data || [];
+  const libraryRows = libraryRes.error ? [] : (libraryRes.data || []);
 
   if (!profile) {
     return '<div class="container section"><div class="empty-state"><i data-lucide="user-x"></i><p>用户不存在</p></div></div>';
@@ -751,6 +825,8 @@ async function renderUserProfile(userId) {
           <div class="user-badges-grid">${badgeItems}</div>
         </div>
       </div>
+
+      ${renderProfileLibrary(libraryRows)}
 
       <section>
         <h3 style="margin-bottom:var(--space-3);">${h(profile.display_name || '书友')} 的书友圈</h3>

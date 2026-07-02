@@ -733,6 +733,98 @@
       font-family: var(--font-sans); font-size: 0.96rem; line-height: 1.35;
     }
     .member-ticket-detail-card p { color: var(--color-text-2); font-size: 0.84rem; margin-top: 3px; }
+    .member-library-page .member-panel .card-body { gap: var(--space-3); }
+    .member-library-tabs { margin-bottom: var(--space-3); }
+    .member-library-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: var(--space-3);
+    }
+    .member-library-card,
+    .member-library-slot-card,
+    .member-library-empty-slot {
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-bg); color: var(--color-text);
+    }
+    .member-library-card {
+      display: grid; grid-template-columns: 78px minmax(0, 1fr);
+      gap: 12px; padding: 12px; text-decoration: none;
+      transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    }
+    .member-library-card:hover {
+      border-color: rgba(193,125,75,0.35); background: var(--color-accent-bg);
+      transform: translateY(-1px);
+    }
+    .member-library-cover {
+      width: 78px; aspect-ratio: 3 / 4; border-radius: var(--radius-sm);
+      background: var(--color-bg-alt); overflow: hidden; display: flex;
+      align-items: center; justify-content: center; color: var(--color-text-3);
+      flex: 0 0 auto;
+    }
+    .member-library-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .member-library-cover i { width: 28px; height: 28px; }
+    .member-library-card-body { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .member-library-card-body strong {
+      font-size: 0.98rem; line-height: 1.35; color: var(--color-text);
+      word-break: break-word;
+    }
+    .member-library-card-body span,
+    .member-library-card-body p {
+      color: var(--color-text-2); font-size: 0.84rem; line-height: 1.45;
+    }
+    .member-library-card-body p { margin-top: 2px; }
+    .member-library-card-body p.muted { color: var(--color-text-3); }
+    .member-library-card-body small {
+      margin-top: auto; color: var(--color-text-3); font-size: 0.76rem;
+    }
+    .member-library-slots { display: flex; flex-direction: column; gap: 12px; }
+    .member-library-slot-card {
+      display: grid; grid-template-columns: 34px 78px minmax(0, 1fr) 150px;
+      gap: 12px; align-items: center; padding: 12px;
+    }
+    .member-library-slot-rank {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--color-accent-bg); color: var(--color-accent); font-weight: 800;
+      font-size: 0.82rem;
+    }
+    .member-library-slot-actions {
+      display: flex; flex-direction: column; gap: 8px; align-items: stretch;
+    }
+    .member-library-slot-actions .btn { justify-content: center; }
+    .member-library-empty-slot {
+      min-height: 92px; width: 100%; display: flex; align-items: center;
+      justify-content: center; gap: 10px; color: var(--color-text-2);
+      border-style: dashed; cursor: pointer; font-weight: 700;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+    .member-library-empty-slot:hover {
+      border-color: rgba(193,125,75,0.45); background: var(--color-accent-bg);
+    }
+    .member-library-empty-slot span {
+      width: 26px; height: 26px; border-radius: 50%; display: inline-flex;
+      align-items: center; justify-content: center; background: #fff;
+      border: 1px solid var(--color-border); color: var(--color-accent);
+    }
+    .member-library-empty-slot i { width: 18px; height: 18px; }
+    .member-library-url-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+      align-items: center;
+    }
+    .member-library-form-preview {
+      display: grid; grid-template-columns: 64px minmax(0, 1fr);
+      gap: 12px; align-items: center; padding: 10px;
+      border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+      background: var(--color-bg); margin-bottom: var(--space-2);
+    }
+    .member-library-form-preview .member-library-cover { width: 64px; }
+    .member-library-form-preview strong { display: block; line-height: 1.35; }
+    .member-library-form-preview span,
+    .member-library-form-preview p { color: var(--color-text-2); font-size: 0.85rem; }
+    .member-library-form-preview.empty {
+      display: flex; min-height: 88px; justify-content: center; text-align: center;
+      color: var(--color-text-3); border-style: dashed;
+    }
+    .member-library-form-preview.empty i { width: 26px; height: 26px; }
     .ticket-status {
       padding: 2px 8px; border-radius: 999px; font-size: 0.74rem;
       font-weight: 700; white-space: nowrap;
@@ -965,6 +1057,69 @@
     .user-meta { display: flex; gap: var(--space-3); flex-wrap: wrap; }
     .user-meta span { display: inline-flex; align-items: center; gap: 4px; font-size: 0.82rem; color: var(--color-text-3); }
     .user-meta i { width: 14px; height: 14px; }
+    .user-library-card { margin-bottom: var(--space-4); }
+    .user-library-title,
+    .user-library-group-head {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: var(--space-2);
+    }
+    .user-library-title { margin-bottom: var(--space-3); }
+    .user-library-title h3 { font-size: 1rem; }
+    .user-library-title span,
+    .user-library-group-head span,
+    .user-library-more {
+      color: var(--color-text-3); font-size: 0.82rem;
+    }
+    .user-library-group + .user-library-group {
+      margin-top: var(--space-3); padding-top: var(--space-3);
+      border-top: 1px solid var(--color-border);
+    }
+    .user-library-group-head { margin-bottom: var(--space-2); }
+    .user-library-group-head h4 {
+      font-family: var(--font-sans); font-size: 0.96rem;
+    }
+    .user-library-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .user-library-cover-grid {
+      grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+      gap: 12px;
+    }
+    .user-library-book {
+      display: grid; grid-template-columns: 52px minmax(0, 1fr);
+      gap: 10px; padding: 9px; border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); background: var(--color-bg);
+      color: var(--color-text); text-decoration: none;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    .user-library-book-cover-only {
+      display: block; padding: 6px; width: 100%;
+    }
+    .user-library-book:hover {
+      background: var(--color-accent-bg); border-color: rgba(193,125,75,0.35);
+    }
+    .user-library-cover {
+      width: 52px; aspect-ratio: 3 / 4; border-radius: var(--radius-sm);
+      background: var(--color-bg-alt); overflow: hidden; display: flex;
+      align-items: center; justify-content: center; color: var(--color-text-3);
+    }
+    .user-library-cover img { width: 100%; height: 100%; object-fit: cover; }
+    .user-library-cover i { width: 22px; height: 22px; }
+    .user-library-book-cover-only .user-library-cover {
+      width: 100%; max-width: 92px; margin: 0 auto;
+    }
+    .user-library-book strong {
+      display: block; font-size: 0.88rem; line-height: 1.35;
+      margin-bottom: 2px; word-break: break-word;
+    }
+    .user-library-book span,
+    .user-library-book p {
+      display: block; color: var(--color-text-2);
+      font-size: 0.78rem; line-height: 1.45;
+    }
+    .user-library-book p { margin-top: 3px; color: var(--color-text-3); }
+    .user-library-more { margin-top: 8px; }
 
     /* 头像编辑 */
     .avatar-edit-row { display: flex; gap: var(--space-2); align-items: flex-start; }
@@ -1952,6 +2107,15 @@
       .member-heading { align-items: flex-start; flex-direction: column; }
       .member-overview, .member-main-grid, .member-ticket-page-grid { grid-template-columns: 1fr; }
       .member-stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .member-library-slot-card {
+        grid-template-columns: 30px 64px minmax(0, 1fr);
+        align-items: start;
+      }
+      .member-library-slot-card .member-library-cover { width: 64px; }
+      .member-library-slot-actions {
+        grid-column: 1 / -1; flex-direction: row;
+      }
+      .member-library-url-row { grid-template-columns: 1fr; }
       .reading-circle-layout { grid-template-columns: 1fr; }
       .reading-circle-side { position: static; }
       .reading-circle-feed { max-width: none; justify-self: stretch; }
