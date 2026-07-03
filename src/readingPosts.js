@@ -541,14 +541,23 @@ function renderComments(listEl, comments, postId) {
     </div>`;
   }
 
-  // 分组：顶级评论 + 其回复
-  const topComments = comments.filter(c => !c.parent_id);
-  const replies = comments.filter(c => c.parent_id);
+  // 递归渲染：支持任意层级嵌套回复
+  const childrenMap = new Map();
+  comments.forEach(c => {
+    const pid = c.parent_id || 0;
+    if (!childrenMap.has(pid)) childrenMap.set(pid, []);
+    childrenMap.get(pid).push(c);
+  });
 
-  listEl.innerHTML = topComments.map(tc => {
-    const children = replies.filter(r => r.parent_id === tc.id);
-    return renderComment(tc, false) + children.map(r => renderComment(r, true)).join('');
-  }).join('');
+  function renderTree(parentId, depth) {
+    const children = childrenMap.get(parentId) || [];
+    return children.map(c => {
+      const hasChildren = childrenMap.has(c.id);
+      return renderComment(c, depth > 0) + (hasChildren ? renderTree(c.id, depth + 1) : '');
+    }).join('');
+  }
+
+  listEl.innerHTML = renderTree(0, 0);
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
