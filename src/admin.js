@@ -116,6 +116,28 @@ async function loadAdminMemberLibraryRows() {
   return data || [];
 }
 
+const ADMIN_TABS = ['rules', 'books', 'events', 'member-list', 'members'];
+
+function currentAdminTab() {
+  const active = document.querySelector('#admin-tabs .tab.active')?.dataset.tab;
+  if (ADMIN_TABS.includes(active)) return active;
+  const queryTab = router.currentQuery().tab;
+  return ADMIN_TABS.includes(queryTab) ? queryTab : 'rules';
+}
+
+function syncAdminTabToHash(tab) {
+  const value = ADMIN_TABS.includes(tab) ? tab : 'rules';
+  history.replaceState(null, '', `#/admin?tab=${encodeURIComponent(value)}`);
+}
+
+async function refreshAdminPreservingPosition() {
+  const tab = currentAdminTab();
+  const scrollY = window.scrollY;
+  syncAdminTabToHash(tab);
+  await router.render();
+  requestAnimationFrame(() => window.scrollTo(0, scrollY));
+}
+
 function renderAdminMemberList(members, error) {
   if (error) {
     return `
@@ -206,6 +228,7 @@ route('/admin', async () => {
   const config = await loadConfig();
   const books = await loadBooks();
   const events = await loadEvents();
+  const activeTab = currentAdminTab();
   const { data: adminMembers, error: adminMembersError } = await sb.rpc('admin_list_members');
   const { data: coReadingPasswords } = await sb
     .from('co_reading_passwords')
@@ -217,13 +240,13 @@ route('/admin', async () => {
     <div class="container section">
       <div class="page-header"><h1>管理后台</h1></div>
       <div class="tabs" id="admin-tabs">
-        <button class="tab active" data-tab="rules">群规编辑</button>
-        <button class="tab" data-tab="books">书籍管理</button>
-        <button class="tab" data-tab="events">活动管理</button>
-        <button class="tab" data-tab="member-list">会员清单</button>
-        <button class="tab" data-tab="members">会员运营</button>
+        <button class="tab ${activeTab === 'rules' ? 'active' : ''}" data-tab="rules">群规编辑</button>
+        <button class="tab ${activeTab === 'books' ? 'active' : ''}" data-tab="books">书籍管理</button>
+        <button class="tab ${activeTab === 'events' ? 'active' : ''}" data-tab="events">活动管理</button>
+        <button class="tab ${activeTab === 'member-list' ? 'active' : ''}" data-tab="member-list">会员清单</button>
+        <button class="tab ${activeTab === 'members' ? 'active' : ''}" data-tab="members">会员运营</button>
       </div>
-      <div id="admin-tab-rules">
+      <div id="admin-tab-rules" style="${activeTab === 'rules' ? '' : 'display:none;'}">
         <h3 style="margin-bottom:var(--space-2);">群规</h3>
         <form id="rules-form">
           <div class="form-group"><label>共读群公约（Markdown）</label><textarea name="group_rules" style="min-height:200px;">${h(config.group_rules || '')}</textarea></div>
@@ -246,7 +269,7 @@ route('/admin', async () => {
           `).join('')}
         </div>
       </div>
-      <div id="admin-tab-events" style="display:none;">
+      <div id="admin-tab-events" style="${activeTab === 'events' ? '' : 'display:none;'}">
         <h3 style="margin-bottom:var(--space-2);">添加线下活动</h3>
         <button class="btn btn-outline" id="btn-add-event">+ 添加活动</button>
         <div style="margin-top:var(--space-3);">
@@ -262,7 +285,7 @@ route('/admin', async () => {
           `).join('')}
         </div>
       </div>
-      <div id="admin-tab-books" style="display:none;">
+      <div id="admin-tab-books" style="${activeTab === 'books' ? '' : 'display:none;'}">
         <h3 style="margin-bottom:var(--space-2);">添加新书</h3>
         <button class="btn btn-outline" id="btn-add-book2">+ 添加书籍</button>
         <div style="margin-top:var(--space-3);">
@@ -277,7 +300,7 @@ route('/admin', async () => {
           `).join('')}
         </div>
       </div>
-      <div id="admin-tab-member-list" style="display:none;">
+      <div id="admin-tab-member-list" style="${activeTab === 'member-list' ? '' : 'display:none;'}">
         <div class="card" style="margin-bottom:var(--space-3);">
           <div class="card-body">
             <div class="admin-section-head">
@@ -292,7 +315,7 @@ route('/admin', async () => {
         </div>
       </div>
 
-      <div id="admin-tab-members" style="display:none;">
+      <div id="admin-tab-members" style="${activeTab === 'members' ? '' : 'display:none;'}">
         <div class="card" style="margin-bottom:var(--space-3);">
           <div class="card-body">
             <h3 style="margin-bottom:var(--space-1);">本周资源浏览券</h3>
@@ -378,6 +401,7 @@ document.addEventListener('click', (e) => {
     const el = document.getElementById('admin-tab-' + t);
     if (el) el.style.display = tab.dataset.tab === t ? '' : 'none';
   });
+  syncAdminTabToHash(tab.dataset.tab);
 });
 
 // Admin: save rules
@@ -410,7 +434,7 @@ document.addEventListener('submit', async (e) => {
       return;
     }
     toast('共读密码已创建');
-    router.render();
+    await refreshAdminPreservingPosition();
   }
 });
 
@@ -721,7 +745,7 @@ async function saveBook(data, id) {
   }
   if (error) { toast('保存失败：' + error.message, 'error'); return; }
   toast(id ? '书籍已更新' : '书籍已添加');
-  router.render();
+  await refreshAdminPreservingPosition();
 }
 
 async function deleteBook(id) {
@@ -729,7 +753,7 @@ async function deleteBook(id) {
   const { error } = await sb.from('books').delete().eq('id', id);
   if (error) { toast('删除失败：' + error.message, 'error'); return; }
   toast('书籍已删除');
-  router.render();
+  await refreshAdminPreservingPosition();
 }
 
 // Admin: add/edit event form
@@ -801,7 +825,7 @@ async function saveEvent(data, id) {
   }
   if (error) { toast('保存失败：' + error.message, 'error'); return; }
   toast(id ? '活动已更新' : '活动已添加');
-  router.render();
+  await refreshAdminPreservingPosition();
 }
 
 async function deleteEvent(id) {
@@ -809,7 +833,7 @@ async function deleteEvent(id) {
   const { error } = await sb.from('events').delete().eq('id', id);
   if (error) { toast('删除失败：' + error.message, 'error'); return; }
   toast('活动已删除');
-  router.render();
+  await refreshAdminPreservingPosition();
 }
 
 // Admin button handlers
@@ -827,7 +851,7 @@ document.addEventListener('click', async (e) => {
     }
     const row = Array.isArray(data) ? data[0] : data;
     toast(`已发放 ${row?.issued_passes || 0} 张浏览券，覆盖 ${row?.issued_users || 0} 位会员`);
-    router.render();
+    await refreshAdminPreservingPosition();
     return;
   }
 
@@ -871,7 +895,7 @@ document.addEventListener('click', async (e) => {
       return;
     }
     toast(togglePasswordBtn.dataset.active === 'true' ? '密码已启用' : '密码已停用');
-    router.render();
+    await refreshAdminPreservingPosition();
     return;
   }
 
@@ -923,7 +947,7 @@ document.addEventListener('click', async (e) => {
       return;
     }
     toast(isBanned ? '用户已解锁' : '用户已封禁');
-    router.render();
+    await refreshAdminPreservingPosition();
     return;
   }
 

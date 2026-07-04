@@ -19,20 +19,41 @@ function renderAuthorAvatar(post) {
   return h((post.display_name || '书')[0].toUpperCase());
 }
 
-function renderTextBlock(label, text, cls = '') {
+function shouldCollapseText(text, threshold, lines) {
+  const value = String(text || '').trim();
+  if (!value) return false;
+  const lineCount = value.split(/\r?\n/).filter(line => line.trim()).length;
+  return value.length > threshold || lineCount > lines;
+}
+
+function renderTextBlock(label, text, cls = '', options = {}) {
   if (!text) return '';
+  const collapseLines = Number(options.lines || 6);
+  const collapseThreshold = Number(options.threshold || 220);
+  const collapsible = shouldCollapseText(text, collapseThreshold, collapseLines);
+  const classes = [
+    'reading-post-content-block',
+    cls,
+    collapsible ? 'is-collapsible is-collapsed' : ''
+  ].filter(Boolean).join(' ');
+
   return `
-    <div class="reading-post-content-block ${cls}">
+    <div class="${classes}" style="--reading-post-clamp-lines:${h(collapseLines)};">
       <span>${h(label)}</span>
       <p class="reading-post-content">${h(text)}</p>
+      ${collapsible ? `
+        <button type="button" class="reading-post-expand" data-action="toggle-post-text" aria-expanded="false">
+          显示更多
+        </button>
+      ` : ''}
     </div>
   `;
 }
 
 export function renderPostCard(post, scope) {
   const isMine = store.get('user')?.id === post.user_id;
-  const excerpt = renderTextBlock('摘抄', post.excerpt, 'quote');
-  const content = renderTextBlock(contentLabel(post.post_type), post.content);
+  const excerpt = renderTextBlock('摘抄', post.excerpt, 'quote', { lines: 2, threshold: 60 });
+  const content = renderTextBlock(contentLabel(post.post_type), post.content, '', { lines: 4, threshold: 130 });
   const rating = post.post_type === 'finished' && post.rating != null
     ? `<div class="reading-post-rating"><span>评分</span><strong>${ratingEmoji(post.rating)} ${h(post.rating)}</strong></div>`
     : '';

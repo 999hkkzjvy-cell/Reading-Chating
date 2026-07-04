@@ -41,6 +41,31 @@ function renderPostComposer() {
   `;
 }
 
+async function refreshReadingCirclePreservingPosition(anchorPostId = null) {
+  const scrollY = window.scrollY;
+  const anchor = anchorPostId ? document.getElementById(`post-${anchorPostId}`) : null;
+  const anchorTop = anchor ? anchor.getBoundingClientRect().top : null;
+
+  await router.render();
+
+  const restore = () => {
+    if (anchorPostId && anchorTop != null) {
+      const nextAnchor = document.getElementById(`post-${anchorPostId}`);
+      if (nextAnchor) {
+        window.scrollBy(0, nextAnchor.getBoundingClientRect().top - anchorTop);
+        return;
+      }
+    }
+    window.scrollTo(0, scrollY);
+  };
+
+  requestAnimationFrame(() => {
+    restore();
+    setTimeout(restore, 80);
+    setTimeout(restore, 260);
+  });
+}
+
 async function renderReadingCircle(scope = 'public') {
   const { posts, error } = await loadReadingPosts(scope);
   const user = store.get('user');
@@ -363,7 +388,7 @@ async function updatePostVisibility(button) {
   }
   await loadMemberSummary(store.get('user')?.id);
   toast(next === 'public' ? '已设为公开' : next === 'friends' ? '已设为好友可见' : '已设为私密');
-  router.render();
+  await refreshReadingCirclePreservingPosition(id);
 }
 
 async function deletePost(button) {
@@ -375,7 +400,7 @@ async function deletePost(button) {
   }
   await loadMemberSummary(store.get('user')?.id);
   toast('动态已删除');
-  router.render();
+  await refreshReadingCirclePreservingPosition();
 }
 
 async function editReadingPost(form) {
@@ -410,7 +435,7 @@ async function editReadingPost(form) {
   clearCachedPost(postId);
   await loadMemberSummary(store.get('user')?.id);
   toast('动态已更新');
-  router.render();
+  await refreshReadingCirclePreservingPosition(postId);
 }
 
 // ---- 点赞 ----
@@ -1166,6 +1191,17 @@ export function bindReadingPostEvents() {
     const likeBtn = e.target.closest('[data-action="toggle-post-like"]');
     if (likeBtn) {
       await toggleLike(likeBtn);
+      return;
+    }
+
+    const textToggleBtn = e.target.closest('[data-action="toggle-post-text"]');
+    if (textToggleBtn) {
+      const block = textToggleBtn.closest('.reading-post-content-block');
+      if (!block) return;
+      const expanded = block.classList.toggle('is-expanded');
+      block.classList.toggle('is-collapsed', !expanded);
+      textToggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      textToggleBtn.textContent = expanded ? '收起' : '显示更多';
       return;
     }
 

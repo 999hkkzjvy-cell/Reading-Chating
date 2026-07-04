@@ -1261,6 +1261,18 @@
       line-height: 1.85; margin-top: 0; padding-right: 4px;
       overflow-wrap: anywhere; word-break: break-word;
     }
+    .reading-post-content-block.is-collapsed .reading-post-content {
+      display: -webkit-box; -webkit-box-orient: vertical;
+      -webkit-line-clamp: var(--reading-post-clamp-lines, 6);
+      overflow: hidden;
+    }
+    .reading-post-expand {
+      display: inline-flex; align-items: center; width: fit-content;
+      margin-top: 6px; padding: 0; border: none; background: transparent;
+      color: var(--color-accent); font-size: 0.82rem; font-weight: 700;
+      cursor: pointer;
+    }
+    .reading-post-expand:hover { text-decoration: underline; }
     .reading-post-foot {
       display: flex; align-items: center; gap: var(--space-2);
       margin-top: var(--space-2); padding-top: var(--space-2);
