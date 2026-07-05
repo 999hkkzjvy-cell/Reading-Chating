@@ -494,6 +494,11 @@ function chatItem(c) { c=c||{}; return `
     <div class="b-row">
       <textarea name="chat_content" placeholder="详细内容（Markdown）" style="min-height:60px;width:100%;">${esc(c.content)}</textarea>
     </div>
+    <div class="b-row">
+      <input name="chat_pdf_url" value="${esc(c.pdf_url || c.pdfUrl || c.file_url || '')}" placeholder="PDF 链接（可选）" style="flex:2">
+      <input type="file" class="chat-pdf-input" accept=".pdf,application/pdf" style="flex:1;font-size:0.85rem;">
+    </div>
+    <div class="chat-pdf-name" style="font-size:0.82rem;color:var(--color-text-2);margin-top:4px;">${(c.pdf_url || c.pdfUrl || c.file_url) ? '已上传：' + h(String(c.pdf_url || c.pdfUrl || c.file_url).split('/').pop()) : ''}</div>
   </div>`;
 }
 function resItem(r) { r=r||{}; return `
@@ -707,8 +712,8 @@ function showBookForm(bookData = null) {
     data.resources = { extended_reading: extR, text_materials: txtM, film_resources: filmR, other: otherR };
 
     // Chatsubstance
-    data.chatsubstance = JSON.stringify(collectItems('builder-chats', ['chat_topic','chat_speaker','chat_content']).map(o => ({
-      topic: o.chat_topic||'', speaker: o.chat_speaker||'', content: o.chat_content||''
+    data.chatsubstance = JSON.stringify(collectItems('builder-chats', ['chat_topic','chat_speaker','chat_content','chat_pdf_url']).map(o => ({
+      topic: o.chat_topic||'', speaker: o.chat_speaker||'', content: o.chat_content||'', pdf_url: o.chat_pdf_url||''
     })));
 
     // Serialize reading_schedule from form fields
@@ -722,7 +727,7 @@ function showBookForm(bookData = null) {
     delete data.online_activities; delete data.meeting_replays; delete data.isbn; delete data.page_count;
     ['edn_name','edn_translator','edn_publisher','edn_pros','edn_cons','edn_buy_link','edn_douban_link',
      'act_type','act_title','act_time','act_status','act_meeting_link','act_replay_link','act_guests','act_desc',
-     'chat_topic','chat_speaker','chat_content',
+     'chat_topic','chat_speaker','chat_content','chat_pdf_url',
      'res_title','res_url','res_desc'].forEach(f => delete data[f]);
     data.word_count = data.word_count ? parseInt(data.word_count) : null;
     saveBook(data, data.book_id);

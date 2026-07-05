@@ -1796,6 +1796,37 @@
     .cons-label { color: var(--color-danger); font-weight: 700; font-size: 0.85rem; }
     .edition-links { display: flex; gap: 8px; flex-wrap: wrap; }
 
+    .chat-substance-list {
+      display: flex; flex-direction: column; gap: var(--space-2);
+    }
+    .chat-substance-card {
+      padding: 14px 16px;
+    }
+    .chat-substance-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: var(--space-3);
+    }
+    .chat-substance-head h3 {
+      flex: 1; min-width: 0; margin-bottom: 0; line-height: 1.45; word-break: break-word;
+    }
+    .chat-substance-meta {
+      color: var(--color-text-2); font-size: 0.86rem;
+    }
+    .chat-substance-meta.expanded {
+      margin-bottom: var(--space-2);
+    }
+    .chat-substance-toggle {
+      flex: 0 0 auto; margin-top: 2px;
+    }
+    .chat-substance-body {
+      margin-top: var(--space-3); padding-top: var(--space-3);
+      border-top: 1px solid var(--color-border);
+    }
+    .chat-pdf-actions {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      margin-top: var(--space-3);
+    }
+
     /* Resource Access Locks */
     .resource-access-panel {
       display: flex; align-items: center; gap: var(--space-2);

@@ -39,8 +39,18 @@
 31. `sql/migrate-v37-member-ban.sql`
 32. `sql/migrate-v38-member-library.sql`
 33. `sql/migrate-v39-public-member-library.sql`
+34. `sql/migrate-v40-comment-reply-notification-dedupe.sql`
+35. `sql/migrate-v41-weekly-view-pass-source-key-fix.sql`
 
 `supabase-schema.sql` 已包含早期基础结构，例如用户资料、站点配置、书库、活动、新书速递、豆瓣缓存、每日签到、`covers`/`files` Storage policy 等。新项目初始化后不要再重复执行 `migrate-v2.sql` 到 `migrate-v8-profile-privacy.sql`，除非你明确知道当前库缺少对应对象。
+
+## 专题种子数据
+
+以下 SQL 不是结构迁移，而是补充特定书目的内容数据。只在目标书目已经存在、且需要补入资料时执行：
+
+- `sql/seed-king-lear.sql`：补入《李尔王》共读资料。
+- `sql/seed-red-mansion-from-shimo.sql`：根据石墨文档补入《红楼梦》共读资料。
+- `sql/seed-red-mansion-leading-docs-01-10.sql`：根据石墨文档补入《红楼梦》前 10 回领读文档到聊天干货。建议在 `seed-red-mansion-from-shimo.sql` 之后执行。
 
 ## 旧项目升级
 
@@ -86,6 +96,8 @@ migrate-v36-follow-level-notifications.sql
 migrate-v37-member-ban.sql
 migrate-v38-member-library.sql
 migrate-v39-public-member-library.sql
+migrate-v40-comment-reply-notification-dedupe.sql
+migrate-v41-weekly-view-pass-source-key-fix.sql
 ```
 
 如果不确定某个迁移是否已执行，先检查目标表、函数或字段是否存在。不要在同一个库里重复执行没有 `DROP POLICY IF EXISTS` 或 `CREATE POLICY` 防重处理的早期迁移。
