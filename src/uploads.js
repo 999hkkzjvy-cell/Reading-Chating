@@ -125,6 +125,26 @@ export function bindUploadHandlers() {
   });
 
   document.addEventListener('change', async (e) => {
+    if (!e.target.classList.contains('chat-pdf-input')) return;
+    const file = e.target.files[0];
+    if (!file) return;
+    const safeName = safeUploadName(file.name, 'chat.pdf');
+    const path = `chat_docs/${Date.now()}_${safeName}`;
+    const { error } = await sb.storage.from('files').upload(path, file);
+    if (error) {
+      toast('聊天干货 PDF 上传失败：' + error.message, 'error');
+      return;
+    }
+    const { data: { publicUrl } } = sb.storage.from('files').getPublicUrl(path);
+    const item = e.target.closest('.builder-item');
+    const urlInput = item?.querySelector('[name="chat_pdf_url"]');
+    const nameEl = item?.querySelector('.chat-pdf-name');
+    if (urlInput) urlInput.value = publicUrl;
+    if (nameEl) nameEl.textContent = '已上传：' + file.name;
+    toast('聊天干货 PDF 上传成功');
+  });
+
+  document.addEventListener('change', async (e) => {
     if (e.target.id !== 'join-qr-file-input') return;
     const file = e.target.files[0];
     if (!file) return;

@@ -121,7 +121,10 @@ async function renderEditionTab(book) {
   }
 
   const editionNotesHtml = safeMarked(book.edition_notes || '');
-  const editionsCardsHtml = editions.length === 0 ? '<p style="color:var(--color-text-3);">暂无版本建议。</p>' : `
+  const hasEditionNotes = String(book.edition_notes || '').trim() !== '';
+  const editionsCardsHtml = editions.length === 0
+    ? (hasEditionNotes ? '' : '<p style="color:var(--color-text-3);">暂无版本建议。</p>')
+    : `
     <div style="display:flex;flex-direction:column;gap:var(--space-2);">
       ${editions.map(e => {
         const db = e.douban_link ? editionCoverCache[e.douban_link] : null;
@@ -149,7 +152,7 @@ async function renderEditionTab(book) {
     </div>`;
 
   return `
-    ${book.edition_notes ? `<div class="md-content" style="max-width:none;margin-bottom:var(--space-4);">${editionNotesHtml}</div>` : ''}
+    ${hasEditionNotes ? `<div class="md-content" style="max-width:none;margin-bottom:var(--space-4);">${editionNotesHtml}</div>` : ''}
     ${editionsCardsHtml}`;
 }
 
@@ -254,6 +257,34 @@ async function renderResourcesTab(book, accessSummary) {
   }).join('');
 
   return resourcesHtml || '<p style="color:var(--color-text-3);">暂无资源材料。</p>';
+}
+
+function renderChatBody(book, chat, index, accessSummary) {
+  const contentKey = resourceKey(book.id, 'chat', index, 'content');
+  const content = chat?.content || '';
+  const pdfUrl = chat?.pdf_url || chat?.pdfUrl || chat?.file_url || '';
+  const speakerHtml = chat?.speaker ? `<div class="chat-substance-meta expanded">主发言人：${h(chat.speaker)}</div>` : '';
+  const contentHtml = content ? renderProtectedText({
+    bookId: book.id,
+    key: contentKey,
+    markdown: content,
+    summary: accessSummary
+  }) : '';
+  const pdfHtml = pdfUrl ? `
+    <div class="chat-pdf-actions">
+      ${canViewResource(accessSummary, contentKey)
+        ? `<a href="${safeUrl(pdfUrl)}" target="_blank" class="btn btn-outline btn-sm"><i data-lucide="file-text"></i> 查看 PDF</a>`
+        : (!content ? renderProtectedLink({
+          bookId: book.id,
+          key: contentKey,
+          url: pdfUrl,
+          label: '查看 PDF',
+          summary: accessSummary
+        }) : '<span class="resource-lock-note">PDF 将在正文解锁后一并开放。</span>')}
+    </div>
+  ` : '';
+
+  return contentHtml || pdfHtml || speakerHtml ? `${speakerHtml}${contentHtml}${pdfHtml}` : '<p style="color:var(--color-text-3);">暂无详细内容。</p>';
 }
 
 async function loadBookLazyTab(target) {
@@ -417,17 +448,14 @@ route('/books/:id', async (params) => {
   let chats = [];
   try { chats = typeof book.chatsubstance === 'string' ? JSON.parse(book.chatsubstance||'[]') : (book.chatsubstance||[]); } catch(e){}
   const chatsHtml = chats.length === 0 ? '<p style="color:var(--color-text-3);">暂无聊天干货。</p>' : `
-    <div style="display:flex;flex-direction:column;gap:var(--space-3);">
+    <div class="chat-substance-list">
       ${chats.map((c, index) => `
-        <div class="edition-card">
-          <h3 style="margin-bottom:var(--space-1);">${c.topic || '干货主题'}</h3>
-          <div style="font-size:0.88rem;color:var(--color-text-2);margin-bottom:var(--space-2);">主发言人：${c.speaker || '未知'}</div>
-          ${renderProtectedText({
-            bookId: book.id,
-            key: resourceKey(book.id, 'chat', index, 'content'),
-            markdown: c.content,
-            summary: accessSummary
-          })}
+        <div class="edition-card chat-substance-card" data-book-id="${h(book.id)}" data-chat-index="${h(index)}">
+          <div class="chat-substance-head">
+            <h3>${h(c.topic || '干货主题')}</h3>
+            <button type="button" class="reading-post-expand chat-substance-toggle" data-action="toggle-chat-substance" aria-expanded="false">查看更多</button>
+          </div>
+          <div class="chat-substance-body" hidden></div>
         </div>
       `).join('')}
     </div>`;
@@ -496,7 +524,7 @@ route('/books/:id', async (params) => {
     </div>
   `;
 
-  bookDetailState.set(String(book.id), { book, accessSummary });
+  bookDetailState.set(String(book.id), { book, accessSummary, chats });
 
   return `
     <div class="container section">
@@ -551,6 +579,36 @@ route('/books/:id', async (params) => {
 
 // Tab switching
 document.addEventListener('click', (e) => {
+  const chatToggleBtn = e.target.closest('[data-action="toggle-chat-substance"]');
+  if (chatToggleBtn) {
+    const card = chatToggleBtn.closest('.chat-substance-card');
+    const body = card?.querySelector('.chat-substance-body');
+    if (!card || !body) return;
+
+    const expanded = chatToggleBtn.getAttribute('aria-expanded') === 'true';
+    if (expanded) {
+      chatToggleBtn.setAttribute('aria-expanded', 'false');
+      chatToggleBtn.textContent = '查看更多';
+      body.hidden = true;
+      return;
+    }
+
+    if (body.dataset.loaded !== 'true') {
+      const state = bookDetailState.get(card.dataset.bookId);
+      const index = Number(card.dataset.chatIndex || 0);
+      const chat = state?.chats?.[index];
+      if (state && chat) {
+        body.innerHTML = renderChatBody(state.book, chat, index, state.accessSummary);
+        body.dataset.loaded = 'true';
+        lucide.createIcons();
+      }
+    }
+    chatToggleBtn.setAttribute('aria-expanded', 'true');
+    chatToggleBtn.textContent = '收起';
+    body.hidden = false;
+    return;
+  }
+
   const tab = e.target.closest('#book-tabs .tab');
   if (!tab) return;
   document.querySelectorAll('#book-tabs .tab').forEach(t => t.classList.remove('active'));
