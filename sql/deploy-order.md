@@ -51,6 +51,9 @@
 - `sql/seed-king-lear.sql`：补入《李尔王》共读资料。
 - `sql/seed-red-mansion-from-shimo.sql`：根据石墨文档补入《红楼梦》共读资料。
 - `sql/seed-red-mansion-leading-docs-01-10.sql`：根据石墨文档补入《红楼梦》前 10 回领读文档到聊天干货。建议在 `seed-red-mansion-from-shimo.sql` 之后执行。
+- `sql/seed-red-mansion-leading-docs-11-40.sql`：根据石墨文档补入《红楼梦》第 11-40 回领读文档到聊天干货。建议在 `seed-red-mansion-leading-docs-01-10.sql` 之后执行。
+- `sql/seed-red-mansion-leading-docs-41-50.sql`：根据石墨文档补入《红楼梦》第 41-50 回领读文档到聊天干货，不纳入群友补充。建议在 `seed-red-mansion-leading-docs-11-40.sql` 之后执行。
+- `sql/seed-red-mansion-leading-docs-51-80.sql`：根据石墨文档补入《红楼梦》第 51-80 回领读文档到聊天干货，不纳入群友补充。建议在 `seed-red-mansion-leading-docs-41-50.sql` 之后执行。
 
 ## 旧项目升级
 

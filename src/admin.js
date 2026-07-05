@@ -486,6 +486,10 @@ function chatItem(c) { c=c||{}; return `
   <div class="builder-item">
     <div class="b-row">
       <input name="chat_topic" value="${esc(c.topic)}" placeholder="干货主题 *" style="flex:2" required>
+      <div class="builder-sort-actions" aria-label="聊天干货排序">
+        <button type="button" class="btn-sort-row" data-action="move-chat-up" title="上移">↑</button>
+        <button type="button" class="btn-sort-row" data-action="move-chat-down" title="下移">↓</button>
+      </div>
       <button type="button" class="btn-remove-row" onclick="this.closest('.builder-item').remove()">✕</button>
     </div>
     <div class="b-row">
@@ -978,6 +982,21 @@ document.addEventListener('click', async (e) => {
   }
   const delEventBtn = e.target.closest('.btn-del-event');
   if (delEventBtn) { deleteEvent(delEventBtn.dataset.id); return; }
+
+  const moveChatBtn = e.target.closest('[data-action="move-chat-up"], [data-action="move-chat-down"]');
+  if (moveChatBtn) {
+    const item = moveChatBtn.closest('#builder-chats .builder-item');
+    const container = item?.parentElement;
+    if (!item || !container) return;
+    if (moveChatBtn.dataset.action === 'move-chat-up') {
+      const prev = item.previousElementSibling;
+      if (prev) container.insertBefore(item, prev);
+    } else {
+      const next = item.nextElementSibling;
+      if (next) container.insertBefore(next, item);
+    }
+    return;
+  }
 
   // Visual builder: add buttons
   const addBtn = e.target.closest('.btn-add-row');

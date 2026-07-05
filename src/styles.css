@@ -1569,6 +1569,19 @@
       font-size: 1rem; line-height: 1;
     }
     .builder-item .btn-remove-row:hover { color: var(--color-danger); background: #fef5f4; }
+    .builder-sort-actions {
+      display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+    }
+    .builder-item .btn-sort-row {
+      width: 28px; height: 28px; border-radius: 4px;
+      border: 1px solid var(--color-border); background: var(--color-bg-alt);
+      color: var(--color-text-2); cursor: pointer; font-weight: 700;
+      line-height: 1;
+    }
+    .builder-item .btn-sort-row:hover {
+      color: var(--color-accent); border-color: var(--color-accent-l);
+      background: #fffaf5;
+    }
     .btn-add-row {
       display: inline-flex; align-items: center; gap: 4px;
       padding: 5px 14px; margin-top: 4px; border-radius: var(--radius-sm);
