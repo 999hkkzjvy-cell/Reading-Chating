@@ -76,8 +76,13 @@ export async function loadMemberSummary(userId = store.get('user')?.id) {
     const safeViewPasses = viewPasses || [];
     const safeRedemptionTickets = redemptionTickets || [];
 
+    const safeWeeklyRank = Array.isArray(weeklyRank) ? (weeklyRank[0] || null) : (weeklyRank || null);
+    const safeStats = stats
+      ? { ...stats, contribution_week: safeWeeklyRank?.contribution_week ?? stats.contribution_week }
+      : stats;
+
     const summary = {
-      stats,
+      stats: safeStats,
       currentLevel: currentLevel || null,
       nextLevel: nextLevel || null,
       availableViewPasses: safeViewPasses.filter(pass => (
@@ -90,7 +95,7 @@ export async function loadMemberSummary(userId = store.get('user')?.id) {
       badges: badges || [],
       badgeDisplayPreferences: badgeDisplayPreferences || [],
       riddleAnswers: riddleAnswers || [],
-      weeklyRank: Array.isArray(weeklyRank) ? (weeklyRank[0] || null) : (weeklyRank || null)
+      weeklyRank: safeWeeklyRank
     };
 
     store.set('member', summary);

@@ -222,36 +222,7 @@ CREATE POLICY "dbc_admin_write" ON douban_book_cache FOR ALL
   WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
 
 -- ============================================================
--- 8. daily_checkins — 每日阅读签到（依赖 profiles）
--- ============================================================
-CREATE TABLE daily_checkins (
-  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  user_id         UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  checkin_date    DATE NOT NULL DEFAULT CURRENT_DATE,
-  book_title      TEXT,
-  excerpt         TEXT,
-  reflection      TEXT,
-  mood_color      TEXT,
-  created_at      TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(user_id, checkin_date)
-);
-
-CREATE INDEX idx_checkins_user ON daily_checkins(user_id);
-CREATE INDEX idx_checkins_date ON daily_checkins(checkin_date);
-
-ALTER TABLE daily_checkins ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "checkins_read_self" ON daily_checkins FOR SELECT
-  USING (auth.uid() = user_id OR EXISTS (
-    SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'
-  ));
-CREATE POLICY "checkins_insert_self" ON daily_checkins FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "checkins_update_self" ON daily_checkins FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
-
--- ============================================================
--- 9. Storage — 封面图 bucket
+-- 8. Storage — 封面图 bucket
 -- ============================================================
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('covers', 'covers', true)

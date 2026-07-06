@@ -262,12 +262,13 @@ async function renderResourcesTab(book, accessSummary) {
 function renderChatBody(book, chat, index, accessSummary) {
   const contentKey = resourceKey(book.id, 'chat', index, 'content');
   const content = chat?.content || '';
+  const normalizedContent = String(content).replace(/^\t+/gm, '');
   const pdfUrl = chat?.pdf_url || chat?.pdfUrl || chat?.file_url || '';
   const speakerHtml = chat?.speaker ? `<div class="chat-substance-meta expanded">主发言人：${h(chat.speaker)}</div>` : '';
   const contentHtml = content ? renderProtectedText({
     bookId: book.id,
     key: contentKey,
-    markdown: content,
+    markdown: normalizedContent,
     summary: accessSummary
   }) : '';
   const pdfHtml = pdfUrl ? `

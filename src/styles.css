@@ -1469,32 +1469,6 @@
       transform: translate(-50%, -50%) rotate(-45deg);
     }
 
-    /* Checkin detail in modal */
-    .checkin-detail-head {
-      text-align: center; margin-bottom: var(--space-3);
-    }
-    .checkin-detail-head .mood-dot {
-      display: inline-block; width: 14px; height: 14px; border-radius: 50%;
-      vertical-align: middle; margin-right: 6px;
-      border: 2px solid var(--color-border);
-    }
-    .checkin-detail-book {
-      margin-bottom: var(--space-2); padding: 8px 0;
-      border-bottom: 1px solid var(--color-border);
-    }
-    .checkin-excerpt blockquote {
-      border-left: 3px solid var(--color-accent-l);
-      padding-left: var(--space-2);
-      color: var(--color-text-2);
-      font-family: var(--font-serif);
-      font-style: italic; margin: 4px 0;
-      line-height: 1.8; white-space: pre-wrap;
-    }
-    .checkin-reflection p {
-      color: var(--color-text-2);
-      line-height: 1.8; white-space: pre-wrap;
-    }
-
     /* ========================================
        Book Card
        ======================================== */
@@ -1834,6 +1808,17 @@
     .chat-substance-body {
       margin-top: var(--space-3); padding-top: var(--space-3);
       border-top: 1px solid var(--color-border);
+    }
+    .chat-substance-body .md-content,
+    .chat-substance-body .md-content p,
+    .chat-substance-body .md-content pre,
+    .chat-substance-body .md-content code {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .chat-substance-body .md-content pre {
+      max-width: 100%; overflow-x: hidden;
     }
     .chat-pdf-actions {
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;

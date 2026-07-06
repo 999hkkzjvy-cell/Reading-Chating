@@ -123,7 +123,7 @@ import { safeMarked } from './utils.js';
         <section class="section" style="background:var(--color-bg-alt);">
           <div class="container" style="text-align:center;">
             <h2 style="margin-bottom:var(--space-2);">加入我们</h2>
-            <p style="color:var(--color-text-2);margin-bottom:var(--space-3);">注册账号即可参与每日阅读签到，记录你的阅读旅程。</p>
+            <p style="color:var(--color-text-2);margin-bottom:var(--space-3);">注册账号即可发布书友圈，记录你的阅读旅程。</p>
             ${store.get('user') ? '' : '<a href="#/register" class="btn btn-primary btn-lg">立即注册</a>'}
           </div>
         </section>
