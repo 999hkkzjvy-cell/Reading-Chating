@@ -352,7 +352,7 @@ route('/books/:id', async (params) => {
       <div style="font-size:1rem;line-height:1.8;">${hostIntroHtml}</div>
     </div>`;
 
-  // Tab 2.5: 共读导言 — host_notes (only if has content), 未解锁仅显示前10%
+  // Tab 2.5: 领读导言 — host_notes (only if has content), 未解锁仅显示前10%
   const hostNotesKey = resourceKey(book.id, 'host_notes', 'all', 'content');
   const hostNotesUnlocked = canViewResource(accessSummary, hostNotesKey);
   const hostNotesRaw = book.host_notes || '';
@@ -379,14 +379,26 @@ route('/books/:id', async (params) => {
         <div class="resource-locked-block" style="margin-top:var(--space-4);">
           <i data-lucide="lock"></i>
           <div>
-            <strong>完整共读导言暂未解锁</strong>
-            <p>以上为前 10% 预览。解锁后可查看完整共读导言。</p>
+            <strong>完整领读导言暂未解锁</strong>
+            <p>以上为前 10% 预览。解锁后可查看完整领读导言。</p>
             ${renderUnlockButton(book.id, hostNotesKey, accessSummary, '解锁完整导言')}
           </div>
         </div>
       ` : ''}
     </div>` : '';
-  const hostNotesTabBtn = hostNotesRaw ? '<button class="tab" data-tab="hostnotes">共读导言</button>' : '';
+  // Tab 2.2: 灵沁碎碎念 — xuxu_notes (no unlock, always visible)
+  const xuxuNotesRaw = book.xuxu_notes || '';
+  const xuxuNotesHtml = xuxuNotesRaw ? safeMarked(xuxuNotesRaw) : '';
+  const xuxuNotesTabHtml = xuxuNotesRaw ? `
+    <div class="md-content" style="max-width:none;">
+      <h2>灵沁碎碎念</h2>
+      <hr style="border:none;border-top:1px solid var(--color-border);margin:var(--space-2) 0;">
+      <div style="font-size:1rem;line-height:1.8;">${xuxuNotesHtml}</div>
+    </div>` : '';
+  const xuxuNotesTabBtn = xuxuNotesRaw ? '<button class="tab" data-tab="xuxu">灵沁碎碎念</button>' : '';
+  const xuxuNotesTabContent = xuxuNotesRaw ? `<div id="tab-xuxu" class="tab-content" style="display:none;">${xuxuNotesTabHtml}</div>` : '';
+
+  const hostNotesTabBtn = hostNotesRaw ? '<button class="tab" data-tab="hostnotes">领读导言</button>' : '';
   const hostNotesTabContent = hostNotesRaw ? `<div id="tab-hostnotes" class="tab-content" style="display:none;">${hostNotesTabHtml}</div>` : '';
 
   // Tab 3: 版本建议 — 延迟到用户打开分页时加载，避免阻塞首屏
@@ -550,6 +562,7 @@ route('/books/:id', async (params) => {
       <div class="tabs" id="book-tabs" style="margin-top:var(--space-5);">
         <button class="tab active" data-tab="intro">简介</button>
         <button class="tab" data-tab="host">领读人简介</button>
+        ${xuxuNotesTabBtn}
         ${hostNotesTabBtn}
         <button class="tab" data-tab="edition">版本建议</button>
         <button class="tab" data-tab="schedule">时间计划</button>
@@ -563,6 +576,7 @@ route('/books/:id', async (params) => {
 
       <div id="tab-intro" class="tab-content">${introHtml}</div>
       <div id="tab-host" class="tab-content" style="display:none;">${hostTabHtml}</div>
+      ${xuxuNotesTabContent}
       ${hostNotesTabContent}
       <div id="tab-edition" class="tab-content" style="display:none;" data-lazy-book-tab="edition" data-book-id="${h(book.id)}">${editionsHtml}</div>
       <div id="tab-schedule" class="tab-content" style="display:none;">${scheduleHtml}</div>
