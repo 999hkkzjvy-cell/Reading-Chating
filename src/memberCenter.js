@@ -785,7 +785,7 @@ function renderBadgeRiddlePanel({ badgeKey, canAnswer, solved }) {
               name="answer"
               type="text"
               autocomplete="off"
-              placeholder="写出作者或作品关键词"
+              placeholder="写出作者中文姓名"
               maxlength="80"
               required
             >
