@@ -498,6 +498,10 @@ function chatItem(c) { c=c||{}; return `
     <div class="b-row">
       <textarea name="chat_content" placeholder="详细内容（Markdown）" style="min-height:60px;width:100%;">${esc(c.content)}</textarea>
     </div>
+    <div class="b-row" style="align-items:center;">
+      <input type="file" class="chat-image-input" accept="image/*" style="flex:1;font-size:0.85rem;">
+      <span style="font-size:0.78rem;color:var(--color-text-3);white-space:nowrap;">上传图片 → 正文光标处插入 Markdown</span>
+    </div>
     <div class="b-row">
       <input name="chat_pdf_url" value="${esc(c.pdf_url || c.pdfUrl || c.file_url || '')}" placeholder="PDF 链接（可选）" style="flex:2">
       <input type="file" class="chat-pdf-input" accept=".pdf,application/pdf" style="flex:1;font-size:0.85rem;">
