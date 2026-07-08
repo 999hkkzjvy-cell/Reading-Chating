@@ -111,6 +111,7 @@ CREATE TABLE books (
   host              TEXT,
   host_intro        TEXT,
   host_notes        TEXT,
+  xuxu_notes        TEXT,
   activities        JSONB DEFAULT '[]',
   chatsubstance     JSONB DEFAULT '[]',
   resources         JSONB DEFAULT '{"extended_reading":[],"text_materials":[],"film_resources":[],"other":[]}',

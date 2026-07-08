@@ -521,7 +521,7 @@ function resItem(r) { r=r||{}; return `
 // Admin: add/edit book form
 function showBookForm(bookData = null) {
   const isEdit = !!bookData;
-  const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', edition_notes:'', reading_schedule:'{"summary":"","pdf_url":""}', host:'', host_intro:'', host_notes:'', host_notes_title:'', host_notes_subtitle:'', host_notes_author:'', activities:'[]', chatsubstance:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[],"other":[]}', start_date:'', end_date:'', join_enabled:false, join_intro:'', join_qr_url:'' };
+  const book = bookData || { title:'', author:'', author_country:'', author_gender:'', translator:'', translator_gender:'', publisher:'', word_count:'', cover_url:'', genre:'文学', description:'', author_bio:'', historical_context:'', status:'upcoming', edition_guide:'[]', edition_notes:'', reading_schedule:'{"summary":"","pdf_url":""}', host:'', host_intro:'', host_notes:'', host_notes_title:'', host_notes_subtitle:'', host_notes_author:'', xuxu_notes:'', activities:'[]', chatsubstance:'[]', resources:'{"extended_reading":[],"text_materials":[],"film_resources":[],"other":[]}', start_date:'', end_date:'', join_enabled:false, join_intro:'', join_qr_url:'' };
   const genres = ['文学','历史','哲学','科幻','社科','心理','传记','商业','科普','其他'];
   // Parse JSONB data for visual builders
   let acts=[], edns=[], chats=[], extR=[], txtM=[], filmR=[], otherR=[];
@@ -629,7 +629,8 @@ function showBookForm(bookData = null) {
       <div class="form-group"><label>导言标题</label><input type="text" name="host_notes_title" value="${esc(book.host_notes_title || '')}" placeholder="可选"></div>
       <div class="form-group"><label>导言副标题</label><input type="text" name="host_notes_subtitle" value="${esc(book.host_notes_subtitle || '')}" placeholder="可选"></div>
       <div class="form-group"><label>导言作者</label><input type="text" name="host_notes_author" value="${esc(book.host_notes_author || '')}" placeholder="必填" required></div>
-      <div class="form-group"><label>共读导言正文（Markdown）</label><textarea name="host_notes" style="min-height:80px;">${h(book.host_notes || '')}</textarea></div>
+      <div class="form-group"><label>领读导言正文（Markdown）</label><textarea name="host_notes" style="min-height:80px;">${h(book.host_notes || '')}</textarea></div>
+      <div class="form-group"><label>灵沁碎碎念（Markdown）</label><textarea name="xuxu_notes" style="min-height:80px;">${h(book.xuxu_notes || '')}</textarea></div>
 
       <!-- Visual Builder: Activities (unified) -->
       <div class="builder-section">
@@ -676,6 +677,7 @@ function showBookForm(bookData = null) {
   const modal = showModal(isEdit ? '编辑书籍' : '添加书籍', formHtml, () => {
     document.removeEventListener('submit', bookFormHandler);
   });
+  modal.querySelector('.modal').classList.add('modal-wide');
   document.addEventListener('submit', bookFormHandler);
   function bookFormHandler(e) {
     if (e.target.id !== 'book-edit-form') return;
@@ -808,6 +810,7 @@ function showEventForm(eventData = null) {
   const modal = showModal(isEdit ? '编辑活动' : '添加活动', formHtml, () => {
     document.removeEventListener('submit', eventFormHandler);
   });
+  modal.querySelector('.modal').classList.add('modal-wide');
   document.addEventListener('submit', eventFormHandler);
   function eventFormHandler(e) {
     if (e.target.id !== 'event-edit-form') return;
