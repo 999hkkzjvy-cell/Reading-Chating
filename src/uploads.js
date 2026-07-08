@@ -144,6 +144,36 @@ export function bindUploadHandlers() {
     toast('聊天干货 PDF 上传成功');
   });
 
+  // 聊天干货图片上传：上传到 files/chat_images/，在正文 textarea 光标处插入 ![图片](url)
+  document.addEventListener('change', async (e) => {
+    if (!e.target.classList.contains('chat-image-input')) return;
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop();
+    const safeName = safeUploadName(file.name, 'chat_img');
+    const path = `chat_images/${Date.now()}_${safeName}.${ext}`;
+    const { error } = await sb.storage.from('files').upload(path, file);
+    if (error) {
+      toast('聊天干货图片上传失败：' + error.message, 'error');
+      return;
+    }
+    const { data: { publicUrl } } = sb.storage.from('files').getPublicUrl(path);
+    const item = e.target.closest('.builder-item');
+    const textarea = item?.querySelector('[name="chat_content"]');
+    if (textarea) {
+      const mdImg = `![图片](${publicUrl})`;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const before = textarea.value.substring(0, start);
+      const after = textarea.value.substring(end);
+      textarea.value = before + mdImg + after;
+      textarea.focus();
+      textarea.setSelectionRange(start + mdImg.length, start + mdImg.length);
+    }
+    e.target.value = '';
+    toast('图片已插入正文');
+  });
+
   document.addEventListener('change', async (e) => {
     if (e.target.id !== 'join-qr-file-input') return;
     const file = e.target.files[0];
