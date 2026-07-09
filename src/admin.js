@@ -485,6 +485,7 @@ function ednItem(e) { e=e||{}; return `
 function chatItem(c) { c=c||{}; return `
   <div class="builder-item">
     <div class="b-row">
+      <input type="number" name="chat_sort_order" value="${esc(c.sort_order != null ? c.sort_order : '')}" placeholder="序号" style="width:64px;min-width:64px;" min="1">
       <input name="chat_topic" value="${esc(c.topic)}" placeholder="干货主题 *" style="flex:2" required>
       <div class="builder-sort-actions" aria-label="聊天干货排序">
         <button type="button" class="btn-sort-row" data-action="move-chat-up" title="上移">↑</button>
@@ -722,8 +723,8 @@ function showBookForm(bookData = null) {
     data.resources = { extended_reading: extR, text_materials: txtM, film_resources: filmR, other: otherR };
 
     // Chatsubstance
-    data.chatsubstance = JSON.stringify(collectItems('builder-chats', ['chat_topic','chat_speaker','chat_content','chat_pdf_url']).map(o => ({
-      topic: o.chat_topic||'', speaker: o.chat_speaker||'', content: o.chat_content||'', pdf_url: o.chat_pdf_url||''
+    data.chatsubstance = JSON.stringify(collectItems('builder-chats', ['chat_topic','chat_speaker','chat_content','chat_pdf_url','chat_sort_order']).map(o => ({
+      topic: o.chat_topic||'', speaker: o.chat_speaker||'', content: o.chat_content||'', pdf_url: o.chat_pdf_url||'', sort_order: o.chat_sort_order ? parseInt(o.chat_sort_order) : null
     })));
 
     // Serialize reading_schedule from form fields
@@ -737,7 +738,7 @@ function showBookForm(bookData = null) {
     delete data.online_activities; delete data.meeting_replays; delete data.isbn; delete data.page_count;
     ['edn_name','edn_translator','edn_publisher','edn_pros','edn_cons','edn_buy_link','edn_douban_link',
      'act_type','act_title','act_time','act_status','act_meeting_link','act_replay_link','act_guests','act_desc',
-     'chat_topic','chat_speaker','chat_content','chat_pdf_url',
+     'chat_topic','chat_speaker','chat_content','chat_pdf_url','chat_sort_order',
      'res_title','res_url','res_desc'].forEach(f => delete data[f]);
     data.word_count = data.word_count ? parseInt(data.word_count) : null;
     saveBook(data, data.book_id);

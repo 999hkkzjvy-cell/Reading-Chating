@@ -460,6 +460,12 @@ route('/books/:id', async (params) => {
   // Tab 7: 聊天干货
   let chats = [];
   try { chats = typeof book.chatsubstance === 'string' ? JSON.parse(book.chatsubstance||'[]') : (book.chatsubstance||[]); } catch(e){}
+  // 按 sort_order 排序：有序号的在前，无序号的按原顺序排在后面
+  chats = chats.slice().sort((a, b) => {
+    const aOrder = a.sort_order != null ? Number(a.sort_order) : Infinity;
+    const bOrder = b.sort_order != null ? Number(b.sort_order) : Infinity;
+    return aOrder - bOrder;
+  });
   const chatsHtml = chats.length === 0 ? '<p style="color:var(--color-text-3);">暂无聊天干货。</p>' : `
     <div class="chat-substance-list">
       ${chats.map((c, index) => `
