@@ -1,4 +1,4 @@
-import { bindNotificationEvents, initAuth } from './auth.js';
+import { bindNotificationEvents, getAuthRedirectRoute, initAuth, replaceAuthRedirectRoute } from './auth.js';
 import { bindAccessEvents } from './access.js';
 import './admin.js';
 import './books.js';
@@ -51,7 +51,12 @@ import { safeMarked } from './utils.js';
     window.addEventListener('hashchange', () => router.render());
     window.addEventListener('load', async () => {
       bindGlobalEvents();
+      const pendingAuthRedirect = getAuthRedirectRoute();
       await init();
+      const authRedirect = pendingAuthRedirect || getAuthRedirectRoute();
+      if (authRedirect) {
+        replaceAuthRedirectRoute(authRedirect);
+      }
       router.render();
       // Prefetch data in background — makes subsequent navigation instant
       loadBooks().catch(() => {});
