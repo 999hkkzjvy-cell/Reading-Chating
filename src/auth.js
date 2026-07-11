@@ -78,10 +78,45 @@ export async function signOut() {
 
 export async function resetPassword(email) {
   const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin + window.location.pathname + '#/reset-password'
+    redirectTo: passwordResetRedirectUrl()
   });
   if (error) throw error;
   toast('密码重置邮件已发送，请检查邮箱。');
+}
+
+function passwordResetRedirectUrl() {
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('auth_action', 'reset-password');
+  return url.toString();
+}
+
+function hashHasRecoveryMarker(hash) {
+  if (!hash) return false;
+  const raw = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (raw.startsWith('/reset-password')) return true;
+
+  const queryStart = raw.indexOf('?');
+  const paramText = queryStart >= 0 ? raw.slice(queryStart + 1) : raw;
+  return new URLSearchParams(paramText).get('type') === 'recovery';
+}
+
+export function getAuthRedirectRoute() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get('auth_action') === 'reset-password') return '/reset-password';
+  if (url.searchParams.get('type') === 'recovery') return '/reset-password';
+  if (hashHasRecoveryMarker(url.hash)) return '/reset-password';
+  return null;
+}
+
+export function replaceAuthRedirectRoute(routePath) {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('auth_action');
+  url.searchParams.delete('code');
+  url.searchParams.delete('type');
+  url.hash = '#' + routePath;
+  window.history.replaceState(null, '', url.toString());
 }
 
 export async function updatePassword(newPassword) {
