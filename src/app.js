@@ -49,6 +49,10 @@ import { safeMarked } from './utils.js';
     });
 
     window.addEventListener('hashchange', () => router.render());
+    window.addEventListener('password-recovery-started', () => {
+      replaceAuthRedirectRoute('/reset-password');
+      router.render();
+    });
     window.addEventListener('load', async () => {
       bindGlobalEvents();
       const pendingAuthRedirect = getAuthRedirectRoute();

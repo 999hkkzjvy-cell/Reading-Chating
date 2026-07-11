@@ -4,6 +4,15 @@ import { toast } from './ui.js';
 import { loadMemberSummary } from './members.js';
 import { esc, formatDateTime, h, safeUrl } from './utils.js';
 
+const PASSWORD_RECOVERY_PENDING_KEY = 'password_recovery_pending';
+
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    sessionStorage.setItem(PASSWORD_RECOVERY_PENDING_KEY, '1');
+    window.dispatchEvent(new CustomEvent('password-recovery-started'));
+  }
+});
+
 export async function initAuth() {
   store.set('isBanned', null);
   const { data: { user } } = await sb.auth.getUser();
@@ -67,13 +76,17 @@ export async function signUp(email, password, displayName) {
 
 export async function signOut() {
   await sb.auth.signOut();
+  clearAuthStore();
+  location.hash = '#/';
+}
+
+function clearAuthStore() {
   store.set('user', null);
   store.set('profile', null);
   store.set('member', null);
   store.set('isAdmin', false);
   store.set('isBanned', null);
   renderNavUser();
-  location.hash = '#/';
 }
 
 export async function resetPassword(email) {
@@ -104,6 +117,7 @@ function hashHasRecoveryMarker(hash) {
 
 export function getAuthRedirectRoute() {
   const url = new URL(window.location.href);
+  if (sessionStorage.getItem(PASSWORD_RECOVERY_PENDING_KEY) === '1') return '/reset-password';
   if (url.searchParams.get('auth_action') === 'reset-password') return '/reset-password';
   if (url.searchParams.get('type') === 'recovery') return '/reset-password';
   if (hashHasRecoveryMarker(url.hash)) return '/reset-password';
@@ -116,12 +130,23 @@ export function replaceAuthRedirectRoute(routePath) {
   url.searchParams.delete('code');
   url.searchParams.delete('type');
   url.hash = '#' + routePath;
+  sessionStorage.removeItem(PASSWORD_RECOVERY_PENDING_KEY);
   window.history.replaceState(null, '', url.toString());
 }
 
 export async function updatePassword(newPassword) {
   const { error } = await sb.auth.updateUser({ password: newPassword });
   if (error) throw error;
+  toast('密码已重置，请重新登录。');
+}
+
+export async function completePasswordReset(newPassword) {
+  const { error } = await sb.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+
+  sessionStorage.removeItem(PASSWORD_RECOVERY_PENDING_KEY);
+  await sb.auth.signOut();
+  clearAuthStore();
   toast('密码已重置，请重新登录。');
 }
 

@@ -1,10 +1,10 @@
 import {
   checkLoginRateLimit,
+  completePasswordReset,
   recordLoginAttempt,
   resetPassword,
   signIn,
   signUp,
-  updatePassword
 } from './auth.js';
 import { isCaptchaVerified, refreshCaptcha } from './captcha.js';
 import { route, router } from './router.js';
@@ -167,7 +167,7 @@ export function bindAuthEvents() {
       btn.disabled = true;
       btn.textContent = '重置中...';
       try {
-        await updatePassword(fd.get('password'));
+        await completePasswordReset(fd.get('password'));
         document.getElementById('reset-msg').textContent = '密码已重置，即将跳转登录页...';
         document.getElementById('reset-error').textContent = '';
         setTimeout(() => router.navigate('/login'), 1500);
