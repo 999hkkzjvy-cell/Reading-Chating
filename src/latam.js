@@ -74,6 +74,19 @@ const LATAM_COUNTRIES = [
 const defaultMapStyle = { fillColor: '#d9a87a', fillOpacity: 0.45, color: '#8b6914', weight: 1.5, opacity: 0.8 };
 let latamMap = null;
 let latamLayer = null;
+let latamResizeHandlerBound = false;
+
+function loadExternalAsset(tagName, attrs) {
+  return new Promise((ok, fail) => {
+    const el = document.createElement(tagName);
+    Object.entries(attrs).forEach(([key, value]) => {
+      el[key] = value;
+    });
+    el.onload = ok;
+    el.onerror = () => fail(new Error(`资源加载失败：${attrs.href || attrs.src}`));
+    document.head.appendChild(el);
+  });
+}
 
 function introPanelHtml() {
   return `
@@ -184,11 +197,12 @@ export async function initLatamMap() {
   const mapEl = document.getElementById('latam-leaflet-map');
   if (!mapEl) return;
 
+  try {
   if (typeof L === 'undefined') {
     await Promise.all([
-      new Promise((ok, fail) => { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css'; l.onload = ok; l.onerror = fail; document.head.appendChild(l); }),
-      new Promise((ok, fail) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js'; s.onload = ok; s.onerror = fail; document.head.appendChild(s); }),
-      new Promise((ok, fail) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/topojson-client@3'; s.onload = ok; s.onerror = fail; document.head.appendChild(s); })
+      loadExternalAsset('link', { rel: 'stylesheet', href: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css' }),
+      loadExternalAsset('script', { src: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js' }),
+      loadExternalAsset('script', { src: 'https://cdn.jsdelivr.net/npm/topojson-client@3' })
     ]);
     await new Promise(r => setTimeout(r, 100));
   }
@@ -215,6 +229,14 @@ export async function initLatamMap() {
     subdomains: 'abcd',
     maxZoom: 19
   }).addTo(latamMap);
+
+  setTimeout(() => latamMap?.invalidateSize(), 120);
+  if (!latamResizeHandlerBound) {
+    latamResizeHandlerBound = true;
+    window.addEventListener('resize', () => {
+      if (latamMap) latamMap.invalidateSize();
+    });
+  }
 
   const isoNumSet = new Set(LATAM_COUNTRIES.map(c => c.isoNum));
   try {
@@ -259,6 +281,10 @@ export async function initLatamMap() {
   } catch (err) {
     console.error('Failed to load map data:', err);
     mapEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-danger);">地图数据加载失败：' + (err.message || '未知错误') + '<br><small>请检查网络后刷新重试</small></div>';
+  }
+  } catch (err) {
+    console.error('Failed to initialize map:', err);
+    mapEl.innerHTML = '<div style="padding:20px;text-align:center;color:var(--color-danger);">地图初始化失败：' + (err.message || '未知错误') + '<br><small>请检查网络后刷新重试</small></div>';
   }
 }
 

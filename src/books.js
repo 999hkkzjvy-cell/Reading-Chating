@@ -548,13 +548,13 @@ route('/books/:id', async (params) => {
   return `
     <div class="container section">
       <a href="#/books" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回共读书库</a>
-      <div style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
-        <div style="width:180px;flex-shrink:0;">
+      <div class="book-detail-hero" style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
+        <div class="book-detail-cover-wrap" style="width:180px;flex-shrink:0;">
           <div style="aspect-ratio:3/4;border-radius:var(--radius-md);background:var(--color-bg-alt);overflow:hidden;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif);font-size:2rem;color:var(--color-text-3);">
             ${book.cover_url ? `<img src="${safeUrl(book.cover_url)}" alt="" style="width:100%;height:100%;object-fit:cover;">` : '<i data-lucide="book"></i>'}
           </div>
         </div>
-        <div style="flex:1;min-width:280px;">
+        <div class="book-detail-info" style="flex:1;min-width:280px;">
           ${statusTag(book.status)}
           <h1 style="margin-top:var(--space-1);">${h(book.title)}</h1>
           <div style="color:var(--color-text-2);font-size:1.05rem;margin:var(--space-1) 0;">
