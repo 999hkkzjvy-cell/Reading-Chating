@@ -1,6 +1,6 @@
 import { MOODS } from './constants.js';
 import { loadMemberSummary } from './members.js';
-import { openBadgePreview } from './memberCenter.js';
+import { badgeDisplayTitle, openBadgePreview } from './memberCenter.js';
 import {
   createComment,
   createReadingPost,
@@ -10,6 +10,7 @@ import {
   getContributionLeaderboard,
   getPublicMemberProfile,
   isFollowing,
+  listPublicMemberDisplayBadges,
   listComments,
   listFollowers,
   listFollowing,
@@ -727,23 +728,51 @@ function renderProfileLibrary(rows) {
   `;
 }
 
+function normalizePublicBadgeRows(rows) {
+  return (rows || []).map(row => ({
+    id: row.id,
+    user_id: row.user_id,
+    badge_key: row.badge_key,
+    badge_type: row.badge_type,
+    awarded_reason: row.awarded_reason,
+    awarded_at: row.awarded_at,
+    revoked_at: null,
+    badge_catalog: {
+      badge_key: row.badge_key,
+      badge_type: row.catalog_badge_type || row.badge_type,
+      title: row.title,
+      level: row.level,
+      image_bucket: row.image_bucket,
+      image_path: row.image_path,
+      back_image_bucket: row.back_image_bucket,
+      back_image_path: row.back_image_path
+    }
+  }));
+}
+
 async function renderUserProfile(userId) {
   const [profileRes, postsRes, badgesRes, libraryRes] = await Promise.all([
     getPublicMemberProfile(userId),
     listUserPublicPosts(userId),
-    sb.from('user_badges')
-      .select('*, badge_catalog(*)')
-      .eq('user_id', userId)
-      .is('revoked_at', null)
-      .order('awarded_at', { ascending: false })
-      .limit(6),
+    listPublicMemberDisplayBadges(userId),
     listPublicMemberLibrary(userId)
   ]);
 
   const profile = profileRes.data?.[0];
   const posts = postsRes.data || [];
-  const badges = badgesRes.data || [];
+  let badges = badgesRes.error ? [] : normalizePublicBadgeRows(badgesRes.data);
   const libraryRows = libraryRes.error ? [] : (libraryRes.data || []);
+
+  if (badgesRes.error) {
+    console.warn('Public display badges unavailable:', badgesRes.error.message);
+    const fallbackRes = await sb.from('user_badges')
+      .select('*, badge_catalog(*)')
+      .eq('user_id', userId)
+      .is('revoked_at', null)
+      .order('awarded_at', { ascending: false })
+      .limit(6);
+    badges = fallbackRes.data || [];
+  }
 
   if (!profile) {
     return '<div class="container section"><div class="empty-state"><i data-lucide="user-x"></i><p>用户不存在</p></div></div>';
@@ -752,15 +781,6 @@ async function renderUserProfile(userId) {
   const avatarHtml = profile.avatar_url
     ? `<img src="${safeUrl(profile.avatar_url)}" alt="">`
     : h((profile.display_name || '书')[0].toUpperCase());
-
-  // 开创者徽章排最前，其余按获取时间倒序
-  badges.sort((a, b) => {
-    const aFounder = (a.badge_catalog || a).badge_type === 'founder';
-    const bFounder = (b.badge_catalog || b).badge_type === 'founder';
-    if (aFounder && !bFounder) return -1;
-    if (!aFounder && bFounder) return 1;
-    return new Date(b.awarded_at || 0) - new Date(a.awarded_at || 0);
-  });
 
   const badgeItems = badges.length
     ? badges.map(b => {
@@ -779,7 +799,7 @@ async function renderUserProfile(userId) {
           const { data: publicUrl } = sb.storage.from(backBucket).getPublicUrl(backPath);
           backImageUrl = publicUrl?.publicUrl || '';
         }
-        const title = badge.level && badge.title ? `Lv.${badge.level} ${badge.title}` : (badge.title || '徽章');
+        const title = badgeDisplayTitle(b);
         const awardedAt = b.awarded_at ? formatDateTime(b.awarded_at) : '';
         const imgHtml = imageUrl
           ? `<img src="${safeUrl(imageUrl)}" alt="${esc(title)}">`

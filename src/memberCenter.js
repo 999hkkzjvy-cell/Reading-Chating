@@ -26,18 +26,22 @@ function getBadgeBackImageUrl(badgeCatalog) {
   return storagePublicUrl(badgeCatalog.back_image_bucket || badgeCatalog.image_bucket, badgeCatalog.back_image_path);
 }
 
-function badgeDisplayTitle(row) {
-  const badge = row.badge_catalog || {};
-  if (badge.badge_type === 'founder' || row.badge_type === 'founder') {
-    return badge.title || '开创者';
-  }
-  if (badge.level && badge.title) {
-    return `Lv.${badge.level} ${badge.title}`;
-  }
-  return badge.title || row.badge_key;
+export function normalizeBadgeTitle(title) {
+  return String(title || '').replaceAll('读完纪念', '完本纪念');
 }
 
-function sortBadgesForDisplay(badges) {
+export function badgeDisplayTitle(row) {
+  const badge = row.badge_catalog || {};
+  if (badge.badge_type === 'founder' || row.badge_type === 'founder') {
+    return normalizeBadgeTitle(badge.title || '开创者');
+  }
+  if (badge.level && badge.title) {
+    return normalizeBadgeTitle(`Lv.${badge.level} ${badge.title}`);
+  }
+  return normalizeBadgeTitle(badge.title || row.badge_key);
+}
+
+export function sortBadgesForDisplay(badges) {
   const list = [...(badges || [])];
   const founder = list.filter(row => row.badge_key === 'founder' || row.badge_type === 'founder');
   const rest = list
@@ -335,7 +339,7 @@ async function deleteMemberLibraryItem(button) {
   router.render();
 }
 
-function selectedDisplayBadgeKeys(member) {
+export function selectedDisplayBadgeKeys(member) {
   const badges = member?.badges || [];
   const byKey = new Map(badges.map(row => [row.badge_key, row]));
   const founder = badges.find(row => row.badge_key === 'founder' || row.badge_type === 'founder');
@@ -359,7 +363,7 @@ function selectedDisplayBadgeKeys(member) {
   return sortBadgesForDisplay(badges).slice(0, 6).map(row => row.badge_key);
 }
 
-function displayBadgesForMember(member) {
+export function displayBadgesForMember(member) {
   const byKey = new Map((member?.badges || []).map(row => [row.badge_key, row]));
   return selectedDisplayBadgeKeys(member).map(key => byKey.get(key)).filter(Boolean);
 }

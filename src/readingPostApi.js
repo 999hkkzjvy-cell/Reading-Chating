@@ -80,6 +80,10 @@ export function listPublicMemberLibrary(userId) {
   return sb.rpc('list_public_member_library', { p_user_id: userId });
 }
 
+export function listPublicMemberDisplayBadges(userId) {
+  return sb.rpc('list_public_member_display_badges', { p_user_id: userId });
+}
+
 export function getContributionLeaderboard(type) {
   return sb.rpc('get_contribution_leaderboard', { p_type: type });
 }

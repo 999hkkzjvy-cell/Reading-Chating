@@ -281,7 +281,7 @@ BEGIN
     (badge_key, badge_type, title, level, image_bucket, image_path, riddle_key)
   VALUES
     ('commemorative_book_' || p_book_id || '_claimed', 'commemorative', '《' || v_title || '》共读纪念', NULL, 'badges', NULL, 'commemorative_book_' || p_book_id || '_claimed'),
-    ('commemorative_book_' || p_book_id || '_finished', 'commemorative', '《' || v_title || '》读完纪念', NULL, 'badges', NULL, 'commemorative_book_' || p_book_id || '_finished')
+    ('commemorative_book_' || p_book_id || '_finished', 'commemorative', '《' || v_title || '》完本纪念', NULL, 'badges', NULL, 'commemorative_book_' || p_book_id || '_finished')
   ON CONFLICT (badge_key) DO UPDATE SET
     title = EXCLUDED.title,
     badge_type = EXCLUDED.badge_type,
