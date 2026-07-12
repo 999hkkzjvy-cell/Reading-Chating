@@ -52,6 +52,8 @@
 40. `migrate-v42-live-weekly-contribution-rank.sql`
 41. `migrate-v43-live-monthly-contribution-rank.sql`
 42. `migrate-v44-drop-legacy-checkins.sql`
+43. `migrate-v45-add-xuxu-notes.sql`
+44. `migrate-v46-new-books-source-order.sql`
 
 `supabase-schema.sql` 已包含早期基础结构，例如用户资料、站点配置、书库、活动、新书速递、豆瓣缓存、`covers`/`files` Storage policy 等。旧每日签到表已在 v44 下线，新项目初始化后不要再重复执行 `migrate-v2.sql` 到 `migrate-v8-profile-privacy.sql`，除非你明确知道当前库缺少对应对象。
 
@@ -119,6 +121,7 @@ migrate-v41-weekly-view-pass-source-key-fix.sql
 migrate-v42-live-weekly-contribution-rank.sql
 migrate-v43-live-monthly-contribution-rank.sql
 migrate-v44-drop-legacy-checkins.sql
+migrate-v45-add-xuxu-notes.sql
 migrate-v46-new-books-source-order.sql
 ```
 
@@ -136,6 +139,12 @@ migrate-v46-new-books-source-order.sql
 - `scrape-douban`
 - `fetch-douban-book`
 - `img-proxy`
+
+`scrape-douban` 推荐使用 Supabase API 端打包部署，避免本地 eszip 偶发生成失败：
+
+```bash
+npx supabase@latest functions deploy scrape-douban --project-ref zugadhgezmqrnlwogomw --use-api
+```
 
 部署后需要设置：
 
