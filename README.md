@@ -96,15 +96,14 @@
 │   └── functions/          # Edge Functions：豆瓣抓取、封面代理、AI 代理等
 ├── sql/
 │   ├── current-files/      # 当前全部单独迁移 SQL 归档
-│   ├── final-init/         # 新数据库从 0 初始化 SQL
-│   │   └── 00-full-init.sql
-│   └── books/              # 按书目归档的 seed 数据
-│       ├── genji/
-│       ├── king-lear/
-│       └── red-mansion/
-└── badges/
-    ├── final/              # 徽章终稿 + 谜面文档 + 提示词
-    └── trials/             # 徽章设计过程稿 + 开发方案
+│   └── final-init/         # 新数据库从 0 初始化 SQL
+│       └── 00-full-init.sql
+└── ignore files/           # 本地资料区，不上传云端
+    ├── AI-CONTEXT.md       # AI 开工上下文
+    ├── Coding Log.md       # 本地开发日志
+    ├── Deployment-Plan.md  # 本地部署规划
+    ├── badges/             # 徽章终稿、谜面、提示词、开发方案
+    └── books/              # 按书目归档的 seed 数据
 ```
 
 ---
@@ -115,7 +114,7 @@
 
 - 新数据库从 0 开始：执行 [sql/final-init/00-full-init.sql](sql/final-init/00-full-init.sql)
 - 现有数据库增量升级：参考 [sql/current-files/deploy-order.md](sql/current-files/deploy-order.md)
-- 书籍种子数据：位于 `sql/books/`，按书目独立归档
+- 书籍种子数据：位于本地 `ignore files/books/`，按书目独立归档，不上传云端
 - 新书速递排序字段：`migrate-v46-new-books-source-order.sql` 增加 `source_rank` / `source_page`，用于按豆瓣源页面顺序稳定展示
 
 ---
@@ -152,4 +151,8 @@
 
 ## 开发日志
 
-详见 [Coding Log.md](Coding Log.md)
+本地详见 `ignore files/Coding Log.md`。
+
+## AI 协作上下文
+
+本地详见 `ignore files/AI-CONTEXT.md`。后续和 AI 协作时，建议先让 AI 阅读这份文档，再按任务读取相关模块。
