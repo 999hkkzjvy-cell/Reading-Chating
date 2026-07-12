@@ -95,7 +95,20 @@ WHERE badge_key IN (
 
 如果你用同名文件覆盖图片，浏览器或 Supabase CDN 可能仍显示旧图。
 
-更稳妥的做法是上传新文件名，例如：
+网站前端会把 `badge_catalog.updated_at` 作为徽章图片的缓存版本参数。如果确认 Storage 里已经是新图，但页面还显示旧图，先执行：
+
+```sql
+UPDATE public.badge_catalog
+SET updated_at = now()
+WHERE badge_key IN (
+  'commemorative_book_12_claimed',
+  'commemorative_book_12_finished'
+);
+```
+
+把 `12` 替换成实际书籍 ID。然后刷新网站。
+
+如果仍然显示旧图，更稳妥的做法是上传新文件名，例如：
 
 ```text
 final/commemorative/book-12-claimed-v2.png

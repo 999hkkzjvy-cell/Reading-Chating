@@ -58,6 +58,7 @@
 
 ```
 .
+├── badge-upload-guide.md   # 共读纪念徽章上传、挂接与缓存说明
 ├── index.html              # 主入口 SPA
 ├── src/
 │   ├── app.js              # 应用初始化
@@ -110,13 +111,14 @@
 
 ## 数据库部署
 
-当前数据库迁移整理到 **v47**（2026-07-12）。
+当前数据库迁移整理到 **v48**（2026-07-13）。
 
 - 新数据库从 0 开始：执行 [sql/final-init/00-full-init.sql](sql/final-init/00-full-init.sql)
 - 现有数据库增量升级：参考 [sql/current-files/deploy-order.md](sql/current-files/deploy-order.md)
 - 书籍种子数据：位于本地 `ignore files/books/`，按书目独立归档，不上传云端
 - 新书速递排序字段：`migrate-v46-new-books-source-order.sql` 增加 `source_rank` / `source_page`，用于按豆瓣源页面顺序稳定展示
 - 公开主页徽章展示：`migrate-v47-public-display-badges.sql` 新增公开展示徽章 RPC，个人主页按“我的徽章”选定顺序显示，并将“读完纪念”统一为“完本纪念”。旧库执行 v47 即可，不需要重跑 v26。
+- 徽章图片缓存破除：`migrate-v48-badge-cache-busting.sql` 让公开主页徽章 RPC 返回 `catalog_updated_at`，前端把 `badge_catalog.updated_at` 拼入图片 URL。覆盖同名徽章图后，更新对应 `badge_catalog.updated_at` 即可刷新缓存。
 
 ---
 
@@ -138,6 +140,7 @@
 
 ## 近期更新
 
+- **2026-07-13**：徽章图片缓存破除：会员中心和个人主页的徽章图片 URL 增加 `updated_at` 版本参数；新增 v48 迁移，为公开主页徽章 RPC 返回 `catalog_updated_at`；补充同名覆盖徽章后的刷新说明。
 - **2026-07-12**：徽章展示升级：个人主页徽章改为同步“我的徽章”中保存的展示选择；共读完本徽章文案从“读完纪念”统一为“完本纪念”；新增 v47 迁移。
 - **2026-07-12**：新书速递抓取逻辑升级：抓取豆瓣新书前 3 页，缓存约 60 本，前台只展示最新 Top 10；修复无评分新书被误显示为评价人数的问题；Edge Function 推荐使用 `--use-api` 部署。
 - **2026-07-12**：手机端 UI 优化，调整导航、筛选、弹窗、评论、书籍详情与新书卡片的移动端布局。

@@ -7871,6 +7871,7 @@ RETURNS TABLE (
   image_path TEXT,
   back_image_bucket TEXT,
   back_image_path TEXT,
+  catalog_updated_at TIMESTAMPTZ,
   sort_order INTEGER
 ) AS $$
 BEGIN
@@ -7892,6 +7893,7 @@ BEGIN
       bc.image_path,
       bc.back_image_bucket,
       bc.back_image_path,
+      bc.updated_at AS catalog_updated_at,
       (
         ub.badge_key = 'founder'
         OR ub.badge_type = 'founder'
@@ -7955,6 +7957,7 @@ BEGIN
       ranked.image_path,
       ranked.back_image_bucket,
       ranked.back_image_path,
+      ranked.catalog_updated_at,
       ranked.is_founder,
       (100 + ranked.fill_order)::INTEGER AS sort_order
     FROM (
@@ -7986,6 +7989,7 @@ BEGIN
       ranked.image_path,
       ranked.back_image_bucket,
       ranked.back_image_path,
+      ranked.catalog_updated_at,
       ranked.is_founder,
       ranked.fallback_order AS sort_order
     FROM (
@@ -8020,6 +8024,7 @@ BEGIN
     dr.image_path,
     dr.back_image_bucket,
     dr.back_image_path,
+    dr.catalog_updated_at,
     dr.sort_order
   FROM display_rows dr
   ORDER BY dr.sort_order ASC, dr.awarded_at DESC, dr.id DESC
@@ -8031,8 +8036,8 @@ REVOKE EXECUTE ON FUNCTION public.list_public_member_display_badges(UUID) FROM P
 GRANT EXECUTE ON FUNCTION public.list_public_member_display_badges(UUID) TO authenticated;
 
 COMMENT ON FUNCTION public.list_public_member_display_badges(UUID) IS
-  '公开个人主页展示徽章：优先使用用户在个人中心保存的徽章展示偏好；未保存时按旧规则返回最多 6 枚。';
+  '公开个人主页展示徽章：优先使用用户在个人中心保存的徽章展示偏好；未保存时按旧规则返回最多 6 枚；返回 catalog_updated_at 供图片缓存破除。';
 
 -- ============================================================
--- END migrate-v47-public-display-badges.sql
+-- END migrate-v47-public-display-badges.sql + migrate-v48-badge-cache-busting.sql
 -- ============================================================

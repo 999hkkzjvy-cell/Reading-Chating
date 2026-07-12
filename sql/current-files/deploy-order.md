@@ -55,6 +55,7 @@
 43. `migrate-v45-add-xuxu-notes.sql`
 44. `migrate-v46-new-books-source-order.sql`
 45. `migrate-v47-public-display-badges.sql`
+46. `migrate-v48-badge-cache-busting.sql`
 
 `supabase-schema.sql` 已包含早期基础结构，例如用户资料、站点配置、书库、活动、新书速递、豆瓣缓存、`covers`/`files` Storage policy 等。旧每日签到表已在 v44 下线，新项目初始化后不要再重复执行 `migrate-v2.sql` 到 `migrate-v8-profile-privacy.sql`，除非你明确知道当前库缺少对应对象。
 

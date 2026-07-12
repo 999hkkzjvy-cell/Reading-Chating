@@ -1,44 +1,10 @@
 -- ============================================================
--- 以读攻独 · v47 迁移：公开个人主页展示徽章与完本文案
--- 在 Supabase SQL Editor 中执行
+-- migrate-v48-badge-cache-busting.sql
+-- 让公开主页徽章 RPC 返回 badge_catalog.updated_at，前端用它作为图片缓存版本。
 -- ============================================================
 
--- 1. 已有“读完纪念”徽章统一改为“完本纪念”。
-UPDATE public.badge_catalog
-SET
-  title = replace(title, '读完纪念', '完本纪念'),
-  updated_at = now()
-WHERE title LIKE '%读完纪念%';
+DROP FUNCTION IF EXISTS public.list_public_member_display_badges(UUID);
 
--- 2. 后续自动创建共读完本徽章时直接使用“完本纪念”。
-CREATE OR REPLACE FUNCTION public.ensure_commemorative_badges(p_book_id BIGINT)
-RETURNS VOID AS $$
-DECLARE
-  v_title TEXT;
-BEGIN
-  SELECT title INTO v_title
-  FROM public.books
-  WHERE id = p_book_id;
-
-  IF v_title IS NULL THEN
-    RAISE EXCEPTION 'Book not found';
-  END IF;
-
-  INSERT INTO public.badge_catalog
-    (badge_key, badge_type, title, level, image_bucket, image_path, riddle_key)
-  VALUES
-    ('commemorative_book_' || p_book_id || '_claimed', 'commemorative', '《' || v_title || '》共读纪念', NULL, 'badges', NULL, 'commemorative_book_' || p_book_id || '_claimed'),
-    ('commemorative_book_' || p_book_id || '_finished', 'commemorative', '《' || v_title || '》完本纪念', NULL, 'badges', NULL, 'commemorative_book_' || p_book_id || '_finished')
-  ON CONFLICT (badge_key) DO UPDATE SET
-    title = EXCLUDED.title,
-    badge_type = EXCLUDED.badge_type,
-    is_active = true,
-    updated_at = now();
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
-
--- 3. 公开个人主页徽章：优先返回用户在“我的徽章”里保存的展示顺序；
---    若用户尚未保存偏好，则保留旧体验：开创者优先，其余按获得时间倒序取 6 枚。
 CREATE OR REPLACE FUNCTION public.list_public_member_display_badges(p_user_id UUID)
 RETURNS TABLE (
   id BIGINT,
@@ -219,8 +185,13 @@ REVOKE EXECUTE ON FUNCTION public.list_public_member_display_badges(UUID) FROM P
 GRANT EXECUTE ON FUNCTION public.list_public_member_display_badges(UUID) TO authenticated;
 
 COMMENT ON FUNCTION public.list_public_member_display_badges(UUID) IS
-  '公开个人主页展示徽章：优先使用用户在个人中心保存的徽章展示偏好；未保存时按旧规则返回最多 6 枚。';
+  '公开个人主页展示徽章：优先使用用户在个人中心保存的徽章展示偏好；未保存时按旧规则返回最多 6 枚；返回 catalog_updated_at 供图片缓存破除。';
+
+-- 如果刚刚是同名覆盖 Storage 文件，可以手动刷新对应徽章记录的缓存版本：
+-- UPDATE public.badge_catalog
+-- SET updated_at = now()
+-- WHERE badge_key IN ('commemorative_book_4_claimed', 'commemorative_book_4_finished');
 
 -- ============================================================
--- END migrate-v47-public-display-badges.sql
+-- END migrate-v48-badge-cache-busting.sql
 -- ============================================================

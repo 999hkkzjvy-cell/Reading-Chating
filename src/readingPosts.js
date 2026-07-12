@@ -1,6 +1,6 @@
 import { MOODS } from './constants.js';
 import { loadMemberSummary } from './members.js';
-import { badgeDisplayTitle, openBadgePreview } from './memberCenter.js';
+import { badgeDisplayTitle, getBadgeBackImageUrl, getBadgeImageUrl, openBadgePreview } from './memberCenter.js';
 import {
   createComment,
   createReadingPost,
@@ -745,7 +745,8 @@ function normalizePublicBadgeRows(rows) {
       image_bucket: row.image_bucket,
       image_path: row.image_path,
       back_image_bucket: row.back_image_bucket,
-      back_image_path: row.back_image_path
+      back_image_path: row.back_image_path,
+      updated_at: row.catalog_updated_at
     }
   }));
 }
@@ -785,20 +786,8 @@ async function renderUserProfile(userId) {
   const badgeItems = badges.length
     ? badges.map(b => {
         const badge = b.badge_catalog || {};
-        const bucket = badge.image_bucket;
-        const path = badge.image_path;
-        const backBucket = badge.back_image_bucket || badge.image_bucket;
-        const backPath = badge.back_image_path;
-        let imageUrl = '';
-        let backImageUrl = '';
-        if (bucket && path) {
-          const { data: publicUrl } = sb.storage.from(bucket).getPublicUrl(path);
-          imageUrl = publicUrl?.publicUrl || '';
-        }
-        if (backBucket && backPath) {
-          const { data: publicUrl } = sb.storage.from(backBucket).getPublicUrl(backPath);
-          backImageUrl = publicUrl?.publicUrl || '';
-        }
+        const imageUrl = getBadgeImageUrl(badge);
+        const backImageUrl = getBadgeBackImageUrl(badge);
         const title = badgeDisplayTitle(b);
         const awardedAt = b.awarded_at ? formatDateTime(b.awarded_at) : '';
         const imgHtml = imageUrl

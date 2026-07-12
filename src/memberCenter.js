@@ -10,20 +10,34 @@ import { getBadgeRiddle } from './badgeRiddles.js';
 
 const memberLibraryItemCache = new Map();
 
-function storagePublicUrl(bucket, path) {
+function appendCacheVersion(url, version) {
+  if (!url || !version) return url;
+  const value = encodeURIComponent(String(version));
+  return `${url}${url.includes('?') ? '&' : '?'}v=${value}`;
+}
+
+function storagePublicUrl(bucket, path, version = '') {
   if (!bucket || !path) return '';
   const { data } = sb.storage.from(bucket).getPublicUrl(path);
-  return data?.publicUrl || '';
+  return appendCacheVersion(data?.publicUrl || '', version);
 }
 
-function getBadgeImageUrl(badgeCatalog) {
-  if (!badgeCatalog) return '';
-  return storagePublicUrl(badgeCatalog.image_bucket, badgeCatalog.image_path);
+function badgeCatalogVersion(badgeCatalog) {
+  return badgeCatalog?.updated_at || badgeCatalog?.catalog_updated_at || '';
 }
 
-function getBadgeBackImageUrl(badgeCatalog) {
+export function getBadgeImageUrl(badgeCatalog) {
   if (!badgeCatalog) return '';
-  return storagePublicUrl(badgeCatalog.back_image_bucket || badgeCatalog.image_bucket, badgeCatalog.back_image_path);
+  return storagePublicUrl(badgeCatalog.image_bucket, badgeCatalog.image_path, badgeCatalogVersion(badgeCatalog));
+}
+
+export function getBadgeBackImageUrl(badgeCatalog) {
+  if (!badgeCatalog) return '';
+  return storagePublicUrl(
+    badgeCatalog.back_image_bucket || badgeCatalog.image_bucket,
+    badgeCatalog.back_image_path,
+    badgeCatalogVersion(badgeCatalog)
+  );
 }
 
 export function normalizeBadgeTitle(title) {

@@ -1,6 +1,6 @@
 # 最终初始化 SQL
 
-更新时间：2026-07-06
+更新时间：2026-07-13
 
 本目录用于全新的 Supabase 数据库从 0 初始化。
 
@@ -17,7 +17,7 @@
 
 ## 说明
 
-- `00-full-init.sql` 已合并当前基础 schema 与有效迁移，适合空库初始化。
+- `00-full-init.sql` 已合并当前基础 schema 与截至 v48 的有效迁移，适合空库初始化。
 - 旧每日签到表 `daily_checkins` 已下线；新库初始化不会保留旧签到数据结构。
 - 现有正式库不要重复执行 `00-full-init.sql`，应按 `../current-files/deploy-order.md` 做增量升级。
 - Supabase Storage 中的实际图片、PDF、徽章文件仍需要单独上传。
