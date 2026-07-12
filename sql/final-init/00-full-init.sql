@@ -176,12 +176,15 @@ CREATE TABLE douban_new_books (
   rating          TEXT,
   review_count    INTEGER DEFAULT 0,
   fiction_type    TEXT CHECK (fiction_type IN ('fiction','non-fiction')),
+  source_rank     INTEGER,
+  source_page     INTEGER,
   scraped_at      TIMESTAMPTZ DEFAULT now(),
   created_at      TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE INDEX idx_dnb_scraped ON douban_new_books(scraped_at);
 CREATE INDEX idx_dnb_reviews ON douban_new_books(review_count DESC);
+CREATE INDEX idx_dnb_latest_source_order ON douban_new_books(scraped_at DESC, source_rank ASC);
 
 ALTER TABLE douban_new_books ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "dnb_read_all" ON douban_new_books FOR SELECT USING (true);

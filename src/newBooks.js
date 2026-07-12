@@ -36,9 +36,12 @@ route('/new-books', async () => {
     });
   }
 
-  // Load books from cache (top 10 by review_count)
+  // Load the latest scraped batch in Douban source order.
   const { data: books } = await sb.from('douban_new_books')
-    .select('*').order('review_count', { ascending: false }).limit(10);
+    .select('*')
+    .order('scraped_at', { ascending: false })
+    .order('source_rank', { ascending: true, nullsFirst: false })
+    .limit(10);
 
   // Load all wishlist votes for counting
   let wishCounts = {};
@@ -90,6 +93,9 @@ route('/new-books', async () => {
     ? books.map(b => {
         const count = wishCounts[b.id] || 0;
         const isWished = userWishes.has(b.id);
+        const ratingLine = b.rating
+          ? `⭐${h(b.rating)}${b.review_count ? ' · ' + h(b.review_count) + '人评价' : ''}`
+          : (b.review_count ? `${h(b.review_count)}人评价 · 暂无评分` : '暂无评分');
         return `
           <div class="new-book-card">
             <a href="${safeUrl(b.douban_url)}" target="_blank" rel="noopener" class="nb-cover">
@@ -103,7 +109,7 @@ route('/new-books', async () => {
               <div class="nb-row"><span class="nb-label">作者</span>${h(b.author || '--')}</div>
               ${b.translator ? `<div class="nb-row"><span class="nb-label">译者</span>${h(b.translator)}</div>` : ''}
               <div class="nb-row"><span class="nb-label">出版方</span>${h(b.publisher || '--')}</div>
-              <div class="nb-row rating">${b.rating ? '⭐' + h(b.rating) + ' · ' + b.review_count + '人评价' : '暂无评分'}</div>
+              <div class="nb-row rating">${ratingLine}</div>
               <div class="nb-actions">
                 <a href="${safeUrl(b.douban_url)}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">豆瓣详情</a>
                 <button class="btn-wish${isWished ? ' active' : ''}"
@@ -159,7 +165,7 @@ route('/new-books', async () => {
       <div class="new-books-layout">
         <div class="new-books-main">
           <h2 style="margin-bottom:var(--space-3);display:flex;align-items:center;gap:8px;">
-            <span>📚</span> 热门新书 Top 10
+            <span>📚</span> 最新新书 Top 10
           </h2>
           <div class="new-book-grid">${booksHtml}</div>
         </div>
@@ -243,11 +249,15 @@ document.addEventListener('click', async (e) => {
       });
       const result = await resp.json();
       if (result.success) {
-        toast(`同步完成，获取 ${result.count} 本新书`);
+        const warningText = Array.isArray(result.warnings) && result.warnings.length
+          ? `（部分页面未抓到：${result.warnings.length}）`
+          : '';
+        toast(`同步完成，缓存 ${result.synced_count || result.count} 本，本页展示 ${result.display_count || 10} 本${warningText}`);
       } else if (result.cached) {
         toast('数据已在 24 小时内更新过，无需重复同步');
       } else {
-        toast('同步失败：' + (result.error || '未知错误'), 'error');
+        const message = result.detail || result.error || '未知错误';
+        toast('同步失败：' + message, 'error');
       }
     } catch (err) {
       toast('同步请求失败，请检查网络后重试', 'error');
@@ -256,4 +266,3 @@ document.addEventListener('click', async (e) => {
     return;
   }
 });
-

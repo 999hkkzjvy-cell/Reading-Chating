@@ -119,6 +119,7 @@ migrate-v41-weekly-view-pass-source-key-fix.sql
 migrate-v42-live-weekly-contribution-rank.sql
 migrate-v43-live-monthly-contribution-rank.sql
 migrate-v44-drop-legacy-checkins.sql
+migrate-v46-new-books-source-order.sql
 ```
 
 如果不确定某个迁移是否已执行，先检查目标表、函数或字段是否存在。不要在同一个库里重复执行没有 `DROP POLICY IF EXISTS` 或 `CREATE POLICY` 防重处理的早期迁移。

@@ -4,9 +4,10 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import * as cheerio from "npm:cheerio@1.0.0";
 
 const DOUBAN_LATEST_URL = "https://book.douban.com/latest";
+const DOUBAN_LATEST_PAGES = 3;
+const DISPLAY_BOOKS_LIMIT = 10;
 const SB_URL = Deno.env.get("SUPABASE_URL") || "https://zugadhgezmqrnlwogomw.supabase.co";
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -91,25 +92,67 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Fetch Douban latest page
-    const res = await fetch(DOUBAN_LATEST_URL, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-      },
-      signal: AbortSignal.timeout(15000),
-    });
+    const scrapeStartedAt = new Date().toISOString();
 
-    if (!res.ok) {
-      return new Response(
-        JSON.stringify({ error: `豆瓣请求失败: HTTP ${res.status}` }),
-        { status: 502, headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
-      );
+    async function fetchLatestPage(page: number) {
+      const url = new URL(DOUBAN_LATEST_URL);
+      if (page > 1) {
+        url.searchParams.set("p", String(page));
+        url.searchParams.set("subcat", "全部");
+        url.searchParams.set("updated_at", "");
+      }
+
+      const res = await fetch(url.toString(), {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        },
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!res.ok) {
+        throw new Error(`豆瓣请求失败: HTTP ${res.status}`);
+      }
+
+      return await res.text();
     }
 
-    const html = await res.text();
-    const $ = cheerio.load(html);
+    const pageWarnings: string[] = [];
+
+    function decodeHtml(value: string) {
+      return value
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">");
+    }
+
+    function stripTags(value: string) {
+      return decodeHtml(value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim());
+    }
+
+    function matchText(source: string, pattern: RegExp) {
+      const match = source.match(pattern);
+      return match ? stripTags(match[1]) : "";
+    }
+
+    function matchAttr(source: string, pattern: RegExp) {
+      const match = source.match(pattern);
+      return match ? decodeHtml(match[1].trim()) : "";
+    }
+
+    function parseBookItems(html: string) {
+      const items: string[] = [];
+      const itemRe = /<li\b[^>]*class=["'][^"']*\bmedia\b[^"']*\bclearfix\b[^"']*["'][^>]*>[\s\S]*?<\/li>/gi;
+      let itemMatch: RegExpExecArray | null;
+      while ((itemMatch = itemRe.exec(html)) !== null) {
+        items.push(itemMatch[0]);
+      }
+      return items;
+    }
 
     const books: Array<{
       title: string;
@@ -122,25 +165,31 @@ Deno.serve(async (req: Request) => {
       rating: string;
       review_count: number;
       fiction_type: string;
+      source_rank: number;
+      source_page: number;
       scraped_at: string;
     }> = [];
 
-    // Parse the single book list: ul.chart-dashed-list > li.media.clearfix
-    $("ul.chart-dashed-list li.media.clearfix").each((_, el) => {
-        const $el = $(el);
+    for (let page = 1; page <= DOUBAN_LATEST_PAGES; page += 1) {
+      let html = "";
+      try {
+        html = await fetchLatestPage(page);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        pageWarnings.push(`第 ${page} 页抓取失败：${message}`);
+        continue;
+      }
 
-        const coverLink = $el.find("div.media__img a");
-        const coverImg = coverLink.find("img.subject-cover");
-        const cover_url = coverImg.attr("src") || "";
-        const douban_url = coverLink.attr("href") || "";
-
-        const titleEl = $el.find("div.media__body h2 a.fleft");
-        const title = titleEl.text().trim();
+      // Parse the book list: ul.chart-dashed-list > li.media.clearfix
+      parseBookItems(html).forEach((el) => {
+        const cover_url = matchAttr(el, /<img\b[^>]*class=["'][^"']*\bsubject-cover\b[^"']*["'][^>]*src=["']([^"']+)["']/i);
+        const douban_url = matchAttr(el, /<div\b[^>]*class=["'][^"']*\bmedia__img\b[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*href=["']([^"']+)["']/i);
+        const title = matchText(el, /<h2\b[^>]*>[\s\S]*?<a\b[^>]*class=["'][^"']*\bfleft\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
 
         if (!title) return;
 
         // Info line: "作者 / 出版日期 / 出版社 / 价格 / 装帧"
-        const infoRaw = $el.find("p.subject-abstract.color-gray").text().trim();
+        const infoRaw = matchText(el, /<p\b[^>]*class=["'][^"']*\bsubject-abstract\b[^"']*\bcolor-gray\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i);
         const infoParts = infoRaw.split("/").map((s) => s.trim()).filter(Boolean);
 
         const author = infoParts[0] || "";
@@ -155,12 +204,13 @@ Deno.serve(async (req: Request) => {
         }
 
         // Rating area
-        const ratingRaw = $el.find("p.subject-rating").text().trim();
+        const ratingRaw = matchText(el, /<p\b[^>]*class=["'][^"']*\bsubject-rating\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i);
         let rating = "";
         let review_count = 0;
 
-        // Extract rating score (e.g. "8.5")
-        const scoreMatch = ratingRaw.match(/([\d.]+)/);
+        // Extract rating score only when Douban exposes a score-like number.
+        // Unrated books often only show review counts, which should not become ratings.
+        const scoreMatch = ratingRaw.match(/(?:评分|rating_num[^>]*>|rating_nums?[^>]*>|\b)(10(?:\.0)?|[0-9]\.[0-9])(?:\b|<)/i);
         if (scoreMatch) rating = scoreMatch[1];
 
         // Extract review count (e.g. "(380人评价)")
@@ -168,7 +218,7 @@ Deno.serve(async (req: Request) => {
         if (reviewMatch) review_count = parseInt(reviewMatch[1], 10) || 0;
 
         // Tags / genre (from div.subject-tags span)
-        const tagText = $el.find("div.subject-tags span").text().trim();
+        const tagText = matchText(el, /<div\b[^>]*class=["'][^"']*\bsubject-tags\b[^"']*["'][^>]*>[\s\S]*?<span\b[^>]*>([\s\S]*?)<\/span>/i);
         const fiction_type = tagText.includes("虚构") || tagText.includes("小说") || tagText.includes("文学")
           ? "fiction" : "non-fiction";
 
@@ -183,9 +233,12 @@ Deno.serve(async (req: Request) => {
           rating,
           review_count,
           fiction_type,
-          scraped_at: new Date().toISOString(),
+          source_rank: books.length + 1,
+          source_page: page,
+          scraped_at: scrapeStartedAt,
         });
       });
+    }
 
     if (books.length === 0) {
       return new Response(
@@ -194,14 +247,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Sort by review_count descending, keep top 20 (we show top 10 in UI, but cache more)
-    books.sort((a, b) => b.review_count - a.review_count);
-    const topBooks = books.slice(0, 20);
+    // Keep the source order from Douban's latest pages. This page order changes
+    // more naturally than review_count, which otherwise makes the same books stick.
+    const latestBooks = books.slice(0, DOUBAN_LATEST_PAGES * 20);
 
     // Upsert into douban_new_books
     const { error: upsertError } = await sb
       .from("douban_new_books")
-      .upsert(topBooks, { onConflict: "douban_url", ignoreDuplicates: false });
+      .upsert(latestBooks, { onConflict: "douban_url", ignoreDuplicates: false });
 
     if (upsertError) {
       return new Response(
@@ -241,10 +294,13 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        count: topBooks.length,
+        count: latestBooks.length,
+        synced_count: latestBooks.length,
+        display_count: DISPLAY_BOOKS_LIMIT,
         total_parsed: books.length,
         cleaned: idsToDelete.length,
-        books: topBooks,
+        warnings: pageWarnings,
+        books: latestBooks,
       }),
       { headers: { "Content-Type": "application/json", ...CORS_HEADERS } }
     );
