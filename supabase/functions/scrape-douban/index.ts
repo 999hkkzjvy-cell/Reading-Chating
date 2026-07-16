@@ -125,7 +125,10 @@ Deno.serve(async (req: Request) => {
         .replace(/&nbsp;/g, " ")
         .replace(/&amp;/g, "&")
         .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
         .replace(/&#39;/g, "'")
+        .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+        .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16)))
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">");
     }
@@ -144,12 +147,106 @@ Deno.serve(async (req: Request) => {
       return match ? decodeHtml(match[1].trim()) : "";
     }
 
+    function normalizeSubjectUrl(href: string) {
+      if (!href) return "";
+      const decoded = decodeHtml(href.trim());
+      return decoded.startsWith("/") ? `https://book.douban.com${decoded}` : decoded;
+    }
+
+    function getAttr(tag: string, name: string) {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const match = tag.match(new RegExp(`\\b${escaped}\\s*=\\s*["']([^"']*)["']`, "i"));
+      return match ? decodeHtml(match[1].trim()) : "";
+    }
+
+    function collectTags(source: string, tag: string) {
+      const re = new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?<\\/${tag}>`, "gi");
+      const tags: string[] = [];
+      let match: RegExpExecArray | null;
+      while ((match = re.exec(source)) !== null) tags.push(match[0]);
+      return tags;
+    }
+
+    function collectSelfClosingTags(source: string, tag: string) {
+      const re = new RegExp(`<${tag}\\b[^>]*>`, "gi");
+      const tags: string[] = [];
+      let match: RegExpExecArray | null;
+      while ((match = re.exec(source)) !== null) tags.push(match[0]);
+      return tags;
+    }
+
+    function findSubjectLinks(source: string) {
+      const links: Array<{ href: string; text: string; html: string }> = [];
+      const linkRe = /<a\b[^>]*href=["']([^"']*\/subject\/\d+\/?[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+      let match: RegExpExecArray | null;
+      while ((match = linkRe.exec(source)) !== null) {
+        const href = normalizeSubjectUrl(match[1]);
+        if (!/^https?:\/\/book\.douban\.com\/subject\/\d+\/?/i.test(href) && !/^\/subject\/\d+\/?/i.test(href)) continue;
+        links.push({
+          href,
+          text: stripTags(match[2]),
+          html: match[0],
+        });
+      }
+      return links;
+    }
+
+    function findCoverUrl(source: string) {
+      const imgs = collectSelfClosingTags(source, "img");
+      const preferred = imgs.find((img) => /\bsubject-cover\b/i.test(img)) || imgs[0] || "";
+      return getAttr(preferred, "src")
+        || getAttr(preferred, "data-src")
+        || getAttr(preferred, "data-original")
+        || "";
+    }
+
+    function findInfoLine(source: string) {
+      const paragraphs = collectTags(source, "p").map((html) => ({
+        html,
+        text: stripTags(html),
+      }));
+      const preferred = paragraphs.find((p) => /\bsubject-abstract\b/i.test(p.html))
+        || paragraphs.find((p) => /\bcolor-gray\b/i.test(p.html) && p.text.includes("/"))
+        || paragraphs.find((p) => p.text.includes("/") && !p.text.includes("人评价") && !p.text.includes("纸质版"));
+      return preferred?.text || "";
+    }
+
+    function parseInfoParts(infoRaw: string) {
+      const infoParts = infoRaw.split("/").map((s) => s.trim()).filter(Boolean);
+      const dateIndex = infoParts.findIndex((p) => /^\d{4}(?:[-年]\d{1,2}(?:[-月]\d{1,2}日?)?)?$/.test(p));
+      const author = dateIndex > 0 ? infoParts.slice(0, dateIndex).join(" / ") : (infoParts[0] || "");
+
+      let publisher = "";
+      const publisherCandidates = dateIndex >= 0 ? infoParts.slice(dateIndex + 1) : infoParts;
+      for (const p of publisherCandidates) {
+        if (p.includes("出版") || p.includes("社") || p.includes("书局") || p.includes("书店")) {
+          publisher = p;
+          break;
+        }
+      }
+
+      return { author, publisher };
+    }
+
+    function findLatestBooksScope(html: string) {
+      const startCandidates = [
+        html.search(/<ul\b[^>]*class=["'][^"']*\bchart-dashed-list\b[^"']*["'][^>]*>/i),
+        html.search(/<div\b[^>]*id=["']content["'][^>]*>/i),
+      ].filter((index) => index >= 0);
+      const start = startCandidates.length > 0 ? Math.min(...startCandidates) : 0;
+      const afterStart = html.slice(start);
+      const endMatch = afterStart.search(/<div\b[^>]*class=["'][^"']*\bpaginator\b|豆瓣图书250|<div\b[^>]*id=["']dale_book_latest_bottom_right["']/i);
+      return endMatch >= 0 ? afterStart.slice(0, endMatch) : afterStart;
+    }
+
     function parseBookItems(html: string) {
+      const scope = findLatestBooksScope(html);
       const items: string[] = [];
-      const itemRe = /<li\b[^>]*class=["'][^"']*\bmedia\b[^"']*\bclearfix\b[^"']*["'][^>]*>[\s\S]*?<\/li>/gi;
+      const itemRe = /<li\b[^>]*>[\s\S]*?<\/li>/gi;
       let itemMatch: RegExpExecArray | null;
-      while ((itemMatch = itemRe.exec(html)) !== null) {
-        items.push(itemMatch[0]);
+      while ((itemMatch = itemRe.exec(scope)) !== null) {
+        const item = itemMatch[0];
+        if (findSubjectLinks(item).length > 0) items.push(item);
       }
       return items;
     }
@@ -169,6 +266,7 @@ Deno.serve(async (req: Request) => {
       source_page: number;
       scraped_at: string;
     }> = [];
+    const seenDoubanUrls = new Set<string>();
 
     for (let page = 1; page <= DOUBAN_LATEST_PAGES; page += 1) {
       let html = "";
@@ -180,37 +278,38 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Parse the book list: ul.chart-dashed-list > li.media.clearfix
+      // Parse the book list. Douban has changed class names here before, so
+      // key off the subject links inside the latest-books area first.
       parseBookItems(html).forEach((el) => {
-        const cover_url = matchAttr(el, /<img\b[^>]*class=["'][^"']*\bsubject-cover\b[^"']*["'][^>]*src=["']([^"']+)["']/i);
-        const douban_url = matchAttr(el, /<div\b[^>]*class=["'][^"']*\bmedia__img\b[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*href=["']([^"']+)["']/i);
-        const title = matchText(el, /<h2\b[^>]*>[\s\S]*?<a\b[^>]*class=["'][^"']*\bfleft\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
+        const subjectLinks = findSubjectLinks(el);
+        const titleLink = subjectLinks.find((link) => link.text) || subjectLinks[0];
+        const cover_url = matchAttr(el, /<img\b[^>]*class=["'][^"']*\bsubject-cover\b[^"']*["'][^>]*src=["']([^"']+)["']/i)
+          || findCoverUrl(el);
+        const douban_url = normalizeSubjectUrl(matchAttr(el, /<div\b[^>]*class=["'][^"']*\bmedia__img\b[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*href=["']([^"']+)["']/i)
+          || titleLink?.href
+          || "");
+        const title = matchText(el, /<h2\b[^>]*>[\s\S]*?<a\b[^>]*class=["'][^"']*\bfleft\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/i)
+          || titleLink?.text
+          || "";
 
-        if (!title) return;
+        if (!title || !douban_url) return;
+        if (seenDoubanUrls.has(douban_url)) return;
+        seenDoubanUrls.add(douban_url);
 
         // Info line: "作者 / 出版日期 / 出版社 / 价格 / 装帧"
-        const infoRaw = matchText(el, /<p\b[^>]*class=["'][^"']*\bsubject-abstract\b[^"']*\bcolor-gray\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i);
-        const infoParts = infoRaw.split("/").map((s) => s.trim()).filter(Boolean);
-
-        const author = infoParts[0] || "";
-
-        // Publisher: part containing 出版/社/书局/书店
-        let publisher = "";
-        for (const p of infoParts) {
-          if (p.includes("出版") || p.includes("社") || p.includes("书局") || p.includes("书店")) {
-            publisher = p;
-            break;
-          }
-        }
+        const infoRaw = matchText(el, /<p\b[^>]*class=["'][^"']*\bsubject-abstract\b[^"']*\bcolor-gray\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)
+          || findInfoLine(el);
+        const { author, publisher } = parseInfoParts(infoRaw);
 
         // Rating area
-        const ratingRaw = matchText(el, /<p\b[^>]*class=["'][^"']*\bsubject-rating\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i);
+        const ratingRaw = matchText(el, /<p\b[^>]*class=["'][^"']*\bsubject-rating\b[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)
+          || stripTags(el);
         let rating = "";
         let review_count = 0;
 
         // Extract rating score only when Douban exposes a score-like number.
         // Unrated books often only show review counts, which should not become ratings.
-        const scoreMatch = ratingRaw.match(/(?:评分|rating_num[^>]*>|rating_nums?[^>]*>|\b)(10(?:\.0)?|[0-9]\.[0-9])(?:\b|<)/i);
+        const scoreMatch = ratingRaw.match(/(?:评分|rating_num[^>]*>|rating_nums?[^>]*>|\b)(10(?:\.0)?|[0-9]\.[0-9])(?:\b|\s|\()/i);
         if (scoreMatch) rating = scoreMatch[1];
 
         // Extract review count (e.g. "(380人评价)")

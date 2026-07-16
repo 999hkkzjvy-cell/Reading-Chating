@@ -149,6 +149,8 @@ migrate-v47-public-display-badges.sql
 npx supabase@latest functions deploy scrape-douban --project-ref zugadhgezmqrnlwogomw --use-api
 ```
 
+如果新书速递页面刷新时报“同步失败：未解析到任何书籍数据，豆瓣页面结构可能已变化”，优先确认本地 `supabase/functions/scrape-douban/index.ts` 已包含按豆瓣图书 subject 链接解析的新版逻辑，然后重新执行上面的部署命令。新版解析不再只依赖旧版 `li.media.clearfix`、`media__img` 等 class，并会对封面、作者/出版社、评分/评价数做兜底解析与重复书目去重。
+
 部署后需要设置：
 
 ```bash
