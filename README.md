@@ -40,7 +40,7 @@
 - 📌 **长文折叠**：摘抄、感想、书评默认显示摘要，可展开全文
 
 ### 徽章系统
-- 🎖️ **17 枚徽章**：16 枚等级成长徽章 + 1 枚开创者权限徽章
+- 🎖️ **17 枚核心徽章**：16 枚等级成长徽章 + 1 枚开创者权限徽章；另支持共读纪念徽章
 - 🔄 **徽章翻面**：徽章背面图上传+预览弹窗翻转展示
 - 🧩 **成就谜面答题**（v31）：每枚徽章配谜面诗、答对奖励 10 贡献值
 - 🖼️ **自定义徽章展示**：用户可在“我的徽章”中自选展示徽章，个人主页同步展示这组选择
@@ -104,21 +104,22 @@
     ├── Coding Log.md       # 本地开发日志
     ├── Deployment-Plan.md  # 本地部署规划
     ├── badges/             # 徽章终稿、谜面、提示词、开发方案
-    └── books/              # 按书目归档的 seed 数据
+    └── books-sql/          # 按书目归档的 seed 数据
 ```
 
 ---
 
 ## 数据库部署
 
-当前数据库迁移整理到 **v48**（2026-07-13）。
+当前数据库迁移整理到 **v49**（2026-07-21）。
 
 - 新数据库从 0 开始：执行 [sql/final-init/00-full-init.sql](sql/final-init/00-full-init.sql)
 - 现有数据库增量升级：参考 [sql/current-files/deploy-order.md](sql/current-files/deploy-order.md)
-- 书籍种子数据：位于本地 `ignore files/books/`，按书目独立归档，不上传云端
+- 书籍种子数据：位于本地 `ignore files/books-sql/`，按书目独立归档，不上传云端
 - 新书速递排序字段：`migrate-v46-new-books-source-order.sql` 增加 `source_rank` / `source_page`，用于按豆瓣源页面顺序稳定展示
 - 公开主页徽章展示：`migrate-v47-public-display-badges.sql` 新增公开展示徽章 RPC，个人主页按“我的徽章”选定顺序显示，并将“读完纪念”统一为“完本纪念”。旧库执行 v47 即可，不需要重跑 v26。
 - 徽章图片缓存破除：`migrate-v48-badge-cache-busting.sql` 让公开主页徽章 RPC 返回 `catalog_updated_at`，前端把 `badge_catalog.updated_at` 拼入图片 URL。覆盖同名徽章图后，更新对应 `badge_catalog.updated_at` 即可刷新缓存。
+- 会员等级门槛：`migrate-v49-member-level-contribution-thresholds.sql` 调整 Lv.7–Lv.16 的贡献值区间，并重算已有会员等级；旧库按 `deploy-order.md` 补齐至 v49。
 
 ---
 
@@ -134,18 +135,19 @@
      npx supabase@latest functions deploy scrape-douban --project-ref zugadhgezmqrnlwogomw --use-api
      ```
    - `scrape-douban` 需要设置 `SB_SERVICE_ROLE_KEY` secret，用于服务端写入新书缓存
-6. 部署静态文件至 GitHub Pages、Supabase Storage 或其他静态托管平台
+6. 前端当前部署在 Cloudflare Pages，并绑定已购 `.com` 自定义域名；Supabase 继续承载 Auth、数据库、Storage 与 Edge Functions
 
 ---
 
 ## 近期更新
 
+- **2026-08-01**：部署现状更新为 Cloudflare Pages + 已购 `.com` 自定义域名；数据库和后端服务仍在 Supabase。当前未使用 Cloudflare 或 Supabase 的付费服务，手机端尚未进行专项优化。
+- **2026-07-21**：会员等级贡献值门槛调整（v49）：更新 Lv.7–Lv.16 区间，并重算已有会员等级。
 - **2026-07-17**：新书速递解析兼容豆瓣页面结构变化：抓取器不再只依赖旧版 `li.media.clearfix` / `media__img` 等 class，而是按新书区域内的豆瓣图书 subject 链接识别书目，并补充封面、作者/出版社、评分/评价数的兜底解析与重复书目去重。若线上刷新仍报“未解析到任何书籍数据”，重新部署 `scrape-douban` Edge Function。
 - **2026-07-13**：徽章图片缓存破除：会员中心和个人主页的徽章图片 URL 增加 `updated_at` 版本参数；新增 v48 迁移，为公开主页徽章 RPC 返回 `catalog_updated_at`；补充同名覆盖徽章后的刷新说明。
 - **2026-07-12**：徽章展示升级：个人主页徽章改为同步“我的徽章”中保存的展示选择；共读完本徽章文案从“读完纪念”统一为“完本纪念”；新增 v47 迁移。
 - **2026-07-12**：新书速递抓取逻辑升级：抓取豆瓣新书前 3 页，缓存约 60 本，前台只展示最新 Top 10；修复无评分新书被误显示为评价人数的问题；Edge Function 推荐使用 `--use-api` 部署。
-- **2026-07-12**：手机端 UI 优化，调整导航、筛选、弹窗、评论、书籍详情与新书卡片的移动端布局。
-- **2026-07-12**：西语文学专区拉丁美洲地图修复移动端打开问题，改进 Leaflet 动态资源加载、地图尺寸刷新与失败提示。
+- **2026-07-12**：西语文学专区拉丁美洲地图改进 Leaflet 动态资源加载、地图尺寸刷新与失败提示。
 - **2026-07-06**：SQL 文件归档，新增新数据库最终初始化脚本；周榜/月榜改为实时按当前自然周期计算；聊天干货自动换行修复。
 - **2026-07-06**：下线旧每日签到前端与 `daily_checkins` 表，阅读记录统一进入书友圈体系。
 - **2026-07-06**：聊天干货支持折叠展开、PDF 附件、后台排序；补全《红楼梦》领读文档 seed。
