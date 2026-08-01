@@ -4,7 +4,7 @@ import { aiFillBookInfo, loadBooks, loadConfig, loadEvents } from './data.js';
 import { route, router } from './router.js';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
-import { createCoReadingPassword, issueWeeklyViewPasses, setCoReadingPasswordActive } from './tickets.js';
+import { createCoReadingPassword, setCoReadingPasswordActive } from './tickets.js';
 import { showModal, toast } from './ui.js';
 import { esc, formatDateTime, h, safeUrl } from './utils.js';
 
@@ -319,8 +319,7 @@ route('/admin', async () => {
         <div class="card" style="margin-bottom:var(--space-3);">
           <div class="card-body">
             <h3 style="margin-bottom:var(--space-1);">本周资源浏览券</h3>
-            <p style="color:var(--color-text-2);font-size:0.9rem;margin-bottom:var(--space-2);">按当前会员等级发放本周资源浏览券，当前周贡献榜前 5 名发放数量翻倍。同一周重复点击不会重复发券。</p>
-            <button type="button" class="btn btn-primary" data-action="admin-issue-weekly-passes">一键发放本周浏览券</button>
+            <p style="color:var(--color-text-2);font-size:0.9rem;margin:0;">系统会在每周日北京时间 20:00 自动核算截至该时刻的当周阅读贡献，并按会员等级发放浏览券；前 5 名活跃会员数量翻倍。无需手动操作。</p>
           </div>
         </div>
 
@@ -856,22 +855,6 @@ async function deleteEvent(id) {
 // Admin button handlers
 document.addEventListener('click', async (e) => {
   // This handler is async because of AI fill button
-  const weeklyPassBtn = e.target.closest('[data-action="admin-issue-weekly-passes"]');
-  if (weeklyPassBtn) {
-    if (!confirm('确定按当前会员等级和本周贡献榜发放本周资源浏览券吗？同一周不会重复发放。')) return;
-    weeklyPassBtn.disabled = true;
-    const { data, error } = await issueWeeklyViewPasses();
-    if (error) {
-      toast('发放失败：' + error.message, 'error');
-      weeklyPassBtn.disabled = false;
-      return;
-    }
-    const row = Array.isArray(data) ? data[0] : data;
-    toast(`已发放 ${row?.issued_passes || 0} 张浏览券，覆盖 ${row?.issued_users || 0} 位会员`);
-    await refreshAdminPreservingPosition();
-    return;
-  }
-
   const libraryCsvBtn = e.target.closest('[data-action="admin-download-member-library-csv"]');
   if (libraryCsvBtn) {
     libraryCsvBtn.disabled = true;

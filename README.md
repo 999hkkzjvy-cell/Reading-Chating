@@ -111,7 +111,7 @@
 
 ## 数据库部署
 
-当前数据库迁移整理到 **v49**（2026-07-21）。
+当前数据库迁移文件整理到 **v50**（2026-08-01）；生产数据库升级时需执行新增的 v50 迁移。
 
 - 新数据库从 0 开始：执行 [sql/final-init/00-full-init.sql](sql/final-init/00-full-init.sql)
 - 现有数据库增量升级：参考 [sql/current-files/deploy-order.md](sql/current-files/deploy-order.md)
@@ -120,6 +120,7 @@
 - 公开主页徽章展示：`migrate-v47-public-display-badges.sql` 新增公开展示徽章 RPC，个人主页按“我的徽章”选定顺序显示，并将“读完纪念”统一为“完本纪念”。旧库执行 v47 即可，不需要重跑 v26。
 - 徽章图片缓存破除：`migrate-v48-badge-cache-busting.sql` 让公开主页徽章 RPC 返回 `catalog_updated_at`，前端把 `badge_catalog.updated_at` 拼入图片 URL。覆盖同名徽章图后，更新对应 `badge_catalog.updated_at` 即可刷新缓存。
 - 会员等级门槛：`migrate-v49-member-level-contribution-thresholds.sql` 调整 Lv.7–Lv.16 的贡献值区间，并重算已有会员等级；旧库按 `deploy-order.md` 补齐至 v49。
+- 定时浏览券：`migrate-v50-scheduled-weekly-view-passes.sql` 启用 Supabase Cron，于每周日北京时间 20:00 自动核算并发放浏览券；同一结算周重复执行不会重复发券。
 
 ---
 
@@ -141,6 +142,7 @@
 
 ## 近期更新
 
+- **2026-08-01**：浏览券改为 Supabase Cron 定时发放：每周日北京时间 20:00 核算当周阅读贡献并自动发券，后台不再需要手动操作。
 - **2026-08-01**：部署现状更新为 Cloudflare Pages + 已购 `.com` 自定义域名；数据库和后端服务仍在 Supabase。当前未使用 Cloudflare 或 Supabase 的付费服务，手机端尚未进行专项优化。
 - **2026-07-21**：会员等级贡献值门槛调整（v49）：更新 Lv.7–Lv.16 区间，并重算已有会员等级。
 - **2026-07-17**：新书速递解析兼容豆瓣页面结构变化：抓取器不再只依赖旧版 `li.media.clearfix` / `media__img` 等 class，而是按新书区域内的豆瓣图书 subject 链接识别书目，并补充封面、作者/出版社、评分/评价数的兜底解析与重复书目去重。若线上刷新仍报“未解析到任何书籍数据”，重新部署 `scrape-douban` Edge Function。

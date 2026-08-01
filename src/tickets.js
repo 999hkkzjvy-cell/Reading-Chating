@@ -60,7 +60,3 @@ export function setCoReadingPasswordActive(passwordId, isActive) {
     p_is_active: !!isActive
   });
 }
-
-export function issueWeeklyViewPasses() {
-  return sb.rpc('admin_issue_weekly_view_passes');
-}

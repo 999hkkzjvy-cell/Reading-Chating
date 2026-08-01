@@ -57,6 +57,7 @@
 45. `migrate-v47-public-display-badges.sql`
 46. `migrate-v48-badge-cache-busting.sql`
 47. `migrate-v49-member-level-contribution-thresholds.sql`
+48. `migrate-v50-scheduled-weekly-view-passes.sql`
 
 `supabase-schema.sql` 已包含早期基础结构，例如用户资料、站点配置、书库、活动、新书速递、豆瓣缓存、`covers`/`files` Storage policy 等。旧每日签到表已在 v44 下线，新项目初始化后不要再重复执行 `migrate-v2.sql` 到 `migrate-v8-profile-privacy.sql`，除非你明确知道当前库缺少对应对象。
 
@@ -129,11 +130,40 @@ migrate-v46-new-books-source-order.sql
 migrate-v47-public-display-badges.sql
 migrate-v48-badge-cache-busting.sql
 migrate-v49-member-level-contribution-thresholds.sql
+migrate-v50-scheduled-weekly-view-passes.sql
 ```
 
 如果不确定某个迁移是否已执行，先检查目标表、函数或字段是否存在。不要在同一个库里重复执行没有 `DROP POLICY IF EXISTS` 或 `CREATE POLICY` 防重处理的早期迁移。
 
 注意：`migrate-v44-drop-legacy-checkins.sql` 会删除旧 `daily_checkins` 表及其中历史签到数据；如果需要留档，请先导出该表。
+
+## v50 定时浏览券核验
+
+执行 `migrate-v50-scheduled-weekly-view-passes.sql` 后，Supabase 会创建名为 `weekly-view-passes-sunday-2000-shanghai` 的 Cron Job。它在每周日 12:00 UTC（北京时间 20:00）核算截至该时刻的当周阅读贡献，并自动发放浏览券。
+
+如果 `CREATE EXTENSION pg_cron` 无权限或失败，先在 Supabase Dashboard 的 Integrations → Cron 中启用 Cron Postgres Module，再重新执行 v50。
+
+执行后核验任务已创建：
+
+```sql
+SELECT jobid, jobname, schedule, command, active
+FROM cron.job
+WHERE jobname = 'weekly-view-passes-sunday-2000-shanghai';
+```
+
+首次任务运行后核验结果：
+
+```sql
+SELECT status, start_time, end_time, return_message
+FROM cron.job_run_details
+WHERE jobid = (
+  SELECT jobid
+  FROM cron.job
+  WHERE jobname = 'weekly-view-passes-sunday-2000-shanghai'
+)
+ORDER BY start_time DESC
+LIMIT 10;
+```
 
 ## Storage 与 Edge Functions
 
