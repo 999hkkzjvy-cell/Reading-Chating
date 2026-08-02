@@ -121,6 +121,7 @@
 - 徽章图片缓存破除：`migrate-v48-badge-cache-busting.sql` 让公开主页徽章 RPC 返回 `catalog_updated_at`，前端把 `badge_catalog.updated_at` 拼入图片 URL。覆盖同名徽章图后，更新对应 `badge_catalog.updated_at` 即可刷新缓存。
 - 会员等级门槛：`migrate-v49-member-level-contribution-thresholds.sql` 调整 Lv.7–Lv.16 的贡献值区间，并重算已有会员等级；旧库按 `deploy-order.md` 补齐至 v49。
 - 定时浏览券：`migrate-v50-scheduled-weekly-view-passes.sql` 启用 Supabase Cron，于每周日北京时间 20:00 自动核算并发放浏览券；同一结算周重复执行不会重复发券。
+- 定时浏览券修复：已部署 v50 的数据库需继续执行 `migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql`，修复首次定时运行可能出现的 `source_key` 同名错误。
 
 ---
 

@@ -8063,6 +8063,7 @@ RETURNS TABLE (
   issued_passes INTEGER,
   source_key TEXT
 ) AS $$
+#variable_conflict use_column
 DECLARE
   v_period_start TIMESTAMPTZ := p_period_start;
   v_period_end TIMESTAMPTZ := p_period_start + interval '7 days';

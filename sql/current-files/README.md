@@ -10,6 +10,7 @@
 - 排查线上数据库结构问题时，可在这里查找对应迁移。
 - 保留历史迁移文件，方便回看每个版本引入了哪些表、字段、函数、策略和 RPC。
 - `migrate-v50-scheduled-weekly-view-passes.sql` 会启用 Supabase Cron，并在每周日北京时间 20:00 自动核算和发放资源浏览券。
+- `migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql` 修复 v50 定时任务的 `source_key` 同名歧义；已执行 v50 的数据库需要继续执行该迁移。
 
 ## 注意
 
