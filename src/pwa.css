@@ -101,6 +101,10 @@ html[data-app-mode="pwa-mobile"] #topnav .hamburger {
   display: none !important;
 }
 
+html[data-app-mode="pwa-mobile"] #topnav .nav-user-link {
+  display: none;
+}
+
 html[data-app-mode="pwa-mobile"] #topnav .nav-user {
   margin-left: auto;
 }
@@ -726,8 +730,12 @@ html[data-app-mode="pwa-mobile"] #modal-container .badge-preview-modal {
   overflow-y: auto;
 }
 
+/* Keep the base .container horizontal gutters. A shorthand `padding` here
+   would otherwise reset the container's left/right padding and make mobile
+   headings, cards and leaderboard rows touch the viewport edge. */
 html[data-app-mode="pwa-mobile"] .section {
-  padding: 28px 0;
+  padding-top: 28px;
+  padding-bottom: 28px;
 }
 
 html[data-app-mode="pwa-mobile"] footer {
