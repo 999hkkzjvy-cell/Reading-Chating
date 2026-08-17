@@ -738,6 +738,13 @@ html[data-app-mode="pwa-mobile"] .section {
   padding-bottom: 28px;
 }
 
+/* `.container.section` matches both base classes; the later `.section`
+   declaration wins the cascade and clears `.container`'s side gutters. */
+html[data-app-mode="pwa-mobile"] .container.section {
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
 html[data-app-mode="pwa-mobile"] footer {
   display: none;
 }
