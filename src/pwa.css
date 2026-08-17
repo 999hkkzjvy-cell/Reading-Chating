@@ -1,0 +1,794 @@
+/* The PWA shell is opt-in: regular browser pages keep the existing layout. */
+#pwa-bottom-nav {
+  display: none;
+}
+
+html[data-app-mode="pwa-mobile"] #pwa-bottom-nav.is-active {
+  position: fixed;
+  z-index: 120;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(45, 36, 34, 0.08);
+  background: rgba(255, 253, 250, 0.96);
+  box-shadow: 0 -8px 24px rgba(45, 36, 34, 0.08);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+html[data-app-mode="pwa-mobile"] body {
+  padding-bottom: calc(74px + env(safe-area-inset-bottom));
+}
+
+#pwa-network-status {
+  display: none;
+}
+
+html[data-app-mode="pwa-mobile"] #pwa-network-status.is-visible {
+  position: fixed;
+  z-index: 115;
+  top: calc(72px + env(safe-area-inset-top));
+  right: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid rgba(193, 125, 75, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 247, 239, 0.97);
+  box-shadow: 0 8px 24px rgba(45, 36, 34, 0.1);
+  color: var(--color-text-2, #766a62);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+html[data-app-mode="pwa-mobile"] #pwa-network-status.is-recovered {
+  border-color: rgba(73, 125, 82, 0.22);
+  background: rgba(241, 249, 241, 0.97);
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-network-status-copy {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-network-status-copy svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: var(--color-accent, #c17d4b);
+}
+
+html[data-app-mode="pwa-mobile"] #pwa-network-status.is-recovered .pwa-network-status-copy svg {
+  color: #497d52;
+}
+
+html[data-app-mode="pwa-mobile"] #pwa-network-status button {
+  min-height: 34px;
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid rgba(193, 125, 75, 0.3);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-accent, #c17d4b);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+html[data-app-mode="pwa-mobile"] #pwa-network-status button:hover {
+  background: var(--color-accent-bg, #fef7f1);
+}
+
+/* First migrated surface: keep the existing data and routes, but give the
+   home screen a quieter single-column reading rhythm in the installed app. */
+html[data-app-mode="pwa-mobile"] #topnav {
+  background: rgba(251, 249, 246, 0.94);
+}
+
+html[data-app-mode="pwa-mobile"] #topnav .nav-links,
+html[data-app-mode="pwa-mobile"] #topnav .hamburger {
+  display: none !important;
+}
+
+html[data-app-mode="pwa-mobile"] #topnav .nav-user {
+  margin-left: auto;
+}
+
+html[data-app-mode="pwa-mobile"] .hero {
+  padding: 36px 0 18px;
+  text-align: left;
+}
+
+html[data-app-mode="pwa-mobile"] .hero h1 {
+  font-size: 2.15rem;
+}
+
+html[data-app-mode="pwa-mobile"] .hero-divider {
+  margin-left: 0;
+}
+
+html[data-app-mode="pwa-mobile"] .hero .lead {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.9;
+}
+
+html[data-app-mode="pwa-mobile"] .current-book-section {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px !important;
+  padding: 0 16px 24px;
+}
+
+html[data-app-mode="pwa-mobile"] .current-book-card {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  flex-direction: row;
+  align-items: flex-start;
+  text-align: left;
+  gap: 14px;
+  padding: 14px;
+}
+
+html[data-app-mode="pwa-mobile"] .current-book-card .cover-slot {
+  width: 92px;
+}
+
+html[data-app-mode="pwa-mobile"] .current-book-card .info h3 {
+  font-size: 1.08rem;
+}
+
+html[data-app-mode="pwa-mobile"] .current-book-card .info p {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-bottom: 8px !important;
+  font-size: 0.78rem !important;
+  line-height: 1.6;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Book library: each cover becomes a small spine, so title and status remain
+   readable without reducing the grid to tiny six-column cards. */
+html[data-app-mode="pwa-mobile"] [data-pwa-page="books"] {
+  padding-top: 18px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="books"] .page-header,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="new-books"] .page-header {
+  padding: 20px 0 16px;
+  margin-bottom: 18px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="books"] .page-header h1,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="new-books"] .page-header h1 {
+  font-size: 1.78rem;
+  letter-spacing: 0.02em;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="books"] .page-header .subtitle,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="new-books"] .page-header .subtitle {
+  font-size: 0.82rem;
+  color: var(--color-text-3);
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-books-filters {
+  display: flex !important;
+  flex-direction: column;
+  gap: 14px !important;
+  margin-bottom: 22px !important;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-books-filters > div {
+  min-width: 0;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-books-filters > div > div:first-child {
+  margin-bottom: 6px !important;
+  font-size: 0.72rem !important;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent) !important;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-books-filters .filters {
+  margin: 0 -18px;
+  padding: 0 18px 2px;
+  gap: 7px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-books-filters .filter-chip {
+  padding: 7px 13px;
+  font-size: 0.78rem;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-grid .book-card {
+  display: flex;
+  flex-direction: row;
+  min-height: 116px;
+  border-radius: 14px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-grid .book-card .cover {
+  width: 82px;
+  min-height: 116px;
+  aspect-ratio: auto;
+  flex: 0 0 82px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-grid .book-card .card-body {
+  min-width: 0;
+  padding: 12px 14px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-grid .book-card .card-body h3 {
+  overflow: hidden;
+  margin-bottom: 5px;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-grid .book-card .card-body .book-meta {
+  overflow: hidden;
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-grid .book-card .card-body .meta {
+  margin-top: 7px;
+}
+
+/* New books: a compact editorial feed, with the voting leaderboard kept as a
+   quiet second section below the newest titles. */
+html[data-app-mode="pwa-mobile"] [data-pwa-page="new-books"] {
+  padding-top: 18px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout {
+  gap: 30px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-books-main > h2,
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-books-side > h2 {
+  margin-bottom: 12px !important;
+  font-size: 1.18rem;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-grid {
+  gap: 10px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-card {
+  min-height: 122px;
+  border-radius: 14px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-card .nb-cover {
+  width: 82px;
+  min-height: 122px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-card .nb-body {
+  padding: 11px 12px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-card .nb-body h3 {
+  margin-bottom: 5px;
+  font-size: 0.95rem;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-card .nb-body .nb-row {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-card .nb-actions {
+  justify-content: flex-start;
+  gap: 5px;
+  padding-top: 7px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-card .nb-actions .btn,
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-card .nb-actions .btn-wish {
+  padding: 5px 9px;
+  font-size: 0.7rem;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-books-side {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: rgba(243, 239, 232, 0.62);
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .leaderboard {
+  max-width: none;
+}
+
+html[data-app-mode="pwa-mobile"] .refresh-bar {
+  align-items: flex-start;
+  padding: 11px 13px;
+  font-size: 0.78rem;
+}
+
+/* Book detail and resources: the cover establishes the reading context, then
+   tabs become a thumb-friendly rail. Resource bodies stay lazy, just as they
+   do on the desktop route. */
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page {
+  padding-top: 16px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page > a:first-child {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  margin-bottom: 12px !important;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--color-bg-alt);
+  color: var(--color-text-2) !important;
+  font-size: 0.78rem !important;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .book-detail-hero {
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px !important;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .book-detail-cover-wrap {
+  width: 92px !important;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .book-detail-info {
+  min-width: 0 !important;
+  align-self: center;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .book-detail-info h1 {
+  margin-top: 7px !important;
+  font-size: 1.42rem;
+  line-height: 1.35;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .book-detail-info > div {
+  overflow: hidden;
+  font-size: 0.8rem !important;
+  line-height: 1.55;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page #book-tabs {
+  position: sticky;
+  top: 58px;
+  z-index: 8;
+  gap: 6px;
+  margin: 20px -18px 16px !important;
+  padding: 8px 18px;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: rgba(251, 249, 246, 0.94);
+  box-shadow: 0 6px 16px rgba(45, 36, 34, 0.06);
+  scrollbar-width: none;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page #book-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page #book-tabs .tab {
+  min-height: 36px;
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page #book-tabs .tab.active {
+  border-color: rgba(193, 125, 75, 0.24);
+  background: var(--color-accent-bg);
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .resource-access-panel {
+  align-items: flex-start;
+  margin: 16px 0;
+  padding: 13px;
+  border-radius: 14px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .resource-access-panel > div {
+  flex-basis: calc(100% - 34px);
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .resource-access-panel .btn,
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .resource-access-panel .resource-lock-note {
+  margin-left: 34px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .md-content {
+  font-size: 0.94rem;
+  line-height: 1.9;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .md-content h2 {
+  font-size: 1.22rem;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .edition-card,
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .chat-substance-card,
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .book-join-step {
+  border-radius: 14px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .extended-reading-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-book-detail-page .extended-reading-card {
+  min-height: 132px;
+}
+
+/* Community and account surfaces: preserve the existing forms and event
+   handlers, but give each authenticated page a clear single-column rhythm. */
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"],
+html[data-app-mode="pwa-mobile"] [data-pwa-page="user-profile"],
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"],
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-library"],
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-badges"],
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-tickets"],
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-friends"],
+html[data-app-mode="pwa-mobile"] [data-pwa-page="profile-edit"] {
+  padding-top: 18px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .member-heading,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"] .member-heading,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-library"] .member-heading,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-badges"] .member-heading,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-tickets"] .member-heading,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-friends"] .member-heading {
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .member-heading h1,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"] .member-heading h1,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-library"] .member-heading h1,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-badges"] .member-heading h1,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-tickets"] .member-heading h1,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-friends"] .member-heading h1 {
+  font-size: 1.72rem;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .member-heading-actions,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"] .member-heading-actions {
+  width: 100%;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .member-heading-actions .btn,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"] .member-heading-actions .btn {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .reading-circle-controls {
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .reading-circle-tabs,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .tabs.reading-circle-tabs {
+  display: flex;
+  gap: 5px;
+  margin: 0 -18px;
+  padding: 4px 18px;
+  overflow-x: auto;
+  border: 0;
+  scrollbar-width: none;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .reading-circle-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .reading-circle-tabs .tab {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-surface);
+  font-size: 0.76rem;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .reading-circle-tabs .tab.active {
+  border-color: rgba(193, 125, 75, 0.28);
+  background: var(--color-accent-bg);
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .reading-search-form {
+  width: 100%;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .reading-post-card,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="reading-circle"] .reading-login-tip,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="user-profile"] .card,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"] .member-panel,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-library"] .member-panel,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-badges"] .member-panel,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-tickets"] .member-panel,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-friends"] .card,
+html[data-app-mode="pwa-mobile"] [data-pwa-page="profile-edit"] .card {
+  border-radius: 14px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="user-profile"] .user-profile-head {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="user-profile"] .user-profile-actions {
+  margin-left: auto;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="user-profile"] .user-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"] .member-heading-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"] .member-heading-actions #member-logout-btn {
+  grid-column: 1 / -1;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"] .member-stats-grid {
+  gap: 10px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member"] .member-stat-card {
+  min-height: 92px;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-library"] .member-library-tabs {
+  margin: 0 -18px 16px;
+  padding: 0 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-library"] .member-library-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="member-library"] .member-library-tabs .tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="profile-edit"] {
+  max-width: none !important;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="profile-edit"] h2 {
+  font-size: 1.55rem;
+}
+
+html[data-app-mode="pwa-mobile"] [data-pwa-page="profile-edit"] .avatar-edit-row {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+/* Authenticated write flows: make the existing modal forms feel native in an
+   installed window. The form actions stay reachable after a long post or
+   book-library note, while ordinary browser modals keep their desktop rules. */
+html[data-app-mode="pwa-mobile"] #modal-container .modal-overlay {
+  align-items: flex-end;
+  padding: 0;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .modal {
+  display: flex;
+  width: 100%;
+  max-width: none;
+  max-height: min(92dvh, 760px);
+  flex-direction: column;
+  border-radius: 20px 20px 0 0;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: 0 0 auto;
+  padding: 14px 18px;
+  background: rgba(255, 253, 250, 0.96);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .modal-header h3 {
+  font-size: 1.05rem;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 18px calc(24px + env(safe-area-inset-bottom));
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .modal-body .grid-2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .modal-body .form-group {
+  margin-bottom: 14px;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .modal-body input:not([type="checkbox"]):not([type="radio"]),
+html[data-app-mode="pwa-mobile"] #modal-container .modal-body select,
+html[data-app-mode="pwa-mobile"] #modal-container .modal-body textarea {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .modal-body textarea {
+  min-height: 112px;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .modal-body .btn {
+  min-height: 42px;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .reading-post-form-actions {
+  position: sticky;
+  bottom: -1px;
+  z-index: 1;
+  margin: 4px -18px -24px;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background: rgba(255, 253, 250, 0.96);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .reading-post-form-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .reading-douban-fetch-row,
+html[data-app-mode="pwa-mobile"] #modal-container .member-library-url-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .reading-douban-fetch-row .btn,
+html[data-app-mode="pwa-mobile"] #modal-container .member-library-url-row .btn {
+  min-width: 66px;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .reading-mood-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .reading-mood-swatches .mood-swatch {
+  width: 30px;
+  height: 30px;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .member-library-form-preview {
+  grid-template-columns: 58px minmax(0, 1fr);
+  padding: 9px;
+}
+
+html[data-app-mode="pwa-mobile"] #modal-container .badge-preview-modal {
+  align-items: center;
+  max-height: min(92dvh, 760px);
+  overflow-y: auto;
+}
+
+html[data-app-mode="pwa-mobile"] .section {
+  padding: 28px 0;
+}
+
+html[data-app-mode="pwa-mobile"] footer {
+  display: none;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-route-notice {
+  min-height: calc(100vh - 136px);
+  display: flex;
+  align-items: center;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-route-notice .card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+html[data-app-mode="pwa-mobile"] .pwa-route-notice .card-body > svg {
+  width: 32px;
+  height: 32px;
+  color: var(--color-accent, #c17d4b);
+}
+
+#pwa-bottom-nav a {
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 12px;
+  color: var(--color-text-3, #a09588);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#pwa-bottom-nav a svg {
+  width: 21px;
+  height: 21px;
+}
+
+#pwa-bottom-nav a.active {
+  color: var(--color-accent, #c17d4b);
+  background: var(--color-accent-bg, #fef7f1);
+  font-weight: 600;
+}
+
+#pwa-bottom-nav a:focus-visible {
+  outline: 2px solid var(--color-accent, #c17d4b);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pwa-bottom-nav a,
+  html[data-app-mode="pwa-mobile"] .pwa-book-grid .book-card,
+  html[data-app-mode="pwa-mobile"] .pwa-new-books-layout .new-book-card {
+    transition: none;
+  }
+}

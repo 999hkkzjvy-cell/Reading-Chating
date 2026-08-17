@@ -1,7 +1,7 @@
 import { bindNotificationEvents, getAuthRedirectRoute, initAuth, replaceAuthRedirectRoute } from './auth.js';
 import { bindAccessEvents } from './access.js';
 import './admin.js';
-import './books.js';
+import './books.js?v=pwa-20260818-6';
 import { bindAuthEvents, registerAuthRoutes } from './authPages.js';
 import { initPuzzleCaptcha, refreshCaptcha } from './captcha.js';
 import { renderHomeBookCard } from './components.js';
@@ -13,15 +13,21 @@ import {
 } from './data.js';
 import './events.js';
 import { bindLatamEvents, initLatamMap, renderLatamPage } from './latam.js';
-import { bindMemberCenterEvents, registerMemberCenterRoutes } from './memberCenter.js';
+import { bindMemberCenterEvents, registerMemberCenterRoutes } from './memberCenter.js?v=pwa-20260818-7';
 import { registerMemberSystemInfoRoutes } from './memberSystemInfo.js';
-import './newBooks.js';
-import { bindProfileEvents, registerProfileRoutes } from './profile.js';
-import { bindReadingPostEvents, registerReadingPostRoutes } from './readingPosts.js';
+import './newBooks.js?v=pwa-20260818-6';
+import { bindProfileEvents, registerProfileRoutes } from './profile.js?v=pwa-20260818-7';
+import { bindReadingPostEvents, registerReadingPostRoutes } from './readingPosts.js?v=pwa-20260818-7';
+import { initPwaShell, syncPwaShell } from './pwaShell.js?v=pwa-20260818-2';
+import { applyPwaMode, isPwaMobile } from './pwaMode.js';
+import { registerPwaServiceWorker } from './pwaServiceWorker.js?v=pwa-20260818-1';
 import { route, router, setAfterRouteRender } from './router.js';
 import { store } from './store.js';
 import { bindUploadHandlers } from './uploads.js';
 import { safeMarked } from './utils.js';
+
+applyPwaMode();
+registerPwaServiceWorker();
 
     // ===========================================
     // EVENT BINDING (delegation for dynamic content)
@@ -46,6 +52,7 @@ import { safeMarked } from './utils.js';
       }
       router.updateNav(path);
       bindGlobalEvents();
+      syncPwaShell(path);
     });
 
     window.addEventListener('hashchange', () => router.render());
@@ -54,6 +61,7 @@ import { safeMarked } from './utils.js';
       router.render();
     });
     window.addEventListener('load', async () => {
+      initPwaShell();
       bindGlobalEvents();
       const pendingAuthRedirect = getAuthRedirectRoute();
       await init();
@@ -111,6 +119,7 @@ import { safeMarked } from './utils.js';
         : '';
 
       return `
+        <div data-pwa-page="home">
         <section class="hero">
           <div class="container">
             <h1>以读攻独</h1>
@@ -136,10 +145,29 @@ import { safeMarked } from './utils.js';
             ${store.get('user') ? '' : '<a href="#/register" class="btn btn-primary btn-lg">立即注册</a>'}
           </div>
         </section>
+        </div>
       `;
     });
 
-    route('/latin-america', renderLatamPage);
+    route('/latin-america', (...args) => {
+      if (isPwaMobile()) {
+        return `
+          <section class="section pwa-route-notice">
+            <div class="container">
+              <div class="card">
+                <div class="card-body">
+                  <i data-lucide="map" aria-hidden="true"></i>
+                  <h2>西语文学专区暂请使用网页版</h2>
+                  <p>移动端地图与专题内容正在完善中，当前先保留完整网页版体验。</p>
+                  <a class="btn btn-primary" href="/?source=web#/latin-america" target="_blank" rel="noopener">打开网页版专区</a>
+                </div>
+              </div>
+            </div>
+          </section>
+        `;
+      }
+      return renderLatamPage(...args);
+    });
 
     registerProfileRoutes();
 

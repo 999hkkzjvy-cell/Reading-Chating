@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">以读攻独</title>
+  <desc id="desc">以读攻独 PWA 图标</desc>
+  <rect width="512" height="512" rx="112" fill="#f6f0e8"/>
+  <path d="M120 117c70-23 137-9 166 18v267c-39-27-100-34-166-9V117Z" fill="#7d2638"/>
+  <path d="M392 117c-70-23-137-9-166 18v267c39-27 100-34 166-9V117Z" fill="#9d4b54"/>
+  <path d="M256 135v267" fill="none" stroke="#f6f0e8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M151 168c34-8 67-4 91 8M151 210c34-8 67-4 91 8M361 168c-34-8-67-4-91 8M361 210c-34-8-67-4-91 8" fill="none" stroke="#f6f0e8" stroke-opacity=".8" stroke-width="10" stroke-linecap="round"/>
+</svg>

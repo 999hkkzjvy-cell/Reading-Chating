@@ -145,7 +145,7 @@ route('/new-books', async () => {
     : '<p style="color:var(--color-text-3);text-align:center;padding:var(--space-3) 0;">还没有人投票，快来为你感兴趣的新书点击「想共读」吧 ✨</p>';
 
   return `
-    <div class="container section">
+    <div class="container section" data-pwa-page="new-books">
       <div class="page-header">
         <h1>新书速递</h1>
         <div class="subtitle">豆瓣新书速递 · 每日同步更新 · 发现值得共读的好书</div>
@@ -162,7 +162,7 @@ route('/new-books', async () => {
         </button>` : ''}
       </div>
 
-      <div class="new-books-layout">
+      <div class="new-books-layout pwa-new-books-layout">
         <div class="new-books-main">
           <h2 style="margin-bottom:var(--space-3);display:flex;align-items:center;gap:8px;">
             <span>📚</span> 最新新书 Top 10

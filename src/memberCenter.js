@@ -1011,7 +1011,7 @@ export function registerMemberCenterRoutes() {
       : '';
 
     return `
-      <div class="container section member-center">
+      <div class="container section member-center" data-pwa-page="member">
         <div class="member-heading">
           <div class="member-heading-profile">
             <div class="member-avatar">
@@ -1101,7 +1101,7 @@ export function registerMemberCenterRoutes() {
     if (error) return renderMemberLibraryError(error);
 
     return `
-      <div class="container section member-library-page">
+      <div class="container section member-library-page" data-pwa-page="member-library">
         <div class="member-heading">
           <div>
             <p class="member-eyebrow">会员中心</p>
@@ -1127,7 +1127,7 @@ export function registerMemberCenterRoutes() {
     if (!user) return '';
     const member = await loadMemberSummary(user.id);
     return `
-      <div class="container section member-center">
+      <div class="container section member-center" data-pwa-page="member-badges">
         <div class="member-heading">
           <div>
             <p class="member-eyebrow">会员中心</p>
@@ -1151,7 +1151,7 @@ export function registerMemberCenterRoutes() {
     const member = await loadMemberSummary(user.id);
     const summary = ticketSummary(member);
     return `
-      <div class="container section member-center">
+      <div class="container section member-center" data-pwa-page="member-tickets">
         <div class="member-heading">
           <div>
             <p class="member-eyebrow">会员中心</p>

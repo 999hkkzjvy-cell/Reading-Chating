@@ -8,6 +8,7 @@ import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { loadBookAccessSummary } from './tickets.js';
 import { esc, formatDate, h, isDoubanBookUrl, parseHttpUrl, proxyImg, safeMarked, safeUrl } from './utils.js';
+import { isPwaMobile } from './pwaMode.js';
 
 // ===========================================
 // ROUTE: BOOKS LIST
@@ -29,14 +30,15 @@ route('/books', async () => {
     if (filtered.length === 0) {
       return '<div class="empty-state"><i data-lucide="book"></i><p>暂无书籍</p></div>';
     }
-    return `<div class="grid-6">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
+    const gridClass = isPwaMobile() ? 'grid-6 pwa-book-grid' : 'grid-6';
+    return `<div class="${gridClass}">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
   }
 
   // We use query strings for filters. For simplicity, store filter state on the books view.
   return `
-    <div class="container section" id="books-page">
+    <div class="container section" id="books-page" data-pwa-page="books">
       <div class="page-header"><h1>共读书库</h1><div class="subtitle">共 ${books.length} 本书</div></div>
-      <div style="display:flex;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-3);">
+      <div class="pwa-books-filters" style="display:flex;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-3);">
         <div>
           <div style="font-size:0.85rem;color:var(--color-text-3);margin-bottom:4px;">类型</div>
           <div class="filters" id="genre-filters">
@@ -77,7 +79,8 @@ document.addEventListener('click', (e) => {
     if (filtered.length === 0) {
       grid.innerHTML = '<div class="empty-state"><i data-lucide="book"></i><p>暂无匹配书籍</p></div>';
     } else {
-      grid.innerHTML = `<div class="grid-6">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
+      const gridClass = isPwaMobile() ? 'grid-6 pwa-book-grid' : 'grid-6';
+      grid.innerHTML = `<div class="${gridClass}">${filtered.map(b => renderBookCard(b)).join('')}</div>`;
     }
     lucide.createIcons();
   }
@@ -546,7 +549,7 @@ route('/books/:id', async (params) => {
   bookDetailState.set(String(book.id), { book, accessSummary, chats });
 
   return `
-    <div class="container section">
+    <div class="container section pwa-book-detail-page" data-pwa-page="book-detail">
       <a href="#/books" style="font-size:0.9rem;color:var(--color-text-2);margin-bottom:var(--space-3);display:inline-block;">← 返回共读书库</a>
       <div class="book-detail-hero" style="display:flex;gap:var(--space-4);flex-wrap:wrap;">
         <div class="book-detail-cover-wrap" style="width:180px;flex-shrink:0;">

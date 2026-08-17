@@ -81,7 +81,7 @@ async function renderReadingCircle(scope = 'public') {
   }
 
   return `
-    <div class="container section reading-circle-page">
+    <div class="container section reading-circle-page" data-pwa-page="reading-circle">
       <div class="member-heading">
         <div>
           <p class="member-eyebrow">书友圈</p>
@@ -848,7 +848,7 @@ async function renderUserProfile(userId) {
   ` : '';
 
   return `
-    <div class="container section user-profile-page">
+    <div class="container section user-profile-page" data-pwa-page="user-profile">
       <div class="card user-profile-card">
         <div class="card-body">
           <div class="user-profile-head">
@@ -915,7 +915,7 @@ async function renderLeaderboard() {
   }
 
   return `
-    <div class="container section leaderboard-page">
+    <div class="container section leaderboard-page" data-pwa-page="reading-circle">
       <div class="member-heading">
         <div>
           <p class="member-eyebrow">书友圈</p>
@@ -1077,7 +1077,7 @@ async function renderFriendList() {
   `;
 
   return `
-    <div class="container section friend-list-page">
+    <div class="container section friend-list-page" data-pwa-page="member-friends">
       <div class="member-heading">
         <div>
           <p class="member-eyebrow">个人中心</p>

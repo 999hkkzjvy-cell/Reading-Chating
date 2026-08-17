@@ -10,7 +10,7 @@ export function registerProfileRoutes() {
     if (!profile) return '';
     const ownPage = '#/user/' + store.get('user')?.id;
     return `
-      <div class="container section" style="max-width:560px;">
+      <div class="container section pwa-profile-edit" data-pwa-page="profile-edit" style="max-width:560px;">
         <h2 style="margin-bottom:var(--space-3);">编辑资料</h2>
         <div class="card"><div class="card-body">
           <form id="profile-form">

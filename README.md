@@ -60,6 +60,9 @@
 .
 ├── badge-upload-guide.md   # 共读纪念徽章上传、挂接与缓存说明
 ├── index.html              # 主入口 SPA
+├── sw.js                   # PWA Service Worker：网络优先导航 + 轻量离线兜底
+├── offline.html            # 断网提示页
+├── _headers                # Cloudflare Pages 精确缓存与安全响应头
 ├── src/
 │   ├── app.js              # 应用初始化
 │   ├── router.js           # 路由系统
@@ -73,6 +76,10 @@
 │   ├── utils.js            # 通用工具
 │   ├── components.js       # 通用组件
 │   ├── styles.css          # 全局样式
+│   ├── pwaMode.js          # standalone 手机模式检测
+│   ├── pwaServiceWorker.js # Service Worker 注册与更新
+│   ├── pwaShell.js         # PWA 底部导航
+│   ├── pwa.css             # PWA 专属样式
 │   ├── books.js            # 书籍
 │   ├── events.js           # 活动
 │   ├── newBooks.js         # 新书速递
@@ -139,10 +146,24 @@
    - `scrape-douban` 需要设置 `SB_SERVICE_ROLE_KEY` secret，用于服务端写入新书缓存
 6. 前端当前部署在 Cloudflare Pages，并绑定已购 `.com` 自定义域名；Supabase 继续承载 Auth、数据库、Storage 与 Edge Functions
 
+## 手机 PWA
+
+手机端采用“原网站 + 独立安装模式 PWA”并行方案：普通浏览器继续使用原网页，只有从手机主屏幕以 standalone 窗口打开时，才显示 PWA 底部导航（首页、书库、书友圈、新书、我的）。首批移动页面不包含西语文学专区；完整范围、缓存边界和验收矩阵见 [ignore files/PWA-Development-Plan.md](ignore%20files/PWA-Development-Plan.md)。
+
+阶段三第二轮补充了 PWA 网络状态提示：断网时提示数据不会更新且不会覆盖未提交内容，恢复网络后由用户手动重新加载。
+
+阶段一已完成：PWA manifest、安装模式识别、底部导航骨架、首页首轮移动样式和西语专区网页版提示均已加入。阶段二已完成首页、共读书库、新书快递、书籍详情与共读资源入口的 standalone 移动布局；书友圈、公开主页、个人中心及资料编辑已加入移动布局，并补齐发布动态、编辑书库、徽章预览等弹窗的手机底部抽屉样式。阶段三第一轮已加入轻量 Service Worker：只缓存离线页、manifest 和 PWA 图标，导航网络优先，Supabase/Edge Function/上传/写入请求不进入缓存；同时加入 Cloudflare Pages 精确 `_headers` 与 Service Worker kill-switch。真实账号下的写入成功/失败链路和 HTTPS Preview/设备安装升级仍需验收。
+
 ---
 
 ## 近期更新
 
+- **2026-08-18**：启动手机 PWA 第一阶段：保留原网站显示，新增 standalone 安装模式基础、PWA manifest 与底部导航骨架；“探索”在 PWA 导航中统一为“新书”，西语文学专区暂不适配移动端。
+- **2026-08-18**：PWA 阶段二首轮完成：首页、共读书库、新书快递在 standalone 手机模式下采用单列阅读布局，继续复用现有 Supabase 数据和路由；普通网页保持原样。
+- **2026-08-18**：PWA 阶段二第二轮完成：书籍详情与共读资源入口加入移动阅读层级，保留分页懒加载、资源权益和解锁逻辑；书友圈、个人主页和个人中心完成移动布局骨架。
+- **2026-08-18**：PWA 阶段二第三轮继续：登录态写入相关弹窗（发布/编辑书友圈、编辑我的书库、徽章预览）在 standalone 模式下改为带安全区的底部抽屉，长表单操作按钮保持可见；普通网页弹窗规则不变。
+- **2026-08-18**：PWA 阶段三第一轮完成：加入网络优先的 `sw.js`、`offline.html`、Cloudflare Pages `_headers` 和版本化注册模块；仅预缓存离线壳与安装图标，不缓存 Supabase 数据、API、上传或任何写入请求，并保留 kill-switch。
+- **2026-08-18**：PWA 阶段三第二轮完成：安装模式下增加断网/恢复网络提示，恢复网络后由用户手动重新加载，避免自动刷新打断未提交的发布、评论或资料编辑。
 - **2026-08-01**：浏览券改为 Supabase Cron 定时发放：每周日北京时间 20:00 核算当周阅读贡献并自动发券，后台不再需要手动操作。
 - **2026-08-01**：部署现状更新为 Cloudflare Pages + 已购 `.com` 自定义域名；数据库和后端服务仍在 Supabase。当前未使用 Cloudflare 或 Supabase 的付费服务，手机端尚未进行专项优化。
 - **2026-07-21**：会员等级贡献值门槛调整（v49）：更新 Lv.7–Lv.16 区间，并重算已有会员等级。
