@@ -2,6 +2,113 @@ import { SUPABASE_URL } from './config.js';
 
 marked.setOptions({ breaks: false, gfm: true });
 
+// Project-wide time convention: user-facing dates and date-time inputs are
+// always interpreted and displayed in Beijing time, regardless of device TZ.
+export const PROJECT_TIME_ZONE = 'Asia/Shanghai';
+
+const BEIJING_PARTS_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  timeZone: PROJECT_TIME_ZONE,
+  calendar: 'gregory',
+  numberingSystem: 'latn',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23'
+});
+
+function parseInstant(value) {
+  if (value instanceof Date) {
+    const copy = new Date(value.getTime());
+    return Number.isNaN(copy.getTime()) ? null : copy;
+  }
+
+  if (typeof value === 'number') {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+
+  // Timestamp values from Supabase normally include an explicit offset. For
+  // legacy no-offset values, use the project's UTC storage convention rather
+  // than letting the browser silently apply its own local timezone.
+  const noOffsetMatch = text.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/);
+  const date = noOffsetMatch
+    ? new Date(`${noOffsetMatch[1]}T${noOffsetMatch[2] || '00:00'}:${noOffsetMatch[3] || '00'}${noOffsetMatch[4] ? `.${noOffsetMatch[4]}` : ''}Z`)
+    : new Date(text);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function beijingParts(value) {
+  const date = parseInstant(value);
+  if (!date) return null;
+  return Object.fromEntries(
+    BEIJING_PARTS_FORMATTER.formatToParts(date)
+      .filter(part => part.type !== 'literal')
+      .map(part => [part.type, part.value])
+  );
+}
+
+export function getBeijingDateKey(value) {
+  const parts = beijingParts(value);
+  return parts ? `${parts.year}-${parts.month}-${parts.day}` : '';
+}
+
+export function getTimestamp(value) {
+  const date = parseInstant(value);
+  return date ? date.getTime() : NaN;
+}
+
+export function getBeijingCalendarContext(value = new Date()) {
+  const parts = beijingParts(value);
+  if (!parts) return null;
+
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const day = Number(parts.day);
+  const firstDayUtc = Date.UTC(year, month - 1, 1);
+  return {
+    year,
+    month,
+    day,
+    todayKey: `${parts.year}-${parts.month}-${parts.day}`,
+    monthPrefix: `${parts.year}-${parts.month}`,
+    daysInMonth: new Date(Date.UTC(year, month, 0)).getUTCDate(),
+    startDayOfWeek: new Date(firstDayUtc).getUTCDay(),
+    prevMonthDays: new Date(Date.UTC(year, month - 1, 0)).getUTCDate()
+  };
+}
+
+export function formatDateCompact(d) {
+  const parts = beijingParts(d);
+  return parts ? `${parts.year}.${parts.month}.${parts.day}` : '';
+}
+
+export function formatDateTimeLocal(d) {
+  const parts = beijingParts(d);
+  return parts ? `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}` : '';
+}
+
+export function formatDateTimeFilename(d = new Date()) {
+  const parts = beijingParts(d);
+  return parts ? `${parts.year}${parts.month}${parts.day}-${parts.hour}${parts.minute}` : '';
+}
+
+export function toBeijingISOString(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+
+  const explicitOffset = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
+  const normalized = explicitOffset
+    ? text
+    : `${text.length === 16 ? `${text}:00` : text}+08:00`;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 export function safeMarked(text) {
   return DOMPurify.sanitize(marked.parse(text || ''));
 }
@@ -70,11 +177,11 @@ export function proxyImg(url) {
 }
 
 export function formatDate(d) {
-  if (!d) return '';
-  return dayjs(d).format('YYYY年M月D日');
+  const parts = beijingParts(d);
+  return parts ? `${Number(parts.year)}年${Number(parts.month)}月${Number(parts.day)}日` : '';
 }
 
 export function formatDateTime(d) {
-  if (!d) return '';
-  return dayjs(d).format('YYYY年M月D日 HH:mm');
+  const parts = beijingParts(d);
+  return parts ? `${Number(parts.year)}年${Number(parts.month)}月${Number(parts.day)}日 ${parts.hour}:${parts.minute}` : '';
 }

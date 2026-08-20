@@ -1,12 +1,13 @@
-import { h, safeColor } from './utils.js';
+import { getBeijingCalendarContext, getBeijingDateKey, getTimestamp, h, safeColor } from './utils.js';
 import { CALENDAR_DAY_NAMES } from './readingPostUtils.js';
 
 function buildDailyActivity(posts) {
   const map = new Map();
   posts.forEach(post => {
-    const dateKey = dayjs(post.created_at).format('YYYY-MM-DD');
+    const dateKey = getBeijingDateKey(post.created_at);
+    if (!dateKey) return;
     const current = map.get(dateKey) || { count: 0, latestAt: 0, moodColor: '' };
-    const createdAt = new Date(post.created_at).getTime();
+    const createdAt = getTimestamp(post.created_at);
     current.count += 1;
     if (!current.latestAt || createdAt >= current.latestAt) {
       current.latestAt = createdAt;
@@ -18,18 +19,22 @@ function buildDailyActivity(posts) {
 }
 
 export function renderReadingActivityCalendar(posts, scope) {
-  const now = dayjs();
-  const todayStr = now.format('YYYY-MM-DD');
-  const firstDay = now.startOf('month');
-  const daysInMonth = firstDay.daysInMonth();
-  const startDayOfWeek = firstDay.day();
-  const prevMonthDays = firstDay.subtract(1, 'day').daysInMonth();
+  const calendar = getBeijingCalendarContext();
+  if (!calendar) return '';
+  const {
+    year,
+    month,
+    todayKey,
+    monthPrefix,
+    daysInMonth,
+    startDayOfWeek,
+    prevMonthDays
+  } = calendar;
   const activity = buildDailyActivity(posts);
-  const monthPrefix = now.format('YYYY-MM');
   const monthTotal = Array.from(activity.entries())
     .filter(([dateKey]) => dateKey.startsWith(monthPrefix))
     .reduce((sum, [, item]) => sum + item.count, 0);
-  const todayCount = activity.get(todayStr)?.count || 0;
+  const todayCount = activity.get(todayKey)?.count || 0;
 
   let cells = CALENDAR_DAY_NAMES.map(d => `<div class="day-name">${d}</div>`).join('');
   for (let i = startDayOfWeek - 1; i >= 0; i--) {
@@ -37,14 +42,14 @@ export function renderReadingActivityCalendar(posts, scope) {
   }
 
   for (let d = 1; d <= daysInMonth; d++) {
-    const dateKey = firstDay.date(d).format('YYYY-MM-DD');
+    const dateKey = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const dayActivity = activity.get(dateKey);
     let cls = 'day';
     if (dayActivity) {
       cls += ' checked';
-    } else if (dateKey === todayStr) {
+    } else if (dateKey === todayKey) {
       cls += ' today';
-    } else if (dayjs(dateKey).isAfter(now, 'day')) {
+    } else if (dateKey > todayKey) {
       cls += ' future';
     }
     const moodColor = safeColor(dayActivity?.moodColor, '#c17d4b');
@@ -74,13 +79,13 @@ export function renderReadingActivityCalendar(posts, scope) {
             <strong>${h(todayCount)} 条</strong>
           </div>
           <div>
-            <span>${now.format('M月')}</span>
+            <span>${month}月</span>
             <strong>${h(monthTotal)} 条</strong>
           </div>
         </div>
         <div class="calendar reading-circle-calendar">
           <div class="calendar-header">
-            <h4>${now.format('YYYY年M月')}</h4>
+            <h4>${year}年${month}月</h4>
           </div>
           <div class="calendar-grid">${cells}</div>
         </div>

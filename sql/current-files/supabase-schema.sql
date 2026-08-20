@@ -119,6 +119,7 @@ CREATE POLICY "books_admin_write" ON books FOR ALL
 
 -- ============================================================
 -- 4. events — 线下活动
+-- 用户输入和展示统一按北京时间（Asia/Shanghai）；写入 TIMESTAMPTZ 时必须带显式时区。
 -- ============================================================
 CREATE TABLE events (
   id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -391,7 +392,7 @@ INSERT INTO events (title, poster_url, location, event_date, guests, price, desc
   '杭州普通读者书店线下共读会',
   '',
   '杭州·普通读者书店',
-  '2026-04-15 14:00:00',
+  '2026-04-15 14:00:00+08:00',
   '韩钊（译者、书店主理人）',
   '免费',
   '长三角的朋友们约起来！和领读人韩老师线下面基，聊聊《丰饶之海》的阅读感受。不管是开放聊聊的圆桌会，还是熟悉的文本细读模式，能和聊得来的朋友见面总是开心的事。',

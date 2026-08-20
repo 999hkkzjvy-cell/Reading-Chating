@@ -3,7 +3,7 @@ import { route, router } from './router.js';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { toast } from './ui.js';
-import { esc, h, proxyImg, safeUrl } from './utils.js';
+import { esc, formatDateTime, getTimestamp, h, proxyImg, safeUrl } from './utils.js';
 
 // ===========================================
 // ROUTE: NEW BOOKS EXPRESS — 新书速递
@@ -17,8 +17,9 @@ route('/new-books', async () => {
     .select('scraped_at').order('scraped_at', { ascending: false }).limit(1)
     .maybeSingle();
 
-  const hoursSince = lastScrape?.scraped_at
-    ? dayjs().diff(dayjs(lastScrape.scraped_at), 'hour')
+  const scrapedAt = lastScrape?.scraped_at ? getTimestamp(lastScrape.scraped_at) : NaN;
+  const hoursSince = Number.isFinite(scrapedAt)
+    ? Math.max(0, Math.floor((Date.now() - scrapedAt) / 3600000))
     : 999;
 
   // Fire-and-forget refresh if stale
@@ -84,7 +85,7 @@ route('/new-books', async () => {
 
   // --- Render helpers ---
   const lastUpdateText = lastScrape?.scraped_at
-    ? dayjs(lastScrape.scraped_at).format('YYYY年M月D日 HH:mm')
+    ? formatDateTime(lastScrape.scraped_at)
     : '暂无数据';
   const isStale = hoursSince > 24;
 

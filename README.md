@@ -10,7 +10,8 @@
 
 - **Supabase 项目**：`zugadhgezmqrnlwogomw`
 - **技术栈**：原生 SPA（HTML + CSS + ES Modules）+ Supabase（Auth / DB / Storage / Edge Functions）
-- **CDN 依赖**：Inter + Noto Serif SC / Lucide Icons / marked.js / DOMPurify / dayjs / Leaflet.js
+- **CDN 依赖**：Inter + Noto Serif SC / Lucide Icons / marked.js / DOMPurify / Leaflet.js
+- **时间约定**：项目所有用户可见和用户输入的时间均为北京时间（`Asia/Shanghai`）；数据库内部继续使用带明确时区的 `TIMESTAMPTZ` / ISO 时间值保存瞬时点。
 
 ---
 

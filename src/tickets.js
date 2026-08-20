@@ -1,4 +1,5 @@
 import { sb } from './supabaseClient.js';
+import { toBeijingISOString } from './utils.js';
 
 export async function loadBookAccessSummary(bookId) {
   const { data, error } = await sb.rpc('get_resource_access_summary', { p_book_id: Number(bookId) });
@@ -49,8 +50,8 @@ export function createCoReadingPassword({ bookId, password, label, startsAt, exp
     p_book_id: Number(bookId),
     p_password: password,
     p_label: label || '共读密码',
-    p_starts_at: startsAt || null,
-    p_expires_at: expiresAt || null
+    p_starts_at: toBeijingISOString(startsAt),
+    p_expires_at: toBeijingISOString(expiresAt)
   });
 }
 

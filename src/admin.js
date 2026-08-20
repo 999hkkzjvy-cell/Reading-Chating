@@ -6,7 +6,16 @@ import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { createCoReadingPassword, setCoReadingPasswordActive } from './tickets.js';
 import { showModal, toast } from './ui.js';
-import { esc, formatDateTime, h, safeUrl } from './utils.js';
+import {
+  esc,
+  formatDateCompact,
+  formatDateTime,
+  formatDateTimeFilename,
+  formatDateTimeLocal,
+  h,
+  safeUrl,
+  toBeijingISOString
+} from './utils.js';
 
 function generateReadablePassword(length = 18) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -260,7 +269,7 @@ route('/admin', async () => {
           <h4 style="margin-bottom:var(--space-1);">现有书籍</h4>
           ${books.map(b => `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);">
-              <span>${h(b.title)}${b.start_date && b.end_date ? '（' + dayjs(b.start_date).format('YYYY.MM.DD') + '-' + dayjs(b.end_date).format('YYYY.MM.DD') + '）' : ''} ${statusTag(b.status)}</span>
+              <span>${h(b.title)}${b.start_date && b.end_date ? '（' + formatDateCompact(b.start_date) + '-' + formatDateCompact(b.end_date) + '）' : ''} ${statusTag(b.status)}</span>
               <div>
                 <button class="btn btn-ghost btn-sm btn-edit-book" data-id="${b.id}">编辑</button>
                 <button class="btn btn-danger btn-sm btn-del-book" data-id="${b.id}">删除</button>
@@ -291,7 +300,7 @@ route('/admin', async () => {
         <div style="margin-top:var(--space-3);">
           ${books.map(b => `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-1) 0;border-bottom:1px solid var(--color-border);">
-              <span>${h(b.title)}${b.start_date && b.end_date ? '（' + dayjs(b.start_date).format('YYYY.MM.DD') + '-' + dayjs(b.end_date).format('YYYY.MM.DD') + '）' : ''} ${statusTag(b.status)}</span>
+              <span>${h(b.title)}${b.start_date && b.end_date ? '（' + formatDateCompact(b.start_date) + '-' + formatDateCompact(b.end_date) + '）' : ''} ${statusTag(b.status)}</span>
               <div>
                 <button class="btn btn-ghost btn-sm btn-edit-book" data-id="${b.id}">编辑</button>
                 <button class="btn btn-danger btn-sm btn-del-book" data-id="${b.id}">删除</button>
@@ -351,11 +360,11 @@ route('/admin', async () => {
                   <input type="text" name="label" value="共读密码">
                 </div>
                 <div class="form-group">
-                  <label>开始时间</label>
+                  <label>开始时间（北京时间）</label>
                   <input type="datetime-local" name="starts_at">
                 </div>
                 <div class="form-group">
-                  <label>过期时间</label>
+                  <label>过期时间（北京时间）</label>
                   <input type="datetime-local" name="expires_at">
                 </div>
               </div>
@@ -424,8 +433,8 @@ document.addEventListener('submit', async (e) => {
       bookId: fd.get('book_id'),
       password: generateReadablePassword(),
       label: fd.get('label')?.trim() || '共读密码',
-      startsAt: fd.get('starts_at') || null,
-      expiresAt: fd.get('expires_at') || null
+      startsAt: toBeijingISOString(fd.get('starts_at')),
+      expiresAt: toBeijingISOString(fd.get('expires_at'))
     });
     if (error) {
       toast('创建失败：' + error.message, 'error');
@@ -449,7 +458,7 @@ function actItem(a) { a=a||{}; return `
       <button type="button" class="btn-remove-row" onclick="this.closest('.builder-item').remove()">✕</button>
     </div>
     <div class="b-row">
-      <input name="act_time" value="${esc(a.time)}" placeholder="时间 如 19:30 或 2月1日" style="flex:1">
+      <input name="act_time" value="${esc(a.time)}" placeholder="时间（北京时间）如 19:30 或 2月1日" style="flex:1">
       <input name="act_meeting_link" value="${esc(a.meeting_link)}" placeholder="会议链接" style="flex:1">
       <input name="act_replay_link" value="${esc(a.replay_link)}" placeholder="回放链接" style="flex:1">
     </div>
@@ -798,7 +807,7 @@ function showEventForm(eventData = null) {
         </div>
       </div>
       <div class="form-group"><label>地点</label><input type="text" name="location" value="${esc(ev.location || '')}"></div>
-      <div class="form-group"><label>时间</label><input type="datetime-local" name="event_date" value="${esc(ev.event_date ? dayjs(ev.event_date).format('YYYY-MM-DDTHH:mm') : '')}"></div>
+      <div class="form-group"><label>时间（北京时间）</label><input type="datetime-local" name="event_date" value="${esc(formatDateTimeLocal(ev.event_date))}"></div>
       <div class="form-group"><label>嘉宾</label><input type="text" name="guests" value="${esc(ev.guests || '')}"></div>
       <div class="form-group"><label>价格</label><input type="text" name="price" value="${esc(ev.price || '')}" placeholder="免费 / ¥68"></div>
       <div class="form-group"><label>状态</label><select name="status">
@@ -830,6 +839,14 @@ function showEventForm(eventData = null) {
 async function saveEvent(data, id) {
   const payload = { ...data };
   delete payload.event_id;
+  if (payload.event_date) {
+    const eventDate = toBeijingISOString(payload.event_date);
+    if (!eventDate) {
+      toast('保存失败：活动时间格式无效', 'error');
+      return;
+    }
+    payload.event_date = eventDate;
+  }
   payload.updated_at = new Date().toISOString();
   if (!id) payload.created_by = store.get('user').id;
 
@@ -860,7 +877,7 @@ document.addEventListener('click', async (e) => {
     libraryCsvBtn.disabled = true;
     try {
       const rows = await loadAdminMemberLibraryRows();
-      downloadTextFile(`member-library-${dayjs().format('YYYYMMDD-HHmm')}.csv`, memberLibraryRowsToCsv(rows), 'text/csv;charset=utf-8');
+      downloadTextFile(`member-library-${formatDateTimeFilename()}.csv`, memberLibraryRowsToCsv(rows), 'text/csv;charset=utf-8');
       toast(`已导出 ${rows.length} 条书库数据`);
     } catch (err) {
       toast('导出失败：' + (err.message || '未知错误'), 'error');
@@ -875,7 +892,7 @@ document.addEventListener('click', async (e) => {
     libraryReportBtn.disabled = true;
     try {
       const rows = await loadAdminMemberLibraryRows();
-      downloadTextFile(`member-library-report-${dayjs().format('YYYYMMDD-HHmm')}.md`, buildMemberLibraryReport(rows));
+      downloadTextFile(`member-library-report-${formatDateTimeFilename()}.md`, buildMemberLibraryReport(rows));
       toast('分析报告已生成');
     } catch (err) {
       toast('报告生成失败：' + (err.message || '未知错误'), 'error');
