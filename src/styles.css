@@ -1359,12 +1359,23 @@
       display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap;
     }
     .reading-tag-picker { margin-top: 2px; }
+    .reading-tag-line {
+      display: flex; align-items: flex-start; gap: 8px; min-width: 0;
+    }
+    .reading-tag-selected-line.is-empty { display: none; }
+    .reading-tag-line-label {
+      flex: 0 0 auto; padding-top: 4px;
+      font-size: 0.78rem; font-weight: 600; line-height: 1.7;
+    }
+    .reading-tag-line-label-selected { color: var(--color-accent); }
+    .reading-tag-line-label-personal { color: #316d67; }
     .reading-selected-tags {
-      display: flex; flex-wrap: wrap; gap: 6px; min-height: 8px; margin-bottom: 8px;
+      display: flex; flex: 1; flex-wrap: wrap; gap: 6px; min-width: 0; min-height: 8px;
     }
     .reading-selected-tag {
       display: inline-flex; align-items: center; gap: 4px;
       padding: 4px 7px 4px 9px; border-radius: 999px;
+      border: 1px solid transparent;
       background: var(--color-accent-bg); color: var(--color-accent);
       font-size: 0.78rem; font-weight: 600;
     }
@@ -1377,11 +1388,14 @@
       display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center;
     }
     .reading-tag-input-row input { min-width: 0; }
+    .reading-tag-personal-line { margin-top: 8px; }
     .reading-tag-suggestions {
-      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+      display: flex; flex: 1; flex-wrap: wrap; gap: 6px; min-width: 0;
     }
     .reading-tag-suggestions .tag {
-      border: 1px solid transparent; cursor: pointer; font: inherit;
+      border: 1px solid transparent; cursor: pointer;
+      padding: 4px 9px; font-family: inherit; font-size: 0.78rem; font-weight: 600;
+      line-height: 1.7; letter-spacing: normal;
       transition: background 0.2s ease, border-color 0.2s ease;
     }
     .reading-tag-suggestions .tag:hover,
@@ -1392,6 +1406,12 @@
     .reading-rating-group .form-hint {
       display: block; margin-top: 4px; font-size: 0.78rem; color: var(--color-text-3);
     }
+    .reading-excerpt-input::placeholder,
+    .reading-tag-helper {
+      font-family: inherit; font-size: 0.95rem; font-weight: 400; line-height: 1.6;
+      color: var(--color-text-3); opacity: 1;
+    }
+    .reading-tag-helper { display: block; margin-top: 8px; }
     .reading-douban-fetch-row {
       display: grid; grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px; align-items: center;

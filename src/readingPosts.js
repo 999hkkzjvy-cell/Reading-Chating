@@ -90,20 +90,26 @@ function renderReadingTagPicker(availableTags = [], selectedTags = []) {
 
   return `
     <div class="reading-tag-picker" data-role="tag-picker">
-      <div class="reading-selected-tags" data-role="selected-tags">
-        ${renderSelectedReadingTags(selectedTags)}
+      <div class="reading-tag-line reading-tag-selected-line${selectedTags.length ? '' : ' is-empty'}" data-role="selected-line">
+        <span class="reading-tag-line-label reading-tag-line-label-selected">已选：</span>
+        <div class="reading-selected-tags" data-role="selected-tags">
+          ${renderSelectedReadingTags(selectedTags)}
+        </div>
       </div>
       <div class="reading-tag-input-row">
         <input type="text" data-role="tag-input" maxlength="30" autocomplete="off"
           placeholder="选择已有标签，或输入后按回车新建">
         <button type="button" class="btn btn-outline btn-sm" data-action="add-reading-tag">添加</button>
       </div>
-      <div class="reading-tag-suggestions" data-role="tag-suggestions">
-        ${availableNames.length
-          ? availableNames.map(name => `<button type="button" class="tag tag-reading${selectedTags.some(selected => tagKey(selected) === tagKey(name)) ? ' selected' : ''}" data-action="toggle-reading-tag" data-tag="${esc(name)}" aria-pressed="${selectedTags.some(selected => tagKey(selected) === tagKey(name)) ? 'true' : 'false'}">#${h(name)}</button>`).join('')
-          : '<span class="form-hint">发布后，你写过的标签会出现在这里。</span>'}
+      <div class="reading-tag-line reading-tag-personal-line">
+        <span class="reading-tag-line-label reading-tag-line-label-personal">个人标签：</span>
+        <div class="reading-tag-suggestions" data-role="tag-suggestions">
+          ${availableNames.length
+            ? availableNames.map(name => `<button type="button" class="tag tag-reading${selectedTags.some(selected => tagKey(selected) === tagKey(name)) ? ' selected' : ''}" data-action="toggle-reading-tag" data-tag="${esc(name)}" aria-pressed="${selectedTags.some(selected => tagKey(selected) === tagKey(name)) ? 'true' : 'false'}">#${h(name)}</button>`).join('')
+            : '<span class="form-hint">发布后，你写过的标签会出现在这里。</span>'}
+        </div>
       </div>
-      <span class="form-hint">最多选择 5 个标签，每个标签最多 30 字。</span>
+      <span class="form-hint reading-tag-helper">最多选择 5 个标签，每个标签最多 30 字。</span>
     </div>
   `;
 }
@@ -124,6 +130,7 @@ async function loadAvailableReadingTags() {
 
 function syncReadingTagPicker(form) {
   const selected = new Set(getSelectedReadingTags(form).map(tagKey));
+  form?.querySelector('[data-role="selected-line"]')?.classList.toggle('is-empty', selected.size === 0);
   form?.querySelectorAll('[data-action="toggle-reading-tag"]').forEach(button => {
     const active = selected.has(tagKey(button.dataset.tag));
     button.classList.toggle('selected', active);
@@ -320,7 +327,7 @@ export async function showReadingPostComposer(defaults = {}) {
       </div>
       <div class="form-group">
         <label>摘抄</label>
-        <textarea name="excerpt" placeholder="可以单独记录触动你的原文句子。"></textarea>
+        <textarea class="reading-excerpt-input" name="excerpt" placeholder="可以单独记录触动你的原文句子。"></textarea>
       </div>
       <div class="form-group">
         <label>感想或书评</label>
@@ -401,7 +408,7 @@ async function showReadingPostEditor(post) {
       </div>
       <div class="form-group">
         <label>摘抄</label>
-        <textarea name="excerpt" placeholder="可以单独记录触动你的原文句子。">${h(post.excerpt || '')}</textarea>
+        <textarea class="reading-excerpt-input" name="excerpt" placeholder="可以单独记录触动你的原文句子。">${h(post.excerpt || '')}</textarea>
       </div>
       <div class="form-group">
         <label>感想或书评</label>
