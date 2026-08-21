@@ -1,6 +1,6 @@
 # 当前 SQL 文件归档
 
-更新时间：2026-08-01
+更新时间：2026-08-21
 
 本目录保存当前项目仍在使用的单独 SQL 文件，包括基础 schema、历史迁移和部署顺序文档。
 
@@ -11,6 +11,7 @@
 - 保留历史迁移文件，方便回看每个版本引入了哪些表、字段、函数、策略和 RPC。
 - `migrate-v50-scheduled-weekly-view-passes.sql` 会启用 Supabase Cron，并在每周日北京时间 20:00 自动核算和发放资源浏览券。
 - `migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql` 修复 v50 定时任务的 `source_key` 同名歧义；已执行 v50 的数据库需要继续执行该迁移。
+- `migrate-v52-reading-post-tags.sql` 增加按用户隔离的书友圈标签、发布/编辑标签和按标签/发表用户搜索；当前 Supabase 项目已执行该迁移，其他已执行 v51 的数据库需要继续执行。
 
 ## 注意
 

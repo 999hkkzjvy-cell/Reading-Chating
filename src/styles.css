@@ -272,6 +272,7 @@
     .tag-active    { background: #fdf3dc; color: var(--color-tag-active); }
     .tag-completed { background: #eee9e2; color: var(--color-tag-completed); }
     .tag-genre     { background: var(--color-accent-bg); color: var(--color-accent); }
+    .tag-reading   { background: #e7f0ee; color: #316d67; }
     .tag-act-导读预热 { background: #fff3e0; color: #e65100; }
     .tag-act-精读分析 { background: #e3f2fd; color: #1565c0; }
     .tag-act-文艺放映 { background: #f3e5f5; color: #7b1fa2; }
@@ -884,11 +885,17 @@
     .reading-search-form {
       display: flex; gap: 4px; align-items: center;
     }
+    .reading-search-form select {
+      padding: 6px 8px; border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm); font-size: 0.82rem;
+      background: var(--color-bg); color: var(--color-text);
+    }
     .reading-search-form input {
       width: 200px; padding: 6px 10px; border: 1px solid var(--color-border);
       border-radius: var(--radius-sm); font-size: 0.85rem;
       background: var(--color-bg); color: var(--color-text);
     }
+    .reading-search-form select:focus,
     .reading-search-form input:focus { outline: none; border-color: var(--color-accent); }
     .reading-search-results { margin-bottom: var(--space-4); }
     .search-results-inner { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -1350,6 +1357,36 @@
 
     .reading-post-actions {
       display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap;
+    }
+    .reading-tag-picker { margin-top: 2px; }
+    .reading-selected-tags {
+      display: flex; flex-wrap: wrap; gap: 6px; min-height: 8px; margin-bottom: 8px;
+    }
+    .reading-selected-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 7px 4px 9px; border-radius: 999px;
+      background: var(--color-accent-bg); color: var(--color-accent);
+      font-size: 0.78rem; font-weight: 600;
+    }
+    .reading-selected-tag button {
+      border: 0; padding: 0 2px; background: transparent; color: currentColor;
+      cursor: pointer; font-size: 1rem; line-height: 1;
+    }
+    .reading-selected-tag button:hover { color: var(--color-text); }
+    .reading-tag-input-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center;
+    }
+    .reading-tag-input-row input { min-width: 0; }
+    .reading-tag-suggestions {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    }
+    .reading-tag-suggestions .tag {
+      border: 1px solid transparent; cursor: pointer; font: inherit;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+    .reading-tag-suggestions .tag:hover,
+    .reading-tag-suggestions .tag.selected {
+      border-color: rgba(49, 109, 103, 0.35); background: #d8e9e5;
     }
     .reading-post-form-actions { display: flex; justify-content: flex-end; }
     .reading-rating-group .form-hint {
@@ -2288,9 +2325,11 @@
         display: grid; grid-template-columns: minmax(0, 1fr) auto;
         width: 100%;
       }
+      .reading-search-form select { grid-column: 1 / -1; width: 100%; min-height: 38px; }
       .reading-search-form input {
-        width: 100%; min-height: 38px;
+        grid-column: 1; width: 100%; min-height: 38px;
       }
+      .reading-search-form .btn { grid-column: 2; }
       .reading-post-head, .reading-post-foot { align-items: flex-start; flex-direction: column; }
       .reading-post-actions { margin-left: 0; }
       .reading-post-card .card-body { padding: var(--space-2); }

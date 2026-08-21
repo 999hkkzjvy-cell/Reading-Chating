@@ -88,6 +88,7 @@ export function renderPostCard(post, scope) {
           <div class="reading-post-tags">
             <span class="tag tag-genre">${h(POST_TYPE_LABELS[post.post_type] || post.post_type)}</span>
             ${scope === 'mine' ? `<span class="tag tag-completed">${h(VISIBILITY_LABELS[post.visibility] || post.visibility)}</span>` : ''}
+            ${(Array.isArray(post.tags) ? post.tags : []).map(tag => `<span class="tag tag-reading">#${h(tag)}</span>`).join('')}
           </div>
         </div>
         <div class="reading-post-main">

@@ -16,6 +16,7 @@ import {
   listFollowing,
   listPublicMemberLibrary,
   listUserPublicPosts,
+  listMyReadingTags,
   loadReadingPosts,
   searchMembersByDisplayName,
   searchReadingPosts,
@@ -40,6 +41,127 @@ function renderPostComposer() {
       <i data-lucide="square-pen"></i> 发布动态
     </button>
   `;
+}
+
+const READING_SEARCH_TYPES = {
+  all: '全部',
+  tag: '标签',
+  user: '发表用户',
+  book: '书名或作者'
+};
+
+function normalizeReadingTag(value) {
+  return String(value || '').trim().replace(/^#+/, '').trim();
+}
+
+function tagKey(value) {
+  return normalizeReadingTag(value).toLocaleLowerCase();
+}
+
+function getSelectedReadingTags(form) {
+  return Array.from(form?.querySelectorAll('input[name="tags"]') || [])
+    .map(input => normalizeReadingTag(input.value))
+    .filter(Boolean);
+}
+
+function renderSelectedReadingTags(tags) {
+  return tags.map(tag => `
+    <span class="reading-selected-tag">
+      <span>#${h(tag)}</span>
+      <button type="button" data-action="remove-reading-tag" data-tag="${esc(tag)}" aria-label="移除标签 ${esc(tag)}">×</button>
+      <input type="hidden" name="tags" value="${esc(tag)}">
+    </span>
+  `).join('');
+}
+
+function renderReadingTagPicker(availableTags = [], selectedTags = []) {
+  const availableNames = [];
+  const seen = new Set();
+  [...selectedTags, ...availableTags.map(tag => typeof tag === 'string' ? tag : tag?.name)]
+    .map(normalizeReadingTag)
+    .filter(Boolean)
+    .forEach(name => {
+      const key = tagKey(name);
+      if (!seen.has(key)) {
+        seen.add(key);
+        availableNames.push(name);
+      }
+    });
+
+  return `
+    <div class="reading-tag-picker" data-role="tag-picker">
+      <div class="reading-selected-tags" data-role="selected-tags">
+        ${renderSelectedReadingTags(selectedTags)}
+      </div>
+      <div class="reading-tag-input-row">
+        <input type="text" data-role="tag-input" maxlength="30" autocomplete="off"
+          placeholder="选择已有标签，或输入后按回车新建">
+        <button type="button" class="btn btn-outline btn-sm" data-action="add-reading-tag">添加</button>
+      </div>
+      <div class="reading-tag-suggestions" data-role="tag-suggestions">
+        ${availableNames.length
+          ? availableNames.map(name => `<button type="button" class="tag tag-reading${selectedTags.some(selected => tagKey(selected) === tagKey(name)) ? ' selected' : ''}" data-action="toggle-reading-tag" data-tag="${esc(name)}" aria-pressed="${selectedTags.some(selected => tagKey(selected) === tagKey(name)) ? 'true' : 'false'}">#${h(name)}</button>`).join('')
+          : '<span class="form-hint">发布后，你写过的标签会出现在这里。</span>'}
+      </div>
+      <span class="form-hint">最多选择 5 个标签，每个标签最多 30 字。</span>
+    </div>
+  `;
+}
+
+async function loadAvailableReadingTags() {
+  try {
+    const { data, error } = await listMyReadingTags();
+    if (error) {
+      console.warn('Reading tags unavailable:', error.message);
+      return [];
+    }
+    return data || [];
+  } catch (error) {
+    console.warn('Reading tags unavailable:', error.message || error);
+    return [];
+  }
+}
+
+function syncReadingTagPicker(form) {
+  const selected = new Set(getSelectedReadingTags(form).map(tagKey));
+  form?.querySelectorAll('[data-action="toggle-reading-tag"]').forEach(button => {
+    const active = selected.has(tagKey(button.dataset.tag));
+    button.classList.toggle('selected', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+function addReadingTag(form, value) {
+  const tag = normalizeReadingTag(value);
+  if (!tag) return;
+  if (tag.length > 30) {
+    toast('标签最多 30 个字', 'error');
+    return;
+  }
+
+  const selected = getSelectedReadingTags(form);
+  const existingIndex = selected.findIndex(item => tagKey(item) === tagKey(tag));
+  if (existingIndex >= 0) {
+    removeReadingTag(form, selected[existingIndex]);
+    return;
+  }
+  if (selected.length >= 5) {
+    toast('一条动态最多选择 5 个标签', 'error');
+    return;
+  }
+
+  const selectedContainer = form.querySelector('[data-role="selected-tags"]');
+  if (!selectedContainer) return;
+  selectedContainer.insertAdjacentHTML('beforeend', renderSelectedReadingTags([tag]));
+  syncReadingTagPicker(form);
+}
+
+function removeReadingTag(form, value) {
+  const key = tagKey(value);
+  form?.querySelectorAll('input[name="tags"]').forEach(input => {
+    if (tagKey(input.value) === key) input.closest('.reading-selected-tag')?.remove();
+  });
+  syncReadingTagPicker(form);
 }
 
 async function refreshReadingCirclePreservingPosition(anchorPostId = null) {
@@ -101,7 +223,10 @@ async function renderReadingCircle(scope = 'public') {
           <a href="#/reading-circle/leaderboard" class="tab">贡献榜单</a>
         </div>
         <form class="reading-search-form" data-action="search-reading-posts" novalidate>
-          <input type="search" name="q" placeholder="搜索作者或书名..." value="">
+          <select name="search_type" aria-label="搜索范围">
+            ${Object.entries(READING_SEARCH_TYPES).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}
+          </select>
+          <input type="search" name="q" placeholder="搜索书名、标签或发表用户..." value="">
           <button type="submit" class="btn btn-sm btn-outline"><i data-lucide="search"></i></button>
         </form>
       </div>
@@ -130,12 +255,14 @@ async function renderReadingCircle(scope = 'public') {
   `;
 }
 
-export function showReadingPostComposer(defaults = {}) {
+export async function showReadingPostComposer(defaults = {}) {
   if (!store.get('user')) {
     toast('请先登录', 'error');
     router.navigate('/login?redirect=/reading-circle');
     return;
   }
+
+  const availableTags = await loadAvailableReadingTags();
 
   const defaultPostType = defaults.postType || 'reading';
   const defaultTitle = defaults.bookTitle || '';
@@ -188,6 +315,10 @@ export function showReadingPostComposer(defaults = {}) {
         <span class="form-hint">-10 ~ 10分制，可精确到2位小数。💩负分 &nbsp;🤢0~6 &nbsp;🙂6~8 &nbsp;👏🏻8~10</span>
       </div>
       <div class="form-group">
+        <label>标签</label>
+        ${renderReadingTagPicker(availableTags)}
+      </div>
+      <div class="form-group">
         <label>摘抄</label>
         <textarea name="excerpt" placeholder="可以单独记录触动你的原文句子。"></textarea>
       </div>
@@ -216,11 +347,14 @@ export function showReadingPostComposer(defaults = {}) {
   `);
 }
 
-function showReadingPostEditor(post) {
+async function showReadingPostEditor(post) {
   if (!store.get('user')) {
     toast('请先登录', 'error');
     return;
   }
+
+  const availableTags = await loadAvailableReadingTags();
+  const selectedTags = Array.isArray(post.tags) ? post.tags : [];
 
   const isFinished = post.post_type === 'finished';
   const isFinishedStyle = isFinished ? '' : 'style="display:none;"';
@@ -260,6 +394,10 @@ function showReadingPostEditor(post) {
           value="${post.rating != null ? h(post.rating) : ''}"
           placeholder="-10 ~ 10，可精确到2位小数">
         <span class="form-hint">-10 ~ 10分制，可精确到2位小数。💩负分 &nbsp;🤢0~6 &nbsp;🙂6~8 &nbsp;👏🏻8~10</span>
+      </div>
+      <div class="form-group">
+        <label>标签</label>
+        ${renderReadingTagPicker(availableTags, selectedTags)}
       </div>
       <div class="form-group">
         <label>摘抄</label>
@@ -361,7 +499,8 @@ async function submitReadingPost(form) {
     p_linked_book_id: refreshedFd.get('linked_book_id') ? Number(refreshedFd.get('linked_book_id')) : null,
     p_excerpt: refreshedFd.get('excerpt') || null,
     p_mood_color: refreshedFd.get('mood_color') || null,
-    p_rating: refreshedFd.get('rating') ? Number(refreshedFd.get('rating')) : null
+    p_rating: refreshedFd.get('rating') ? Number(refreshedFd.get('rating')) : null,
+    p_tags: refreshedFd.getAll('tags').map(normalizeReadingTag).filter(Boolean)
   };
 
   const submitBtn = form.querySelector('button[type="submit"]');
@@ -419,7 +558,8 @@ async function editReadingPost(form) {
     p_excerpt: fd.get('excerpt') || '',
     p_content: fd.get('content') || '',
     p_mood_color: fd.get('mood_color') || '',
-    p_rating: fd.get('rating') ? Number(fd.get('rating')) : null
+    p_rating: fd.get('rating') ? Number(fd.get('rating')) : null,
+    p_tags: fd.getAll('tags').map(normalizeReadingTag).filter(Boolean)
   };
 
   const submitBtn = form.querySelector('button[type="submit"]');
@@ -949,6 +1089,7 @@ async function renderLeaderboard() {
 
 async function performSearch(form) {
   const query = form.querySelector('input[name="q"]')?.value?.trim();
+  const searchType = form.querySelector('select[name="search_type"]')?.value || 'all';
   if (!query) return;
 
   const resultsContainer = document.getElementById('reading-search-results');
@@ -965,10 +1106,10 @@ async function performSearch(form) {
   resultsList.innerHTML = '<div class="comments-loading"><i data-lucide="loader"></i></div>';
   if (typeof lucide !== 'undefined') lucide.createIcons();
   resultsContainer.style.display = '';
-  resultsTitle.textContent = `搜索"${query}"的结果`;
+  resultsTitle.textContent = `${READING_SEARCH_TYPES[searchType] || READING_SEARCH_TYPES.all}搜索"${query}"的结果`;
 
   try {
-    const { data, error } = await searchReadingPosts(query);
+    const { data, error } = await searchReadingPosts(query, searchType);
     if (error) {
       resultsList.innerHTML = `<div class="comments-error">搜索失败：${error.message}</div>`;
       return;
@@ -980,7 +1121,7 @@ async function performSearch(form) {
     resultsList.innerHTML = data.map(post => renderPostCard(post, 'public')).join('');
     if (typeof lucide !== 'undefined') lucide.createIcons();
   } catch (err) {
-    resultsList.innerHTML = `<div class="comments-error">搜索失败：${err.message || '未知错误'}<br><small>请确认已执行 v29 SQL 迁移</small></div>`;
+    resultsList.innerHTML = `<div class="comments-error">搜索失败：${err.message || '未知错误'}<br><small>请确认已执行 v52 SQL 迁移</small></div>`;
   }
 }
 
@@ -988,7 +1129,11 @@ function clearSearchResults() {
   const container = document.getElementById('reading-search-results');
   if (container) container.style.display = 'none';
   const form = document.querySelector('.reading-search-form');
-  if (form) form.querySelector('input[name="q"]').value = '';
+  if (form) {
+    form.querySelector('input[name="q"]').value = '';
+    const searchType = form.querySelector('select[name="search_type"]');
+    if (searchType) searchType.value = 'all';
+  }
   // 恢复正常动态列表
   const normalFeed = document.querySelector('.reading-post-list');
   const normalLayout = document.querySelector('.reading-circle-layout');
@@ -1148,7 +1293,7 @@ export function bindReadingPostEvents() {
   document.addEventListener('click', async e => {
     const composer = e.target.closest('[data-action="open-reading-post-composer"]');
     if (composer) {
-      showReadingPostComposer({
+      await showReadingPostComposer({
         linkedBookId: composer.dataset.linkedBookId || '',
         bookTitle: composer.dataset.bookTitle || '',
         author: composer.dataset.author || '',
@@ -1162,10 +1307,36 @@ export function bindReadingPostEvents() {
     if (editBtn) {
       const post = getCachedPost(editBtn.dataset.id);
       if (post) {
-        showReadingPostEditor(post);
+        await showReadingPostEditor(post);
       } else {
         toast('动态数据加载失败，请刷新页面', 'error');
       }
+      return;
+    }
+
+    const addTagBtn = e.target.closest('[data-action="add-reading-tag"]');
+    if (addTagBtn) {
+      const form = addTagBtn.closest('form');
+      const input = form?.querySelector('[data-role="tag-input"]');
+      if (form && input) {
+        addReadingTag(form, input.value);
+        input.value = '';
+        input.focus();
+      }
+      return;
+    }
+
+    const toggleTagBtn = e.target.closest('[data-action="toggle-reading-tag"]');
+    if (toggleTagBtn) {
+      const form = toggleTagBtn.closest('form');
+      if (form) addReadingTag(form, toggleTagBtn.dataset.tag || '');
+      return;
+    }
+
+    const removeTagBtn = e.target.closest('[data-action="remove-reading-tag"]');
+    if (removeTagBtn) {
+      const form = removeTagBtn.closest('form');
+      if (form) removeReadingTag(form, removeTagBtn.dataset.tag || '');
       return;
     }
 
@@ -1271,6 +1442,16 @@ export function bindReadingPostEvents() {
         if (ratingInput) ratingInput.value = '';
       }
     }
+  });
+
+  document.addEventListener('keydown', e => {
+    const tagInput = e.target.closest('[data-role="tag-input"]');
+    if (!tagInput || e.key !== 'Enter') return;
+    e.preventDefault();
+    const form = tagInput.closest('form');
+    if (!form) return;
+    addReadingTag(form, tagInput.value);
+    tagInput.value = '';
   });
 
   document.addEventListener('submit', async e => {

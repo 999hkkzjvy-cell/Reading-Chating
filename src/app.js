@@ -17,7 +17,7 @@ import { bindMemberCenterEvents, registerMemberCenterRoutes } from './memberCent
 import { registerMemberSystemInfoRoutes } from './memberSystemInfo.js';
 import './newBooks.js?v=pwa-20260818-6';
 import { bindProfileEvents, registerProfileRoutes } from './profile.js?v=pwa-20260818-7';
-import { bindReadingPostEvents, registerReadingPostRoutes } from './readingPosts.js?v=pwa-20260818-7';
+import { bindReadingPostEvents, registerReadingPostRoutes } from './readingPosts.js?v=reading-tags-20260821-1';
 import { initPwaShell, syncPwaShell } from './pwaShell.js?v=pwa-20260818-2';
 import { applyPwaMode, isPwaMobile } from './pwaMode.js';
 import { registerPwaServiceWorker } from './pwaServiceWorker.js?v=pwa-20260818-1';

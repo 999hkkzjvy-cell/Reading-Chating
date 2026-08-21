@@ -88,8 +88,15 @@ export function getContributionLeaderboard(type) {
   return sb.rpc('get_contribution_leaderboard', { p_type: type });
 }
 
-export function searchReadingPosts(query) {
-  return sb.rpc('search_reading_posts', { p_query: query });
+export function listMyReadingTags() {
+  return sb.rpc('list_my_reading_tags');
+}
+
+export function searchReadingPosts(query, searchType = 'all') {
+  return sb.rpc('search_reading_posts', {
+    p_query: query,
+    p_search_type: searchType
+  });
 }
 
 export function searchMembersByDisplayName(query) {
