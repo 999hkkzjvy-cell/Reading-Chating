@@ -33,12 +33,17 @@ export function checkLoginRateLimit() {
   const key = 'login_attempts';
   let record;
   try {
-    record = JSON.parse(sessionStorage.getItem(key) || '{"count":0,"until":0}');
+    record = JSON.parse(sessionStorage.getItem(key) || 'null');
   } catch (e) {
     record = { count: 0, until: 0 };
   }
+  if (!record || !Number.isInteger(record.count) || record.count < 0 ||
+      !Number.isFinite(record.until) ||
+      (record.lastAttempt && now - record.lastAttempt > 900000 && record.until <= now)) {
+    record = { count: 0, until: 0 };
+  }
   if (record.until > now) {
-    return { blocked: true, remaining: Math.ceil((record.until - now) / 1000) };
+    return { blocked: true, count: record.count, remaining: Math.ceil((record.until - now) / 1000) };
   }
   return { blocked: false, count: record.count };
 }
@@ -47,15 +52,18 @@ export function recordLoginAttempt(success) {
   const now = Date.now();
   const record = checkLoginRateLimit();
   if (success) {
-    sessionStorage.removeItem('login_attempts');
+    try { sessionStorage.removeItem('login_attempts'); } catch { /* Storage may be unavailable. */ }
     return;
   }
+  if (record.blocked) return;
   const count = record.count + 1;
   let until = 0;
   if (count >= 10) until = now + 300000;
   else if (count >= 5) until = now + 60000;
   else if (count >= 3) until = now + 15000;
-  sessionStorage.setItem('login_attempts', JSON.stringify({ count, until }));
+  try {
+    sessionStorage.setItem('login_attempts', JSON.stringify({ count, until, lastAttempt: now }));
+  } catch { /* This local UX cooldown is not a server-side security boundary. */ }
 }
 
 export async function signIn(email, password) {

@@ -6,8 +6,21 @@ import {
   signIn,
   signUp,
 } from './auth.js';
-import { isCaptchaVerified, refreshCaptcha } from './captcha.js';
+import { isCaptchaVerified } from './captcha.js';
 import { route, router } from './router.js';
+
+let loginPending = false;
+
+function loginErrorMessage(err) {
+  if (err?.code === 'invalid_credentials') return '邮箱或密码不正确，请检查后重试。';
+  if (err?.code === 'email_not_confirmed') return '邮箱尚未验证，请先点击注册邮件中的验证链接。';
+  if (err?.status === 429 || err?.code === 'over_request_rate_limit') return '登录请求过于频繁，请稍后重试。';
+  if (err?.name === 'AuthRetryableFetchError' || err?.code === 'request_timeout' ||
+      err?.status >= 500 || err?.name === 'TypeError') {
+    return '网络连接或登录服务暂时异常，请稍后重试。';
+  }
+  return '暂时无法完成登录，请稍后重试。';
+}
 
 export function registerAuthRoutes() {
   route('/login', () => {
@@ -15,19 +28,19 @@ export function registerAuthRoutes() {
       <div class="container auth-page">
         <div class="card">
           <h2>登录</h2>
-          <form id="login-form" autocomplete="off">
-            <div class="form-group"><label>邮箱</label><input type="email" name="email" required></div>
-            <div class="form-group"><label>密码</label><input type="password" name="password" required minlength="6"></div>
+          <form id="login-form">
+            <div class="form-group"><label for="login-email">邮箱</label><input id="login-email" type="email" name="email" autocomplete="username" required></div>
+            <div class="form-group"><label for="login-password">密码</label><input id="login-password" type="password" name="password" autocomplete="current-password" required minlength="6"></div>
             <div class="captcha-row">
               <div class="puzzle-box">
                 <div class="pz-bg"></div>
                 <div class="pz-gap"></div>
                 <div class="pz-piece"></div>
-                <div class="pz-status">拖动滑块使拼图对齐缺口</div>
+                <div class="pz-status" id="captcha-status" role="status" aria-live="polite">拖动滑块使拼图对齐缺口</div>
               </div>
               <div class="puzzle-slider">
                 <div class="pz-track"></div>
-                <div class="pz-handle"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+                <div class="pz-handle" role="slider" tabindex="0" aria-label="拼图验证，左右方向键调整，回车确认" aria-describedby="captcha-status" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
               </div>
               <button type="button" class="captcha-refresh" data-action="captcha-refresh">🔄 换一张</button>
             </div>
@@ -39,7 +52,7 @@ export function registerAuthRoutes() {
               <a href="#/forgot-password" style="font-size:0.9rem;color:var(--color-text-2);">忘记密码？</a>
             </div>
           </form>
-          <div id="login-error" style="color:var(--color-danger);text-align:center;margin-top:12px;font-size:0.9rem;"></div>
+          <div id="login-error" role="alert" style="color:var(--color-danger);text-align:center;margin-top:12px;font-size:0.9rem;"></div>
         </div>
       </div>
     `;
@@ -105,28 +118,57 @@ export function registerAuthRoutes() {
 }
 
 export function bindAuthEvents() {
+  document.addEventListener('captcha-verified', e => {
+    const form = e.target.closest('#login-form');
+    const error = form?.parentElement.querySelector('#login-error');
+    if (error?.dataset.captchaRequired === 'true') {
+      error.textContent = '';
+      delete error.dataset.captchaRequired;
+    }
+  });
   document.addEventListener('submit', async e => {
     if (e.target.id === 'login-form') {
       e.preventDefault();
+      const form = e.target;
+      const error = form.parentElement.querySelector('#login-error');
+      if (loginPending) return;
+      error.textContent = '';
+      delete error.dataset.captchaRequired;
       const limit = checkLoginRateLimit();
       if (limit.blocked) {
-        document.getElementById('login-error').textContent = `登录尝试次数过多，请 ${limit.remaining} 秒后重试。`;
+        error.textContent = `登录尝试次数过多，请 ${limit.remaining} 秒后重试。`;
         return;
       }
       if (!isCaptchaVerified()) {
-        document.getElementById('login-error').textContent = '请完成滑动验证。';
+        error.textContent = '请先完成拼图验证。';
+        error.dataset.captchaRequired = 'true';
+        form.querySelector('.pz-handle').focus();
         return;
       }
-      const fd = new FormData(e.target);
+      const fd = new FormData(form);
+      const btn = form.querySelector('button[type="submit"]');
+      const redirect = new URLSearchParams(location.hash.split('?')[1] || '').get('redirect') || '/';
+      loginPending = true;
+      btn.disabled = true;
+      btn.textContent = '登录中…';
+      form.setAttribute('aria-busy', 'true');
       try {
-        await signIn(fd.get('email'), fd.get('password'));
+        await signIn(fd.get('email').trim(), fd.get('password'));
         recordLoginAttempt(true);
-        const redirect = location.hash.includes('redirect=') ? decodeURIComponent(location.hash.split('redirect=')[1]) : '/';
-        router.navigate(redirect);
+        if (form.isConnected) router.navigate(redirect);
       } catch (err) {
-        recordLoginAttempt(false);
-        refreshCaptcha();
-        document.getElementById('login-error').textContent = err.message;
+        // Only rejected credentials count; network/service errors are not bad passwords.
+        if (err?.code === 'invalid_credentials') recordLoginAttempt(false);
+        if (form.isConnected) {
+          error.textContent = loginErrorMessage(err);
+          const retryLimit = checkLoginRateLimit();
+          if (retryLimit.blocked) error.textContent += ` 请 ${retryLimit.remaining} 秒后重试。`;
+        }
+      } finally {
+        loginPending = false;
+        btn.disabled = false;
+        btn.textContent = '登录';
+        form.removeAttribute('aria-busy');
       }
     }
 

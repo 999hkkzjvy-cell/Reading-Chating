@@ -1716,7 +1716,8 @@
     }
     .puzzle-box .pz-piece {
       position: absolute; top: 55px; width: 50px; height: 50px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.35); z-index: 3;
+      filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35)); z-index: 3;
+      background-repeat: no-repeat;
       pointer-events: none;
     }
     .puzzle-box .pz-piece svg,
@@ -1724,10 +1725,11 @@
       width: 100%; height: 100%; display: block;
     }
     .puzzle-box .pz-status {
-      position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
-      font-size: 0.82rem; padding: 3px 14px; border-radius: 12px;
+      position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+      font-size: 0.82rem; line-height: 1.5; padding: 3px 10px; border-radius: 12px;
       pointer-events: none; z-index: 5; font-weight: 500;
       background: rgba(0,0,0,0.4); color: #fff;
+      width: max-content; max-width: calc(100% - 16px); text-align: center;
     }
     .puzzle-box.success .pz-status { background: rgba(76,175,80,0.8); }
     .puzzle-box.fail .pz-status { background: rgba(220,53,69,0.8); }
@@ -1740,7 +1742,7 @@
       position: absolute; left: 0; top: 0; bottom: 0;
       background: linear-gradient(90deg, #c8e6c9, #81c784);
       border-radius: 22px 0 0 22px; pointer-events: none;
-      transition: width 0.05s linear; width: 0;
+      width: 0;
     }
     .puzzle-slider .pz-handle {
       position: absolute; left: 2px; top: 2px;
@@ -1748,21 +1750,21 @@
       border-radius: 50%; cursor: grab; z-index: 2;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       display: flex; align-items: center; justify-content: center;
-      transition: left 0.05s linear;
+      touch-action: none; user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none;
     }
     .puzzle-slider .pz-handle:active { cursor: grabbing; }
+    .puzzle-slider .pz-handle:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -3px; }
     .puzzle-slider .pz-handle svg { width: 18px; height: 18px; color: #999; pointer-events: none; }
-    .puzzle-slider.success .pz-handle { background: #4caf50; left: calc(100% - 42px) !important; }
+    .puzzle-slider.success .pz-handle { background: #4caf50; cursor: default; }
     .puzzle-slider.success .pz-handle svg { color: #fff; }
     .puzzle-slider.success .pz-track { width: 100% !important; background: linear-gradient(90deg, #66bb6a, #43a047); }
     .captcha-refresh {
       display: inline-block; margin-top: 4px; font-size: 0.78rem;
       color: var(--color-text-3); cursor: pointer;
-      background: none; border: none; padding: 2px 4px;
+      background: none; border: none; padding: 6px 4px; min-height: 36px;
     }
     .captcha-refresh:hover { color: var(--color-accent); }
-    .puzzle-slider.locked { pointer-events: none; opacity: 0.5; }
-    .puzzle-slider.locked .pz-handle { cursor: not-allowed; }
 
     /* ========================================
        Home Hero

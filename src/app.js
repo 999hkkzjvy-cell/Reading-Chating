@@ -44,9 +44,7 @@ registerPwaServiceWorker();
 
     setAfterRouteRender((path) => {
       lucide.createIcons();
-      if (document.querySelector('.puzzle-box')) {
-        setTimeout(() => initPuzzleCaptcha(), 150);
-      }
+      initPuzzleCaptcha();
       if (document.getElementById('latam-leaflet-map')) {
         setTimeout(() => initLatamMap(), 50);
       }

@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "check": "for f in src/*.js; do node --check \"$f\" || exit 1; done && git diff --check"
+    "check": "for f in src/*.js; do node --check \"$f\" || exit 1; done && git diff --check",
+    "test": "node --test tests/*.test.mjs"
   },
   "devDependencies": {}
 }
