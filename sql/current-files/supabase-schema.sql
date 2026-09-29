@@ -64,7 +64,8 @@ CREATE TABLE site_config (
 );
 
 ALTER TABLE site_config ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "site_config_read_all" ON site_config FOR SELECT USING (true);
+CREATE POLICY "site_config_read_public" ON site_config FOR SELECT TO anon, authenticated
+  USING (key IN ('group_rules', 'reading_plan_intro'));
 CREATE POLICY "site_config_admin_write" ON site_config FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin'));
 

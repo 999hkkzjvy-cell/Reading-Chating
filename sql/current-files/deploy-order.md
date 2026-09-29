@@ -60,6 +60,7 @@
 48. `migrate-v50-scheduled-weekly-view-passes.sql`
 49. `migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql`
 50. `migrate-v52-reading-post-tags.sql`
+51. `migrate-v53-security-and-book-content.sql`
 
 `supabase-schema.sql` 已包含早期基础结构，例如用户资料、站点配置、书库、活动、新书速递、豆瓣缓存、`covers`/`files` Storage policy 等。旧每日签到表已在 v44 下线，新项目初始化后不要再重复执行 `migrate-v2.sql` 到 `migrate-v8-profile-privacy.sql`，除非你明确知道当前库缺少对应对象。
 
@@ -135,7 +136,17 @@ migrate-v49-member-level-contribution-thresholds.sql
 migrate-v50-scheduled-weekly-view-passes.sql
 migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql
 migrate-v52-reading-post-tags.sql
+migrate-v53-security-and-book-content.sql
 ```
+
+`migrate-v53-security-and-book-content.sql` 将完整的受保护书籍资料移入非公开的
+`private` schema，清理公开书目行，限制用户资料可更新字段，撤销内部辅助函数的直接
+执行权限，并将匿名可读的站点配置限制为群规和共读介绍。执行前请先备份数据库。
+公共 `files` Storage bucket 中的旧文件仍可通过已知 URL 直接访问；此迁移保护数据库查询，
+但不会搬迁这些文件。
+
+部署顺序：先在目标数据库成功执行 v53，再部署依赖该 RPC 的前端代码。这样旧前端不会
+继续从公开 `books` 行读取完整受限内容。
 
 如果不确定某个迁移是否已执行，先检查目标表、函数或字段是否存在。不要在同一个库里重复执行没有 `DROP POLICY IF EXISTS` 或 `CREATE POLICY` 防重处理的早期迁移。
 

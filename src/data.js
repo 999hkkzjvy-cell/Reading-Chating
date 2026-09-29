@@ -3,10 +3,42 @@ import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { toast } from './ui.js';
 
-export async function loadBooks() {
-  const { data } = await sb.from('books').select('*').order('start_date', { ascending: false, nullsFirst: false });
-  store.set('books', data || []);
-  return data || [];
+const BOOK_LIST_COLUMNS = [
+  'id', 'title', 'author', 'author_country', 'cover_url', 'status', 'genre', 'start_date', 'end_date'
+].join(',');
+
+export async function loadBooks({ forAdmin = false } = {}) {
+  const { data, error } = await sb
+    .from('books')
+    .select(forAdmin ? '*' : BOOK_LIST_COLUMNS)
+    .order('start_date', { ascending: false, nullsFirst: false });
+  if (error) throw error;
+
+  let books = data || [];
+  if (forAdmin && books.length) {
+    books = await Promise.all(books.map(async book => {
+      const { data: protectedContent, error: protectedError } = await sb.rpc('get_book_protected_content', {
+        p_book_id: book.id,
+        p_section: 'admin',
+        p_index: null
+      });
+      if (protectedError) throw protectedError;
+      return { ...book, ...(protectedContent || {}) };
+    }));
+  }
+
+  if (!forAdmin) store.set('books', books);
+  return books;
+}
+
+export async function loadBookProtectedContent(bookId, section, index = null) {
+  const { data, error } = await sb.rpc('get_book_protected_content', {
+    p_book_id: bookId,
+    p_section: section,
+    p_index: index
+  });
+  if (error) throw error;
+  return data || {};
 }
 
 export async function loadHomeBooks() {
@@ -47,7 +79,10 @@ export async function loadEvents() {
 }
 
 export async function loadConfig() {
-  const { data } = await sb.from('site_config').select('*');
+  const { data } = await sb
+    .from('site_config')
+    .select('key,value')
+    .in('key', ['group_rules', 'reading_plan_intro']);
   const config = {};
   (data || []).forEach(r => config[r.key] = r.value);
   store.set('config', config);

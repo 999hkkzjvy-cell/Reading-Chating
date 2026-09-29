@@ -1,8 +1,8 @@
-import { renderBookCard, statusTag } from './components.js';
-import { canViewResource, renderBookAccessPanel, renderProtectedGroup, renderProtectedLink, renderProtectedText, renderUnlockButton, resourceKey } from './access.js';
+import { renderBookCard, statusTag } from './components.js?v=security-speed-20260928-1';
+import { canViewResource, renderBookAccessPanel, renderProtectedGroup, renderProtectedLink, renderProtectedText, renderUnlockButton, resourceKey } from './access.js?v=security-speed-20260928-1';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 import { GENRES } from './constants.js';
-import { loadBooks } from './data.js';
+import { loadBookProtectedContent, loadBooks } from './data.js?v=security-speed-20260928-1';
 import { route } from './router.js';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
@@ -250,6 +250,7 @@ async function renderResourcesTab(book, accessSummary) {
               bookId: book.id,
               key: resourceKey(book.id, `resource_${sec.key}`, index, 'url'),
               url: item.url,
+              hasUrl: !!item.has_url,
               label: '查看',
               summary: accessSummary
             })}
@@ -272,19 +273,31 @@ function renderChatBody(book, chat, index, accessSummary) {
     bookId: book.id,
     key: contentKey,
     markdown: normalizedContent,
+    hasContent: !!chat?.has_content,
     summary: accessSummary
-  }) : '';
-  const pdfHtml = pdfUrl ? `
+  }) : renderProtectedText({
+    bookId: book.id,
+    key: contentKey,
+    markdown: '',
+    hasContent: !!chat?.has_content,
+    summary: accessSummary
+  });
+  const hasPdf = !!pdfUrl || !!chat?.has_pdf_url;
+  const pdfAction = canViewResource(accessSummary, contentKey)
+    ? (pdfUrl ? `<a href="${safeUrl(pdfUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm"><i data-lucide="file-text"></i> 查看 PDF</a>` : '')
+    : renderProtectedLink({
+      bookId: book.id,
+      key: contentKey,
+      url: pdfUrl,
+      hasUrl: !!chat?.has_pdf_url,
+      label: '查看 PDF',
+      summary: accessSummary
+    });
+  const pdfHtml = hasPdf && pdfAction ? `
     <div class="chat-pdf-actions">
-      ${canViewResource(accessSummary, contentKey)
-        ? `<a href="${safeUrl(pdfUrl)}" target="_blank" class="btn btn-outline btn-sm"><i data-lucide="file-text"></i> 查看 PDF</a>`
-        : (!content ? renderProtectedLink({
-          bookId: book.id,
-          key: contentKey,
-          url: pdfUrl,
-          label: '查看 PDF',
-          summary: accessSummary
-        }) : '<span class="resource-lock-note">PDF 将在正文解锁后一并开放。</span>')}
+      ${content && !canViewResource(accessSummary, contentKey)
+        ? '<span class="resource-lock-note">PDF 将在正文解锁后一并开放。</span>'
+        : pdfAction}
     </div>
   ` : '';
 
@@ -304,6 +317,12 @@ async function loadBookLazyTab(target) {
     if (tabName === 'edition') {
       target.innerHTML = await renderEditionTab(state.book);
     } else if (tabName === 'resources') {
+      if (store.get('user')) {
+        const protectedContent = await loadBookProtectedContent(state.book.id, 'resources');
+        if (protectedContent.resources) {
+          state.book = { ...state.book, resources: protectedContent.resources };
+        }
+      }
       target.innerHTML = await renderResourcesTab(state.book, state.accessSummary);
     }
     target.dataset.loaded = 'true';
@@ -318,13 +337,21 @@ async function loadBookLazyTab(target) {
 // ROUTE: BOOK DETAIL (v2)
 // ===========================================
 route('/books/:id', async (params) => {
-  // Check memory cache first (hit if user visited book list before)
-  const cachedBook = store.get('books').find(b => b.id == params.id);
-  const bookPromise = cachedBook
-    ? Promise.resolve(cachedBook)
-    : sb.from('books').select('*').eq('id', params.id).single().then(({ data }) => data);
+  bookDetailState.clear();
+  const bookPromise = sb.from('books').select('*').eq('id', params.id).single().then(({ data, error }) => {
+    if (error) throw error;
+    return data;
+  });
   const accessPromise = loadBookAccessSummary(params.id);
-  const [book, accessSummary] = await Promise.all([bookPromise, accessPromise]);
+  const protectedPromise = store.get('user')
+    ? loadBookProtectedContent(params.id, 'overview').catch(error => {
+      console.warn('Protected book overview unavailable:', error);
+      return {};
+    })
+    : Promise.resolve({});
+  const [bookRow, accessSummary, protectedContent] = await Promise.all([bookPromise, accessPromise, protectedPromise]);
+  const book = bookRow ? { ...bookRow, ...protectedContent } : null;
+  if (book && !protectedContent.host_notes) book.host_notes = bookRow.host_notes;
   if (!book) return '<div class="container section"><div class="empty-state"><i data-lucide="book"></i><p>书籍未找到</p></div></div>';
 
   // Tab 1: 简介 — description + author_bio + historical_context
@@ -441,6 +468,7 @@ route('/books/:id', async (params) => {
               bookId: book.id,
               key: resourceKey(book.id, 'activity', index, 'meeting_link'),
               url: a.meeting_link,
+              hasUrl: !!a.has_meeting_link,
               label: '活动链接',
               summary: accessSummary
             })}
@@ -448,6 +476,7 @@ route('/books/:id', async (params) => {
               bookId: book.id,
               key: resourceKey(book.id, 'activity', index, 'replay_link'),
               url: a.replay_link,
+              hasUrl: !!a.has_replay_link,
               label: '回放回顾',
               summary: accessSummary
             })}
@@ -602,7 +631,7 @@ route('/books/:id', async (params) => {
 });
 
 // Tab switching
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
   const chatToggleBtn = e.target.closest('[data-action="toggle-chat-substance"]');
   if (chatToggleBtn) {
     const card = chatToggleBtn.closest('.chat-substance-card');
@@ -618,14 +647,37 @@ document.addEventListener('click', (e) => {
     }
 
     if (body.dataset.loaded !== 'true') {
+      if (body.dataset.loading === 'true') return;
+      body.dataset.loading = 'true';
       const state = bookDetailState.get(card.dataset.bookId);
       const index = Number(card.dataset.chatIndex || 0);
       const chat = state?.chats?.[index];
       if (state && chat) {
-        body.innerHTML = renderChatBody(state.book, chat, index, state.accessSummary);
+        let chatContent = chat;
+        const contentKey = resourceKey(state.book.id, 'chat', index, 'content');
+        if (store.get('user') && canViewResource(state.accessSummary, contentKey)) {
+          try {
+            const protectedContent = await loadBookProtectedContent(state.book.id, 'chat', index);
+            if (protectedContent.chat) {
+              chatContent = { ...chat, ...protectedContent.chat };
+              state.chats[index] = chatContent;
+            }
+          } catch (err) {
+            console.warn('Protected chat content unavailable:', err);
+            body.innerHTML = '<p class="resource-lock-note" role="status">内容暂时无法加载，请收起后重试。</p>';
+            lucide.createIcons();
+            delete body.dataset.loading;
+            chatToggleBtn.setAttribute('aria-expanded', 'true');
+            chatToggleBtn.textContent = '收起';
+            body.hidden = false;
+            return;
+          }
+        }
+        body.innerHTML = renderChatBody(state.book, chatContent, index, state.accessSummary);
         body.dataset.loaded = 'true';
         lucide.createIcons();
       }
+      delete body.dataset.loading;
     }
     chatToggleBtn.setAttribute('aria-expanded', 'true');
     chatToggleBtn.textContent = '收起';

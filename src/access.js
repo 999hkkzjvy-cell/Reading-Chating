@@ -68,11 +68,12 @@ export function renderUnlockButton(bookId, key, summary, label = '临时解锁')
   `;
 }
 
-export function renderProtectedLink({ bookId, key, url, label, summary }) {
-  if (!url) return '';
-  if (canViewResource(summary, key)) {
-    return `<a href="${safeUrl(url)}" target="_blank" class="btn btn-outline btn-sm">${h(label)}</a>`;
+export function renderProtectedLink({ bookId, key, url, hasUrl = false, label, summary }) {
+  if (!url && !hasUrl) return '';
+  if (canViewResource(summary, key) && url) {
+    return `<a href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">${h(label)}</a>`;
   }
+  if (canViewResource(summary, key)) return '';
 
   return `
     <span class="resource-locked-inline">
@@ -82,8 +83,8 @@ export function renderProtectedLink({ bookId, key, url, label, summary }) {
   `;
 }
 
-export function renderProtectedText({ bookId, key, markdown, summary }) {
-  if (!markdown) return '';
+export function renderProtectedText({ bookId, key, markdown, hasContent = false, summary }) {
+  if (!markdown && !hasContent) return '';
   if (canViewResource(summary, key)) {
     return `<div class="md-content" style="max-width:none;font-size:0.95rem;">${safeMarked(markdown)}</div>`;
   }

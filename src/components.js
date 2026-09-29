@@ -10,7 +10,7 @@ export function renderBookCard(b, opts = {}) {
   const authorLine = b.author_country ? `[${h(b.author_country)}] ${h(b.author)} 著` : `${h(b.author)} 著`;
   const inner = `
     <div class="cover">
-      ${b.cover_url ? `<img src="${safeUrl(b.cover_url)}" alt="">` : '<i data-lucide="book"></i>'}
+      ${b.cover_url ? `<img src="${safeUrl(b.cover_url)}" alt="" loading="lazy" decoding="async">` : '<i data-lucide="book"></i>'}
       <span class="status-badge tag ${STATUS_CLASS[b.status] || 'tag-upcoming'}">${STATUS_MAP[b.status] || h(b.status)}</span>
     </div>
     <div class="card-body">

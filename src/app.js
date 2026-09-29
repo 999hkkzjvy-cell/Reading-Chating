@@ -1,23 +1,10 @@
 import { bindNotificationEvents, getAuthRedirectRoute, initAuth, replaceAuthRedirectRoute } from './auth.js';
-import { bindAccessEvents } from './access.js';
-import './admin.js';
-import './books.js?v=pwa-20260818-6';
+import { bindAccessEvents } from './access.js?v=security-speed-20260928-1';
 import { bindAuthEvents, registerAuthRoutes } from './authPages.js';
 import { initPuzzleCaptcha, refreshCaptcha } from './captcha.js';
-import { renderHomeBookCard } from './components.js';
-import {
-  loadBooks,
-  loadConfig,
-  loadEvents,
-  loadHomeBooks,
-} from './data.js';
-import './events.js';
-import { bindLatamEvents, initLatamMap, renderLatamPage } from './latam.js';
-import { bindMemberCenterEvents, registerMemberCenterRoutes } from './memberCenter.js?v=pwa-20260818-7';
+import { renderHomeBookCard } from './components.js?v=security-speed-20260928-1';
+import { loadConfig, loadHomeBooks } from './data.js?v=security-speed-20260928-1';
 import { registerMemberSystemInfoRoutes } from './memberSystemInfo.js';
-import './newBooks.js?v=pwa-20260818-6';
-import { bindProfileEvents, registerProfileRoutes } from './profile.js?v=pwa-20260818-7';
-import { bindReadingPostEvents, registerReadingPostRoutes } from './readingPosts.js?v=reading-tags-20260821-1';
 import { initPwaShell, syncPwaShell } from './pwaShell.js?v=pwa-20260818-2';
 import { applyPwaMode, isPwaMobile } from './pwaMode.js';
 import { registerPwaServiceWorker } from './pwaServiceWorker.js?v=pwa-20260818-1';
@@ -25,6 +12,91 @@ import { route, router, setAfterRouteRender } from './router.js';
 import { store } from './store.js';
 import { bindUploadHandlers } from './uploads.js';
 import { safeMarked } from './utils.js';
+
+const routeModulePromises = new Map();
+let routeRenderSequence = 0;
+
+function loadRouteModule(key, importer, initialize) {
+  if (!routeModulePromises.has(key)) {
+    routeModulePromises.set(key, importer().then(async module => {
+      await initialize?.(module);
+      return module;
+    }).catch(error => {
+      routeModulePromises.delete(key);
+      throw error;
+    }));
+  }
+  return routeModulePromises.get(key);
+}
+
+async function loadRouteModules(path) {
+  const cleanPath = String(path || '/').replace(/\?.*$/, '');
+  const needsLogin = /^\/(?:admin|member|profile|reading-circle|user)(?:\/|$)/.test(cleanPath);
+  if (needsLogin && !store.get('user')) return;
+
+  if (/^\/books(?:\/|$)/.test(cleanPath)) {
+    await loadRouteModule('books', () => import('./books.js?v=security-speed-20260928-1'));
+  }
+  if (cleanPath === '/admin' && store.get('user')) {
+    await loadRouteModule('admin', () => import('./admin.js?v=security-speed-20260928-1'));
+  }
+  if (/^\/events(?:\/|$)/.test(cleanPath)) {
+    await loadRouteModule('events', () => import('./events.js'));
+  }
+  if (cleanPath === '/new-books') {
+    await loadRouteModule('new-books', () => import('./newBooks.js?v=pwa-20260818-6'));
+  }
+  if (cleanPath === '/latin-america') {
+    await loadRouteModule('latin-america', () => import('./latam.js'), module => {
+      module.bindLatamEvents();
+      route('/latin-america', (...args) => {
+        if (isPwaMobile()) {
+          return `
+            <section class="section pwa-route-notice">
+              <div class="container">
+                <div class="card">
+                  <div class="card-body">
+                    <i data-lucide="map" aria-hidden="true"></i>
+                    <h2>西语文学专区暂请使用网页版</h2>
+                    <p>移动端地图与专题内容正在完善中，当前先保留完整网页版体验。</p>
+                    <a class="btn btn-primary" href="/?source=web#/latin-america" target="_blank" rel="noopener">打开网页版专区</a>
+                  </div>
+                </div>
+              </div>
+            </section>
+          `;
+        }
+        return module.renderLatamPage(...args);
+      });
+    });
+  }
+  if (/^\/member(?:\/|$)/.test(cleanPath)) {
+    await loadRouteModule('member-center', () => import('./memberCenter.js?v=pwa-20260818-7'), module => {
+      module.registerMemberCenterRoutes();
+      module.bindMemberCenterEvents();
+    });
+  }
+  if (/^\/profile(?:\/|$)/.test(cleanPath)) {
+    await loadRouteModule('profile', () => import('./profile.js?v=pwa-20260818-7'), module => {
+      module.registerProfileRoutes();
+      module.bindProfileEvents();
+    });
+  }
+  if (/^\/(?:reading-circle|user)(?:\/|$)/.test(cleanPath) || cleanPath === '/member/friends') {
+    await loadRouteModule('reading-posts', () => import('./readingPosts.js?v=reading-tags-20260821-1'), module => {
+      module.registerReadingPostRoutes();
+      module.bindReadingPostEvents();
+    });
+  }
+}
+
+async function renderCurrentRoute() {
+  const sequence = ++routeRenderSequence;
+  const path = router.currentPath();
+  await loadRouteModules(path);
+  if (sequence !== routeRenderSequence) return;
+  await router.render();
+}
 
 applyPwaMode();
 registerPwaServiceWorker();
@@ -46,32 +118,63 @@ registerPwaServiceWorker();
       lucide.createIcons();
       initPuzzleCaptcha();
       if (document.getElementById('latam-leaflet-map')) {
-        setTimeout(() => initLatamMap(), 50);
+        setTimeout(() => {
+          loadRouteModule('latin-america', () => import('./latam.js'))
+            .then(module => module.initLatamMap())
+            .catch(error => console.warn('Map module failed to load:', error));
+        }, 50);
       }
       router.updateNav(path);
       bindGlobalEvents();
       syncPwaShell(path);
     });
 
-    window.addEventListener('hashchange', () => router.render());
+    window.addEventListener('hashchange', () => {
+      renderCurrentRoute().catch(error => {
+        console.error('Page module failed to load:', error);
+        toast('页面加载失败，请刷新后重试。', 'error');
+      });
+    });
     window.addEventListener('password-recovery-started', () => {
       replaceAuthRedirectRoute('/reset-password');
-      router.render();
+      renderCurrentRoute().catch(error => {
+        console.error('Password reset page failed to load:', error);
+        toast('页面加载失败，请刷新后重试。', 'error');
+      });
     });
-    window.addEventListener('load', async () => {
+    async function startApp() {
       initPwaShell();
       bindGlobalEvents();
       const pendingAuthRedirect = getAuthRedirectRoute();
-      await init();
+      const initialPath = router.currentPath().replace(/\?.*$/, '');
+      const renderWithoutWaitingForAuth = ['/', '/login', '/register'].includes(initialPath) && !pendingAuthRedirect;
+      const authPromise = init();
+      if (!renderWithoutWaitingForAuth) await authPromise;
       const authRedirect = pendingAuthRedirect || getAuthRedirectRoute();
       if (authRedirect) {
         replaceAuthRedirectRoute(authRedirect);
       }
-      router.render();
-      // Prefetch data in background — makes subsequent navigation instant
-      loadBooks().catch(() => {});
-      loadEvents().catch(() => {});
-    });
+      try {
+        await renderCurrentRoute();
+      } catch (error) {
+        console.error('Initial page module failed to load:', error);
+        toast('页面加载失败，请刷新后重试。', 'error');
+      }
+      if (renderWithoutWaitingForAuth) {
+        authPromise.then(() => {
+          router.updateNav(router.currentPath());
+          if (router.currentPath().replace(/\?.*$/, '') === initialPath && store.get('user')) {
+            document.getElementById('home-register-cta')?.remove();
+          }
+        }).catch(() => {});
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', startApp, { once: true });
+    } else {
+      startApp();
+    }
 
     // Click delegation for internal links + captcha refresh
     document.addEventListener('click', (e) => {
@@ -88,9 +191,7 @@ registerPwaServiceWorker();
     });
 
     registerAuthRoutes();
-    registerMemberCenterRoutes();
     registerMemberSystemInfoRoutes();
-    registerReadingPostRoutes();
 
     // ===========================================
     // ROUTE: HOME
@@ -140,34 +241,12 @@ registerPwaServiceWorker();
           <div class="container" style="text-align:center;">
             <h2 style="margin-bottom:var(--space-2);">加入我们</h2>
             <p style="color:var(--color-text-2);margin-bottom:var(--space-3);">注册账号即可发布书友圈，记录你的阅读旅程。</p>
-            ${store.get('user') ? '' : '<a href="#/register" class="btn btn-primary btn-lg">立即注册</a>'}
+            ${store.get('user') ? '' : '<a id="home-register-cta" href="#/register" class="btn btn-primary btn-lg">立即注册</a>'}
           </div>
         </section>
         </div>
       `;
     });
-
-    route('/latin-america', (...args) => {
-      if (isPwaMobile()) {
-        return `
-          <section class="section pwa-route-notice">
-            <div class="container">
-              <div class="card">
-                <div class="card-body">
-                  <i data-lucide="map" aria-hidden="true"></i>
-                  <h2>西语文学专区暂请使用网页版</h2>
-                  <p>移动端地图与专题内容正在完善中，当前先保留完整网页版体验。</p>
-                  <a class="btn btn-primary" href="/?source=web#/latin-america" target="_blank" rel="noopener">打开网页版专区</a>
-                </div>
-              </div>
-            </div>
-          </section>
-        `;
-      }
-      return renderLatamPage(...args);
-    });
-
-    registerProfileRoutes();
 
     // ===========================================
     // INIT
@@ -175,11 +254,7 @@ registerPwaServiceWorker();
     async function init() {
       try {
         bindAuthEvents();
-        bindProfileEvents();
         bindUploadHandlers();
-        bindLatamEvents();
-        bindMemberCenterEvents();
-        bindReadingPostEvents();
         bindNotificationEvents();
         bindAccessEvents();
         await initAuth();
@@ -188,4 +263,4 @@ registerPwaServiceWorker();
       }
     }
 
-    // Auth is initialized from the window load handler before the first route render.
+    // Auth is initialized before protected routes render; the public landing page can render while it resolves.

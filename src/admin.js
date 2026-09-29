@@ -1,6 +1,6 @@
 import { statusTag } from './components.js';
 import { ACT_STATUSES, ACT_TYPES } from './constants.js';
-import { aiFillBookInfo, loadBooks, loadConfig, loadEvents } from './data.js';
+import { aiFillBookInfo, loadBooks, loadConfig, loadEvents } from './data.js?v=security-speed-20260928-1';
 import { route, router } from './router.js';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
@@ -16,6 +16,8 @@ import {
   safeUrl,
   toBeijingISOString
 } from './utils.js';
+
+let adminBooks = [];
 
 function generateReadablePassword(length = 18) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -235,7 +237,8 @@ function renderAdminMemberList(members, error) {
 // ===========================================
 route('/admin', async () => {
   const config = await loadConfig();
-  const books = await loadBooks();
+  const books = await loadBooks({ forAdmin: true });
+  adminBooks = books;
   const events = await loadEvents();
   const activeTab = currentAdminTab();
   const { data: adminMembers, error: adminMembersError } = await sb.rpc('admin_list_members');
@@ -975,7 +978,7 @@ document.addEventListener('click', async (e) => {
   const editBookBtn = e.target.closest('.btn-edit-book');
   if (editBookBtn) {
     const id = editBookBtn.dataset.id;
-    const book = store.get('books').find(b => String(b.id) === id);
+    const book = adminBooks.find(b => String(b.id) === id);
     if (book) showBookForm(book);
     return;
   }
