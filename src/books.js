@@ -674,6 +674,15 @@ document.addEventListener('click', async (e) => {
           }
         }
         body.innerHTML = renderChatBody(state.book, chatContent, index, state.accessSummary);
+        body.querySelectorAll('.md-content table').forEach(table => {
+          const scroll = document.createElement('div');
+          scroll.className = 'chat-table-scroll';
+          scroll.setAttribute('role', 'region');
+          scroll.setAttribute('aria-label', '表格，可横向滚动');
+          scroll.tabIndex = 0;
+          table.before(scroll);
+          scroll.append(table);
+        });
         body.dataset.loaded = 'true';
         lucide.createIcons();
       }

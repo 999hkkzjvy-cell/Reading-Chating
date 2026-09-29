@@ -1880,6 +1880,13 @@
     .chat-substance-body .md-content pre {
       max-width: 100%; overflow-x: hidden;
     }
+    .chat-table-scroll {
+      max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain;
+    }
+    .chat-table-scroll table {
+      min-width: 760px;
+      white-space: normal; overflow-wrap: normal; word-break: normal;
+    }
     .chat-pdf-actions {
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
       margin-top: var(--space-3);
