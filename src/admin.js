@@ -734,9 +734,9 @@ function showBookForm(bookData = null) {
     data.resources = { extended_reading: extR, text_materials: txtM, film_resources: filmR, other: otherR };
 
     // Chatsubstance
-    data.chatsubstance = JSON.stringify(collectItems('builder-chats', ['chat_topic','chat_speaker','chat_content','chat_pdf_url','chat_sort_order']).map(o => ({
+    data.chatsubstance = collectItems('builder-chats', ['chat_topic','chat_speaker','chat_content','chat_pdf_url','chat_sort_order']).map(o => ({
       topic: o.chat_topic||'', speaker: o.chat_speaker||'', content: o.chat_content||'', pdf_url: o.chat_pdf_url||'', sort_order: o.chat_sort_order ? parseInt(o.chat_sort_order) : null
-    })));
+    }));
 
     // Serialize reading_schedule from form fields
     data.reading_schedule = JSON.stringify({

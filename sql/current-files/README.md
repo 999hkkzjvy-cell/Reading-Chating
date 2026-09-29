@@ -13,6 +13,7 @@
 - `migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql` 修复 v50 定时任务的 `source_key` 同名歧义；已执行 v50 的数据库需要继续执行该迁移。
 - `migrate-v52-reading-post-tags.sql` 增加按用户隔离的书友圈标签、发布/编辑标签和按标签/发表用户搜索；当前 Supabase 项目已执行该迁移，其他已执行 v51 的数据库需要继续执行。
 - `migrate-v53-security-and-book-content.sql`（当前 Supabase 项目已执行）收紧资料字段更新权限和内部函数执行权限，将受保护书籍内容移入非公开 schema，并限制匿名角色读取 `site_config` 的范围为群规和共读介绍；现有 `files` 公共存储桶中的对象不会由该迁移搬迁，已知文件 URL 仍可直接访问。
+- `migrate-v54-normalize-protected-chat-content.sql`（当前 Supabase 项目已执行）修复旧版把聊天干货 JSON 数组存为 JSON 字符串的问题，规范化私有内容、恢复公开主题元数据，并确保后台后续保存为 JSON 数组。
 
 ## 注意
 

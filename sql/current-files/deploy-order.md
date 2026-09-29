@@ -61,6 +61,7 @@
 49. `migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql`
 50. `migrate-v52-reading-post-tags.sql`
 51. `migrate-v53-security-and-book-content.sql`
+52. `migrate-v54-normalize-protected-chat-content.sql`
 
 `supabase-schema.sql` 已包含早期基础结构，例如用户资料、站点配置、书库、活动、新书速递、豆瓣缓存、`covers`/`files` Storage policy 等。旧每日签到表已在 v44 下线，新项目初始化后不要再重复执行 `migrate-v2.sql` 到 `migrate-v8-profile-privacy.sql`，除非你明确知道当前库缺少对应对象。
 
@@ -137,6 +138,7 @@ migrate-v50-scheduled-weekly-view-passes.sql
 migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql
 migrate-v52-reading-post-tags.sql
 migrate-v53-security-and-book-content.sql
+migrate-v54-normalize-protected-chat-content.sql
 ```
 
 `migrate-v53-security-and-book-content.sql` 将完整的受保护书籍资料移入非公开的
@@ -145,8 +147,11 @@ migrate-v53-security-and-book-content.sql
 公共 `files` Storage bucket 中的旧文件仍可通过已知 URL 直接访问；此迁移保护数据库查询，
 但不会搬迁这些文件。
 
-部署顺序：先在目标数据库成功执行 v53，再部署依赖该 RPC 的前端代码。这样旧前端不会
-继续从公开 `books` 行读取完整受限内容。
+v54 修复 v53 对旧版双重序列化 `chatsubstance` 的兼容：将私有表中的 JSON 字符串解析为数组，
+再从私有源数据重建公开的主题元数据。v54 依赖 v53 创建的 `private.book_protected_content` 和
+保护函数；执行成功后再部署保存格式修复后的前端。
+
+部署顺序：目标数据库按版本执行尚未应用的迁移，再部署依赖这些数据库变更的前端代码。
 
 如果不确定某个迁移是否已执行，先检查目标表、函数或字段是否存在。不要在同一个库里重复执行没有 `DROP POLICY IF EXISTS` 或 `CREATE POLICY` 防重处理的早期迁移。
 

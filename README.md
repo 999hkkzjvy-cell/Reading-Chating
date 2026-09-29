@@ -137,7 +137,7 @@ npm test
 
 ## 数据库部署
 
-当前数据库迁移文件整理到 **v53**；当前 Supabase 项目已执行 v53，其他数据库按升级顺序补齐尚未执行的迁移。
+当前数据库迁移文件整理到 **v54**；当前 Supabase 项目已执行至 v54，其他数据库按升级顺序补齐尚未执行的迁移。
 
 - 新数据库从 0 开始：执行 [sql/final-init/00-full-init.sql](sql/final-init/00-full-init.sql)
 - 现有数据库增量升级：参考 [sql/current-files/deploy-order.md](sql/current-files/deploy-order.md)
@@ -149,6 +149,7 @@ npm test
 - 定时浏览券：`migrate-v50-scheduled-weekly-view-passes.sql` 启用 Supabase Cron，于每周日北京时间 20:00 自动核算并发放浏览券；同一结算周重复执行不会重复发券。
 - 定时浏览券修复：已部署 v50 的数据库需继续执行 `migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql`，修复首次定时运行可能出现的 `source_key` 同名错误。
 - 书籍资料访问控制与权限收紧：按 [deploy-order.md](sql/current-files/deploy-order.md) 执行 v53，并在部署前端代码前先完成数据库迁移。该迁移保护数据库中的受限内容；`files` 公共存储桶里的旧文件 URL 仍可直接访问，需另行迁移存储对象才能撤销已有直链。
+- 聊天干货格式兼容：v54 将旧版双重序列化的 `chatsubstance` 数据规范为 JSON 数组，恢复公开主题列表，并让后台保存原生 JSON 数组。
 
 ---
 
