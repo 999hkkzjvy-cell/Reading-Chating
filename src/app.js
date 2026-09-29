@@ -38,7 +38,7 @@ async function loadRouteModules(path) {
     await loadRouteModule('books', () => import('./books.js?v=security-speed-20260928-1'));
   }
   if (cleanPath === '/admin' && store.get('user')) {
-    await loadRouteModule('admin', () => import('./admin.js?v=security-speed-20260928-1'));
+    await loadRouteModule('admin', () => import('./admin.js?v=security-speed-20260930-1'));
   }
   if (/^\/events(?:\/|$)/.test(cleanPath)) {
     await loadRouteModule('events', () => import('./events.js'));
