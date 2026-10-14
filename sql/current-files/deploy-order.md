@@ -62,6 +62,7 @@
 50. `migrate-v52-reading-post-tags.sql`
 51. `migrate-v53-security-and-book-content.sql`
 52. `migrate-v54-normalize-protected-chat-content.sql`
+53. `migrate-v55-founder-protected-book-access.sql`
 
 `supabase-schema.sql` 已包含早期基础结构，例如用户资料、站点配置、书库、活动、新书速递、豆瓣缓存、`covers`/`files` Storage policy 等。旧每日签到表已在 v44 下线，新项目初始化后不要再重复执行 `migrate-v2.sql` 到 `migrate-v8-profile-privacy.sql`，除非你明确知道当前库缺少对应对象。
 
@@ -139,6 +140,7 @@ migrate-v51-fix-scheduled-weekly-view-pass-conflict.sql
 migrate-v52-reading-post-tags.sql
 migrate-v53-security-and-book-content.sql
 migrate-v54-normalize-protected-chat-content.sql
+migrate-v55-founder-protected-book-access.sql
 ```
 
 `migrate-v53-security-and-book-content.sql` 将完整的受保护书籍资料移入非公开的
@@ -150,6 +152,8 @@ migrate-v54-normalize-protected-chat-content.sql
 v54 修复 v53 对旧版双重序列化 `chatsubstance` 的兼容：将私有表中的 JSON 字符串解析为数组，
 再从私有源数据重建公开的主题元数据。v54 依赖 v53 创建的 `private.book_protected_content` 和
 保护函数；执行成功后再部署保存格式修复后的前端。
+
+v55 使创始人徽章在受保护书籍内容函数中的权限与资源摘要一致，保留后台资料的管理员专属限制。
 
 部署顺序：目标数据库按版本执行尚未应用的迁移，再部署依赖这些数据库变更的前端代码。
 

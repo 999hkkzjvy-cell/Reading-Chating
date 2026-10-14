@@ -3,8 +3,8 @@
 --
 -- 用途：新 Supabase 数据库从 0 初始化。
 -- 重要：只建议在空库执行，不要在已有线上库重复执行本文件。
--- 生成来源：sql/current-files/supabase-schema.sql + 当前有效迁移 v9-v53。
--- 生成时间：2026-09-28
+-- 生成来源：sql/current-files/supabase-schema.sql + 当前有效迁移 v9-v55。
+-- 更新时间：2026-10-14
 -- ============================================================
 
 
@@ -8963,6 +8963,7 @@ AS $$
 DECLARE
   v_user_id UUID := auth.uid();
   v_is_admin BOOLEAN := COALESCE(public.is_admin(), false);
+  v_is_founder BOOLEAN := COALESCE(public.has_founder_badge(auth.uid()), false);
   v_has_book_access BOOLEAN := false;
   v_temp_keys TEXT[] := ARRAY[]::TEXT[];
   v_content private.book_protected_content%ROWTYPE;
@@ -8991,7 +8992,7 @@ BEGIN
     RETURN '{}'::JSONB;
   END IF;
 
-  IF v_is_admin THEN
+  IF v_is_admin OR v_is_founder THEN
     v_has_book_access := true;
   ELSE
     SELECT EXISTS (
