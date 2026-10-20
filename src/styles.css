@@ -2489,3 +2489,24 @@
       font-size: 1.05rem; color: var(--color-text-2); font-weight: 700;
       text-align: right;
     }
+/* Login connectivity feedback is shared by Safari and the installed PWA. */
+.auth-status-panel:not([hidden]) {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border, #d8cbbb);
+  border-radius: 12px;
+  background: var(--color-bg-alt, #f5f0e8);
+}
+.auth-status-panel[hidden] { display: none; }
+.auth-status-panel p { margin-bottom: .75rem; }
+.auth-diagnostics { margin-top: 1rem; font-size: .85rem; }
+.auth-diagnostics summary { cursor: pointer; }
+.auth-diagnostics pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 18rem;
+  overflow: auto;
+  padding: .75rem;
+  font-size: .75rem;
+  user-select: text;
+}

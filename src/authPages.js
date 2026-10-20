@@ -1,6 +1,7 @@
 import {
   checkLoginRateLimit,
   completePasswordReset,
+  hasPasswordRecoverySession,
   recordLoginAttempt,
   resetPassword,
   signIn,
@@ -20,6 +21,14 @@ function loginErrorMessage(err) {
     return '网络连接或登录服务暂时异常，请稍后重试。';
   }
   return '暂时无法完成登录，请稍后重试。';
+}
+
+function passwordResetErrorMessage(err) {
+  if (err?.status === 429 || err?.code === 'over_request_rate_limit' ||
+      err?.code === 'over_email_send_rate_limit') {
+    return '请求过于频繁，请稍后再试。';
+  }
+  return '暂时无法提交重置请求，请稍后再试或联系管理员。';
 }
 
 export function registerAuthRoutes() {
@@ -53,6 +62,10 @@ export function registerAuthRoutes() {
             </div>
           </form>
           <div id="login-error" role="alert" style="color:var(--color-danger);text-align:center;margin-top:12px;font-size:0.9rem;"></div>
+          <details class="auth-diagnostics">
+            <summary>查看诊断信息（可截图反馈）</summary>
+            <pre data-auth-diagnostics></pre>
+          </details>
         </div>
       </div>
     `;
@@ -96,7 +109,20 @@ export function registerAuthRoutes() {
     `;
   });
 
-  route('/reset-password', () => {
+  route('/reset-password', async () => {
+    if (!await hasPasswordRecoverySession()) {
+      return `
+        <div class="container auth-page">
+          <div class="card">
+            <h2>重置链接已失效</h2>
+            <p style="text-align:center;color:var(--color-text-2);font-size:0.9rem;margin-bottom:var(--space-3);">
+              此链接可能已使用、已过期，或在其他浏览器中打开。请重新申请重置邮件，并在打开链接的同一浏览器页面完成重置。
+            </p>
+            <div class="alt-link"><a href="#/forgot-password">重新发送重置邮件</a></div>
+          </div>
+        </div>
+      `;
+    }
     return `
       <div class="container auth-page">
         <div class="card">
@@ -190,11 +216,11 @@ export function bindAuthEvents() {
       btn.disabled = true;
       btn.textContent = '发送中...';
       try {
-        await resetPassword(fd.get('email'));
-        document.getElementById('forgot-msg').textContent = '密码重置邮件已发送，请检查邮箱。如果未收到，请查看垃圾邮件。';
+        await resetPassword(fd.get('email').trim());
+        document.getElementById('forgot-msg').textContent = '重置请求已提交。如果该邮箱已注册，请稍后查看收件箱和垃圾邮件；仍未收到请核对邮箱地址或联系管理员。';
         document.getElementById('forgot-error').textContent = '';
       } catch (err) {
-        document.getElementById('forgot-error').textContent = err.message;
+        document.getElementById('forgot-error').textContent = passwordResetErrorMessage(err);
         document.getElementById('forgot-msg').textContent = '';
       } finally {
         btn.disabled = false;
@@ -214,7 +240,10 @@ export function bindAuthEvents() {
         document.getElementById('reset-error').textContent = '';
         setTimeout(() => router.navigate('/login'), 1500);
       } catch (err) {
-        document.getElementById('reset-error').textContent = err.message;
+        document.getElementById('reset-error').textContent =
+          err?.code === 'recovery_session_missing' || err?.message === 'Auth session missing!'
+            ? '重置链接已失效，请重新申请重置邮件。'
+            : err.message;
         document.getElementById('reset-msg').textContent = '';
       } finally {
         btn.disabled = false;

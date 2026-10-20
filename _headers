@@ -1,5 +1,14 @@
 # Keep the service-worker entry point and install metadata revalidating so a
 # deployed kill-switch or version change can reach installed PWAs.
+/
+  Cache-Control: no-cache, must-revalidate
+
+/index.html
+  Cache-Control: no-cache, must-revalidate
+
+/src/*
+  Cache-Control: no-cache, must-revalidate
+
 /sw.js
   Cache-Control: no-store, no-cache, must-revalidate
   Service-Worker-Allowed: /

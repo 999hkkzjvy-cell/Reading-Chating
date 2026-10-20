@@ -3,29 +3,81 @@ import { store } from './store.js';
 import { toast } from './ui.js';
 import { loadMemberSummary } from './members.js';
 import { esc, formatDateTime, h, safeUrl } from './utils.js';
+import { authStep } from './authDiagnostics.js';
 
 const PASSWORD_RECOVERY_PENDING_KEY = 'password_recovery_pending';
+let authRevision = 0;
+let restorePromise = null;
 
-sb.auth.onAuthStateChange((event) => {
-  if (event === 'PASSWORD_RECOVERY') {
-    sessionStorage.setItem(PASSWORD_RECOVERY_PENDING_KEY, '1');
-    window.dispatchEvent(new CustomEvent('password-recovery-started'));
+sb.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY' && session?.user?.id) {
+    sessionStorage.setItem(PASSWORD_RECOVERY_PENDING_KEY, session.user.id);
+    setTimeout(() => {
+      if (sessionStorage.getItem(PASSWORD_RECOVERY_PENDING_KEY) === session.user.id) {
+        window.dispatchEvent(new CustomEvent('password-recovery-started'));
+      }
+    }, 0);
   }
 });
 
-export async function initAuth() {
+export function initAuth() {
+  if (restorePromise) return restorePromise;
+  const revision = authRevision;
+  const pending = restoreAuth(revision).finally(() => {
+    if (restorePromise === pending) restorePromise = null;
+  });
+  restorePromise = pending;
+  return pending;
+}
+
+async function restoreAuth(revision) {
+  store.set('authStatus', 'checking');
+  try {
+    const { data: { user } } = await authStep('restore', () => sb.auth.getUser());
+    if (revision !== authRevision) return;
+    if (!user) {
+      clearAuthStore();
+      return;
+    }
+    await acceptVerifiedUser(user, revision);
+  } catch (error) {
+    if (revision !== authRevision) return;
+    if (error?.name === 'AuthSessionMissingError' || error?.code === 'session_not_found') {
+      clearAuthStore();
+      return;
+    }
+    // A failed request does not establish that a saved session is invalid.
+    store.set('authStatus', 'uncertain');
+    renderNavUser();
+    throw error;
+  }
+}
+
+async function acceptVerifiedUser(user, revision) {
+  if (revision !== authRevision) return;
+  if (store.get('user')?.id !== user.id) {
+    store.set('profile', null);
+    store.set('member', null);
+  }
+  store.set('user', user);
+  store.set('isAdmin', false);
   store.set('isBanned', null);
-  const { data: { user } } = await sb.auth.getUser();
-  if (user) {
-    store.set('user', user);
-    const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  store.set('authStatus', 'profile-loading');
+  renderNavUser();
+  try {
+    const { data: profile } = await authStep('profile', () =>
+      sb.from('profiles').select('*').eq('id', user.id).single());
+    if (revision !== authRevision) return;
     store.set('profile', profile);
     store.set('isAdmin', profile?.role === 'admin');
-    loadMemberSummary(user.id).catch(err => {
-      console.warn('Member summary background load failed:', err);
-    });
+    store.set('authStatus', profile ? 'ready' : 'profile-unavailable');
+  } catch {
+    if (revision !== authRevision) return;
+    // Identity was verified by Auth; a profile failure is not a password failure.
+    store.set('authStatus', 'profile-unavailable');
   }
   renderNavUser();
+  loadMemberSummary(user.id).catch(() => {});
 }
 
 export function checkLoginRateLimit() {
@@ -67,9 +119,30 @@ export function recordLoginAttempt(success) {
 }
 
 export async function signIn(email, password) {
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) throw error;
-  await initAuth();
+  const revision = ++authRevision;
+  restorePromise = null;
+  const previousStatus = store.get('authStatus');
+  store.set('authStatus', 'signing-in');
+  let data;
+  try {
+    ({ data } = await authStep('password', () => sb.auth.signInWithPassword({ email, password })));
+  } catch (error) {
+    if (revision === authRevision) {
+      const rejected = ['invalid_credentials', 'email_not_confirmed'].includes(error?.code);
+      store.set('authStatus', rejected
+        ? (store.get('user') ? previousStatus : 'anonymous')
+        : 'uncertain');
+      renderNavUser();
+    }
+    throw error;
+  }
+  if (!data?.user?.id || !data?.session) {
+    store.set('authStatus', 'uncertain');
+    throw new Error('Auth returned no session');
+  }
+  // This user came from the successful password exchange, not unverified storage.
+  // Avoid an unnecessary second Auth round trip after accepting the password.
+  await acceptVerifiedUser(data.user, revision);
 }
 
 export async function signUp(email, password, displayName) {
@@ -84,16 +157,19 @@ export async function signUp(email, password, displayName) {
 
 export async function signOut() {
   await sb.auth.signOut();
+  clearPasswordRecoveryPending();
   clearAuthStore();
   location.hash = '#/';
 }
 
 function clearAuthStore() {
+  authRevision++;
   store.set('user', null);
   store.set('profile', null);
   store.set('member', null);
   store.set('isAdmin', false);
   store.set('isBanned', null);
+  store.set('authStatus', 'anonymous');
   renderNavUser();
 }
 
@@ -102,7 +178,6 @@ export async function resetPassword(email) {
     redirectTo: passwordResetRedirectUrl()
   });
   if (error) throw error;
-  toast('密码重置邮件已发送，请检查邮箱。');
 }
 
 function passwordResetRedirectUrl() {
@@ -123,9 +198,20 @@ function hashHasRecoveryMarker(hash) {
   return new URLSearchParams(paramText).get('type') === 'recovery';
 }
 
+function hasAuthRedirectError(url) {
+  return url.searchParams.has('error') ||
+    new URLSearchParams(url.hash.replace(/^#/, '')).has('error');
+}
+
 export function getAuthRedirectRoute() {
   const url = new URL(window.location.href);
-  if (sessionStorage.getItem(PASSWORD_RECOVERY_PENDING_KEY) === '1') return '/reset-password';
+  if (hasAuthRedirectError(url)) {
+    clearPasswordRecoveryPending();
+    return url.searchParams.get('auth_action') === 'reset-password' ||
+      url.searchParams.get('type') === 'recovery' || hashHasRecoveryMarker(url.hash)
+      ? '/reset-password' : null;
+  }
+  if (sessionStorage.getItem(PASSWORD_RECOVERY_PENDING_KEY)) return '/reset-password';
   if (url.searchParams.get('auth_action') === 'reset-password') return '/reset-password';
   if (url.searchParams.get('type') === 'recovery') return '/reset-password';
   if (hashHasRecoveryMarker(url.hash)) return '/reset-password';
@@ -137,9 +223,22 @@ export function replaceAuthRedirectRoute(routePath) {
   url.searchParams.delete('auth_action');
   url.searchParams.delete('code');
   url.searchParams.delete('type');
+  url.searchParams.delete('error');
+  url.searchParams.delete('error_code');
+  url.searchParams.delete('error_description');
   url.hash = '#' + routePath;
-  sessionStorage.removeItem(PASSWORD_RECOVERY_PENDING_KEY);
   window.history.replaceState(null, '', url.toString());
+}
+
+export function clearPasswordRecoveryPending() {
+  sessionStorage.removeItem(PASSWORD_RECOVERY_PENDING_KEY);
+}
+
+export async function hasPasswordRecoverySession() {
+  const recoveryUserId = sessionStorage.getItem(PASSWORD_RECOVERY_PENDING_KEY);
+  if (!recoveryUserId) return false;
+  const { data: { session }, error } = await sb.auth.getSession();
+  return !error && session?.user?.id === recoveryUserId;
 }
 
 export async function updatePassword(newPassword) {
@@ -149,6 +248,11 @@ export async function updatePassword(newPassword) {
 }
 
 export async function completePasswordReset(newPassword) {
+  if (!await hasPasswordRecoverySession()) {
+    const error = new Error('Password recovery session missing');
+    error.code = 'recovery_session_missing';
+    throw error;
+  }
   const { error } = await sb.auth.updateUser({ password: newPassword });
   if (error) throw error;
 
@@ -160,9 +264,9 @@ export async function completePasswordReset(newPassword) {
 
 export function renderNavUser() {
   const user = store.get('user');
-  const profile = store.get('profile');
   const container = document.getElementById('nav-user');
-  if (user && profile) {
+  if (!container) return;
+  if (user) {
     container.innerHTML = `
       ${store.get('isAdmin') ? '<a href="#/admin" class="btn btn-outline btn-sm">管理</a>' : ''}
       <a href="#/member" class="nav-user-link">个人中心</a>
@@ -175,7 +279,8 @@ export function renderNavUser() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
     refreshUnreadBadge();
   } else {
-    container.innerHTML = `<a href="#/login" class="btn btn-outline btn-sm">登录</a>`;
+    const label = store.get('authStatus') === 'uncertain' ? '确认登录状态' : '登录';
+    container.innerHTML = `<a href="#/login" class="btn btn-outline btn-sm">${label}</a>`;
   }
 }
 

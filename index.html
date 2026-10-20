@@ -33,7 +33,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js" defer></script>
-  <link rel="stylesheet" href="./src/styles.css?v=reading-tags-20260821-1">
+  <link rel="stylesheet" href="./src/styles.css?v=auth-connectivity-20261020-1">
   <link rel="stylesheet" href="./src/pwa.css?v=pwa-20260818-3">
 
 </head>
@@ -63,6 +63,14 @@
       </div>
       <div class="nav-accent-line"></div>
     </nav>
+    <aside id="auth-status-panel" class="container auth-status-panel" hidden>
+      <p data-auth-message role="status"></p>
+      <button type="button" class="btn btn-outline btn-sm" data-auth-retry>重新确认登录状态</button>
+      <details class="auth-diagnostics">
+        <summary>查看诊断信息（可截图反馈）</summary>
+        <pre data-auth-diagnostics></pre>
+      </details>
+    </aside>
     <main id="view"></main>
     <footer>
       <div class="container">以读攻独 · 用阅读抵御孤独</div>
@@ -71,6 +79,6 @@
   <div id="toast-container"></div>
   <div id="modal-container"></div>
 
-  <script type="module" src="./src/app.js?v=security-speed-20260930-1"></script>
+  <script type="module" src="./src/app.js?v=auth-connectivity-20261020-1"></script>
 </body>
 </html>

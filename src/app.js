@@ -1,4 +1,4 @@
-import { bindNotificationEvents, getAuthRedirectRoute, initAuth, replaceAuthRedirectRoute } from './auth.js';
+import { bindNotificationEvents, clearPasswordRecoveryPending, getAuthRedirectRoute, initAuth, replaceAuthRedirectRoute } from './auth.js';
 import { bindAccessEvents } from './access.js?v=security-speed-20260928-1';
 import { bindAuthEvents, registerAuthRoutes } from './authPages.js';
 import { initPuzzleCaptcha, refreshCaptcha } from './captcha.js';
@@ -12,6 +12,7 @@ import { route, router, setAfterRouteRender } from './router.js';
 import { store } from './store.js';
 import { bindUploadHandlers } from './uploads.js';
 import { safeMarked } from './utils.js';
+import { bindAuthFeedback } from './authFeedback.js';
 
 const routeModulePromises = new Map();
 let routeRenderSequence = 0;
@@ -130,6 +131,9 @@ registerPwaServiceWorker();
     });
 
     window.addEventListener('hashchange', () => {
+      if (router.currentPath().replace(/\?.*$/, '') !== '/reset-password') {
+        clearPasswordRecoveryPending();
+      }
       renderCurrentRoute().catch(error => {
         console.error('Page module failed to load:', error);
         toast('页面加载失败，请刷新后重试。', 'error');
@@ -253,6 +257,7 @@ registerPwaServiceWorker();
     // ===========================================
     async function init() {
       try {
+        bindAuthFeedback();
         bindAuthEvents();
         bindUploadHandlers();
         bindNotificationEvents();
