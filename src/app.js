@@ -1,21 +1,21 @@
 import { bindNotificationEvents, clearPasswordRecoveryPending, getAuthRedirectRoute, initAuth, replaceAuthRedirectRoute } from './auth.js';
-import { bindAccessEvents } from './access.js?v=security-speed-20260928-1';
-import { bindAuthEvents, registerAuthRoutes } from './authPages.js';
+import { bindAccessEvents } from './access.js?v=page-load-20261021-1';
+import { bindAuthEvents, registerAuthRoutes } from './authPages.js?v=page-load-20261021-1';
 import { initPuzzleCaptcha, refreshCaptcha } from './captcha.js';
 import { renderHomeBookCard } from './components.js?v=security-speed-20260928-1';
-import { loadConfig, loadHomeBooks } from './data.js?v=security-speed-20260928-1';
-import { registerMemberSystemInfoRoutes } from './memberSystemInfo.js';
+import { loadConfig, loadHomeBooks } from './data.js?v=page-load-20261021-1';
+import { registerMemberSystemInfoRoutes } from './memberSystemInfo.js?v=page-load-20261021-1';
 import { initPwaShell, syncPwaShell } from './pwaShell.js?v=pwa-20260818-2';
 import { applyPwaMode, isPwaMobile } from './pwaMode.js';
 import { registerPwaServiceWorker } from './pwaServiceWorker.js?v=pwa-20260818-1';
-import { route, router, setAfterRouteRender } from './router.js';
+import { route, router, setAfterRouteRender } from './router.js?v=page-load-20261021-1';
 import { store } from './store.js';
 import { bindUploadHandlers } from './uploads.js';
 import { safeMarked } from './utils.js';
-import { bindAuthFeedback } from './authFeedback.js';
+import { bindAuthFeedback } from './authFeedback.js?v=page-load-20261021-1';
+import { beginPageLoad } from './pageLoad.js';
 
 const routeModulePromises = new Map();
-let routeRenderSequence = 0;
 
 function loadRouteModule(key, importer, initialize) {
   if (!routeModulePromises.has(key)) {
@@ -36,16 +36,16 @@ async function loadRouteModules(path) {
   if (needsLogin && !store.get('user')) return;
 
   if (/^\/books(?:\/|$)/.test(cleanPath)) {
-    await loadRouteModule('books', () => import('./books.js?v=security-speed-20260928-1'));
+    await loadRouteModule('books', () => import('./books.js?v=page-load-20261021-1'));
   }
   if (cleanPath === '/admin' && store.get('user')) {
-    await loadRouteModule('admin', () => import('./admin.js?v=security-speed-20260930-1'));
+    await loadRouteModule('admin', () => import('./admin.js?v=page-load-20261021-1'));
   }
   if (/^\/events(?:\/|$)/.test(cleanPath)) {
-    await loadRouteModule('events', () => import('./events.js'));
+    await loadRouteModule('events', () => import('./events.js?v=page-load-20261021-1'));
   }
   if (cleanPath === '/new-books') {
-    await loadRouteModule('new-books', () => import('./newBooks.js?v=pwa-20260818-6'));
+    await loadRouteModule('new-books', () => import('./newBooks.js?v=page-load-20261021-1'));
   }
   if (cleanPath === '/latin-america') {
     await loadRouteModule('latin-america', () => import('./latam.js'), module => {
@@ -72,31 +72,35 @@ async function loadRouteModules(path) {
     });
   }
   if (/^\/member(?:\/|$)/.test(cleanPath)) {
-    await loadRouteModule('member-center', () => import('./memberCenter.js?v=pwa-20260818-7'), module => {
+    await loadRouteModule('member-center', () => import('./memberCenter.js?v=page-load-20261021-1'), module => {
       module.registerMemberCenterRoutes();
       module.bindMemberCenterEvents();
     });
   }
   if (/^\/profile(?:\/|$)/.test(cleanPath)) {
-    await loadRouteModule('profile', () => import('./profile.js?v=pwa-20260818-7'), module => {
+    await loadRouteModule('profile', () => import('./profile.js?v=page-load-20261021-1'), module => {
       module.registerProfileRoutes();
       module.bindProfileEvents();
     });
   }
   if (/^\/(?:reading-circle|user)(?:\/|$)/.test(cleanPath) || cleanPath === '/member/friends') {
-    await loadRouteModule('reading-posts', () => import('./readingPosts.js?v=reading-tags-20260821-1'), module => {
+    await loadRouteModule('reading-posts', () => import('./readingPosts.js?v=page-load-20261021-1'), module => {
       module.registerReadingPostRoutes();
       module.bindReadingPostEvents();
     });
   }
 }
 
-async function renderCurrentRoute() {
-  const sequence = ++routeRenderSequence;
+async function renderCurrentRoute(load = beginPageLoad(router.currentPath())) {
   const path = router.currentPath();
-  await loadRouteModules(path);
-  if (sequence !== routeRenderSequence) return;
-  await router.render();
+  try {
+    if (!load.isCurrent()) return;
+    await loadRouteModules(path);
+    if (!load.isCurrent()) return;
+    await router.render(load);
+  } catch (error) {
+    load.fail(error);
+  }
 }
 
 applyPwaMode();
@@ -134,36 +138,28 @@ registerPwaServiceWorker();
       if (router.currentPath().replace(/\?.*$/, '') !== '/reset-password') {
         clearPasswordRecoveryPending();
       }
-      renderCurrentRoute().catch(error => {
-        console.error('Page module failed to load:', error);
-        toast('页面加载失败，请刷新后重试。', 'error');
-      });
+      renderCurrentRoute();
     });
     window.addEventListener('password-recovery-started', () => {
       replaceAuthRedirectRoute('/reset-password');
-      renderCurrentRoute().catch(error => {
-        console.error('Password reset page failed to load:', error);
-        toast('页面加载失败，请刷新后重试。', 'error');
-      });
+      renderCurrentRoute();
     });
     async function startApp() {
       initPwaShell();
       bindGlobalEvents();
       const pendingAuthRedirect = getAuthRedirectRoute();
       const initialPath = router.currentPath().replace(/\?.*$/, '');
+      let load = beginPageLoad(router.currentPath());
       const renderWithoutWaitingForAuth = ['/', '/login', '/register'].includes(initialPath) && !pendingAuthRedirect;
       const authPromise = init();
       if (!renderWithoutWaitingForAuth) await authPromise;
+      if (!load.isCurrent()) return;
       const authRedirect = pendingAuthRedirect || getAuthRedirectRoute();
       if (authRedirect) {
         replaceAuthRedirectRoute(authRedirect);
+        load = beginPageLoad(router.currentPath());
       }
-      try {
-        await renderCurrentRoute();
-      } catch (error) {
-        console.error('Initial page module failed to load:', error);
-        toast('页面加载失败，请刷新后重试。', 'error');
-      }
+      await renderCurrentRoute(load);
       if (renderWithoutWaitingForAuth) {
         authPromise.then(() => {
           router.updateNav(router.currentPath());
@@ -182,6 +178,14 @@ registerPwaServiceWorker();
 
     // Click delegation for internal links + captcha refresh
     document.addEventListener('click', (e) => {
+      const reloadButton = e.target.closest('[data-action="page-reload"]');
+      if (reloadButton) {
+        if (reloadButton.disabled) return;
+        reloadButton.disabled = true;
+        reloadButton.textContent = '正在重新加载…';
+        location.reload();
+        return;
+      }
       const link = e.target.closest('a[href^="#/"]');
       if (link) {
         e.preventDefault();

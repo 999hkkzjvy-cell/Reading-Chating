@@ -8,7 +8,7 @@ import {
   signUp,
 } from './auth.js';
 import { isCaptchaVerified } from './captcha.js';
-import { route, router } from './router.js';
+import { route, router } from './router.js?v=page-load-20261021-1';
 
 let loginPending = false;
 

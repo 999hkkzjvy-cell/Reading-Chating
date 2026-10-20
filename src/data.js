@@ -55,20 +55,22 @@ export async function loadHomeBooks() {
     'end_date',
     'description'
   ].join(',');
-  const { data } = await sb
+  const { data, error } = await sb
     .from('books')
     .select(columns)
     .not('end_date', 'is', null)
     .order('end_date', { ascending: false })
     .limit(2);
+  if (error) throw error;
 
   if (data?.length) return data;
 
-  const { data: fallback } = await sb
+  const { data: fallback, error: fallbackError } = await sb
     .from('books')
     .select(columns)
     .order('start_date', { ascending: false, nullsFirst: false })
     .limit(2);
+  if (fallbackError) throw fallbackError;
   return fallback || [];
 }
 
@@ -79,10 +81,11 @@ export async function loadEvents() {
 }
 
 export async function loadConfig() {
-  const { data } = await sb
+  const { data, error } = await sb
     .from('site_config')
     .select('key,value')
     .in('key', ['group_rules', 'reading_plan_intro']);
+  if (error) throw error;
   const config = {};
   (data || []).forEach(r => config[r.key] = r.value);
   store.set('config', config);

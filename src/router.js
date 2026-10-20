@@ -1,6 +1,7 @@
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { toast } from './ui.js';
+import { beginPageLoad } from './pageLoad.js';
 
 const routes = {};
 let afterRouteRender = () => {};
@@ -76,8 +77,9 @@ export const router = {
     return null;
   },
 
-  async render() {
+  async render(load = beginPageLoad(this.currentPath())) {
     try {
+      if (!load.isCurrent()) return;
       const path = this.currentPath();
       const cleanPath = path.replace(/\?.*$/, '');
       const matched = this.match(path);
@@ -87,48 +89,51 @@ export const router = {
         if (pathMatchesPrefix(cleanPath, '/reading-circle') || pathMatchesPrefix(cleanPath, '/user')) {
           toast('会员登录方可浏览书友圈。', 'error');
         }
+        load.cancel();
         return this.navigate('/login?redirect=' + encodeURIComponent(path));
       }
 
       if (pathMatchesPrefix(cleanPath, '/admin')) {
         const user = store.get('user');
         if (!user) {
+          load.cancel();
           return this.navigate('/login?redirect=' + encodeURIComponent(path));
         }
         const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
+        if (!load.isCurrent()) return;
         if (profile?.role !== 'admin') {
-          document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="shield-alert"></i><p>您没有管理权限</p></div></div>';
-          lucide.createIcons();
+          load.complete('<div class="container section"><div class="empty-state"><i data-lucide="shield-alert"></i><p>您没有管理权限</p></div></div>');
+          if (typeof lucide !== 'undefined') lucide.createIcons();
           return;
         }
       }
 
-      if (isBanProtectedPath(cleanPath) && await isCurrentUserBanned()) {
-        document.getElementById('view').innerHTML = `
+      const banned = isBanProtectedPath(cleanPath) && await isCurrentUserBanned();
+      if (!load.isCurrent()) return;
+      if (banned) {
+        load.complete(`
           <div class="container section">
             <div class="empty-state">
               <i data-lucide="shield-alert"></i>
               <p>该账号已被封禁，暂不能浏览共读书库、书友圈和西语文学板块。</p>
             </div>
           </div>
-        `;
+        `);
         if (typeof lucide !== 'undefined') lucide.createIcons();
         return;
       }
 
       if (matched) {
-        document.getElementById('view').innerHTML = await matched.handler(matched.params);
+        const html = await matched.handler(matched.params);
+        if (!load.complete(html)) return;
         window.scrollTo(0, 0);
       } else {
-        document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><i data-lucide="file-question"></i><p>页面未找到</p></div></div>';
+        if (!load.complete('<div class="container section"><div class="empty-state"><i data-lucide="file-question"></i><p>页面未找到</p></div></div>')) return;
       }
 
       afterRouteRender(path);
     } catch (err) {
-      console.error('Router error:', err);
-      const errText = String(err.message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-      document.getElementById('view').innerHTML = '<div class="container section"><div class="empty-state"><p>⚠️ 加载失败：' + errText + '</p><p style="font-size:0.85rem;color:var(--color-text-3);">请检查网络连接或刷新重试</p></div></div>';
-      if (typeof lucide !== 'undefined') lucide.createIcons();
+      load.fail(err);
     }
   },
 

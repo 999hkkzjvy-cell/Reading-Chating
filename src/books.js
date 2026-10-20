@@ -2,8 +2,8 @@ import { renderBookCard, statusTag } from './components.js?v=security-speed-2026
 import { canViewResource, renderBookAccessPanel, renderProtectedGroup, renderProtectedLink, renderProtectedText, renderUnlockButton, resourceKey } from './access.js?v=security-speed-20260928-1';
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from './config.js';
 import { GENRES } from './constants.js';
-import { loadBookProtectedContent, loadBooks } from './data.js?v=security-speed-20260928-1';
-import { route } from './router.js';
+import { loadBookProtectedContent, loadBooks } from './data.js?v=page-load-20261021-1';
+import { route } from './router.js?v=page-load-20261021-1';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { loadBookAccessSummary } from './tickets.js';

@@ -1,4 +1,4 @@
-import { route } from './router.js';
+import { route } from './router.js?v=page-load-20261021-1';
 import { safeMarked } from './utils.js';
 
 const MEMBER_SYSTEM_MARKDOWN = `

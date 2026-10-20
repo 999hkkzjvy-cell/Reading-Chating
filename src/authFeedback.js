@@ -1,7 +1,7 @@
 import { initAuth } from './auth.js';
 import { authDiagnosticReport } from './authDiagnostics.js';
 import { store } from './store.js';
-import { router } from './router.js';
+import { router } from './router.js?v=page-load-20261021-1';
 
 let bound = false;
 let slowTimer;

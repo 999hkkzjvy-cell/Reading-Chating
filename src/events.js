@@ -1,7 +1,7 @@
 import { statusTag } from './components.js';
 import { STATUS_CLASS, STATUS_MAP } from './constants.js';
 import { loadEvents } from './data.js';
-import { route } from './router.js';
+import { route } from './router.js?v=page-load-20261021-1';
 import { sb } from './supabaseClient.js';
 import { formatDateTime, h, safeMarked, safeUrl } from './utils.js';
 

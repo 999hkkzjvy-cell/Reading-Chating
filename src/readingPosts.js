@@ -28,7 +28,7 @@ import {
 import { clearCachedPost, getCachedPost, renderPostCard, renderPosts } from './readingPostCards.js';
 import { renderReadingActivityCalendar } from './readingPostCalendar.js';
 import { formatBookTitle, postTypeOptions, visibilityOptions } from './readingPostUtils.js';
-import { route, router } from './router.js';
+import { route, router } from './router.js?v=page-load-20261021-1';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { showModal, toast } from './ui.js';

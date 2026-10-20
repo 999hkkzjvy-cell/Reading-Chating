@@ -1,5 +1,5 @@
 import { loadMemberSummary } from './members.js';
-import { router } from './router.js';
+import { router } from './router.js?v=page-load-20261021-1';
 import { store } from './store.js';
 import { toast } from './ui.js';
 import { claimCoReadingPassword, consumeViewPass, redeemBookAccess } from './tickets.js';

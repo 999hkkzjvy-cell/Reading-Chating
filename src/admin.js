@@ -1,7 +1,7 @@
 import { statusTag } from './components.js';
 import { ACT_STATUSES, ACT_TYPES } from './constants.js';
-import { aiFillBookInfo, loadBooks, loadConfig, loadEvents } from './data.js?v=security-speed-20260928-1';
-import { route, router } from './router.js';
+import { aiFillBookInfo, loadBooks, loadConfig, loadEvents } from './data.js?v=page-load-20261021-1';
+import { route, router } from './router.js?v=page-load-20261021-1';
 import { sb } from './supabaseClient.js';
 import { store } from './store.js';
 import { createCoReadingPassword, setCoReadingPasswordActive } from './tickets.js';
